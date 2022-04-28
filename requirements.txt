@@ -3,3 +3,4 @@
 ################################
 
 git+https://github.com/google-research/t5x
+promptsource

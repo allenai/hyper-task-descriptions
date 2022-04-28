@@ -1,15 +1,6 @@
 """
-This file defines 8 mixtures that was used in the T-Zero paper:
-- t0_train: T0 training mixture
-- t0+_train: T0+ training mixture
-- t0++_train: T0++ training mixture
-- t0_eval_score_eval: T0 main evaluation mixture (Figure 4 for instance)
-- t0_train_score_eval: Evaluation mixture for checkpoint selection on T0 (validation splits of the training sets)
-- t0_train_one_og_prompt: T0 (p=1) training mixture for  - one original-task prompt per dataset. Figure 6
-- t0_train_all_og_prompts: T0 (p=5.7) training mixture for - all original-task prompts for all datasets. Figure 6
-- bias_fairness_eval_score_eval: Bias & fairness evaluation mixture. Appendix B3
-
-Taken from t-zero repo.
+Backbone code for creating T0 task registries.
+Adapted from t-zero repo.
 """
 
 
@@ -28,6 +19,11 @@ import tensorflow as tf
 from tqdm import tqdm
 
 from hyper_task_descriptions.seqio_tasks import utils
+
+# cached locations for everything - required to find data.
+seqio.add_global_cache_dirs(
+    ["gs://hamishi-tpu-bucket/t0_data/data", "gs://hamishi-tpu-bucket/t0_data/"]
+)
 
 GET_METRICS = {
     "BLEU": mt.bleu,
@@ -98,6 +94,24 @@ D4_TRAIN_SCORE_EVAL_TASK_BLACKLIST = [
     "wiki_hop_original_choose_best_object_affirmative_3_score_eval",
     "wiki_hop_original_choose_best_object_interrogative_1_score_eval",
     "wiki_hop_original_choose_best_object_interrogative_2_score_eval",
+]
+
+# Train tasks we don't care about evaluating on
+D4_TRAIN_SKIP_EVAL = [
+    "paws_labeled_final",
+    "adversarial_qa_dbidaf",
+    "adversarial_qa_dbert",
+    "duorc_ParaphraseRC",
+    "dream",
+    "amazon_polarity",
+    "app_reviews",
+    "imdb",
+    "wiki_bio",
+    "gigaword",
+    "multi_news",
+    "samsum",
+    "dbpedia_14",
+    "trec",
 ]
 
 
@@ -213,280 +227,8 @@ def add_task(
         )
 
 
-def add_t0_mixtures():
-    datatset_subset_tuple = Tuple[str, Optional[str]]
-    t0_eval: Dict[str, List[datatset_subset_tuple]] = {"BASE": [], "BIAS_FAIRNESS": []}
-    t0_train: Dict[str, List[datatset_subset_tuple]] = {
-        "BASE": [],
-        # GPT3 evaluation set
-        "GPT_EVAL": [],
-        # SuperGLUE (except RTE and CB)
-        "SGLUE": [],
-    }
-
-    gsheet: Dict[datatset_subset_tuple, Dict] = {}
-    experiment_path = pkg_resources.resource_filename(__name__, "datasets.csv")
-    with open(experiment_path) as exp_file:
-        reader = csv.DictReader(exp_file)
-        for row in reader:
-            if row["subset"] == "":
-                row["subset"] = None  # to match promptsource.Template object
-            dataset_subset = (row["HF_name"], row["subset"])
-            if row["do_train"] != "":
-                do_train_source = row["do_train"]
-                # sanity checks
-                if do_train_source == "SGLUE":
-                    assert dataset_subset[0] == "super_glue"
-                t0_train[do_train_source].append(dataset_subset)
-            if row["do_eval"] != "":
-                do_eval_source = row["do_eval"]
-                # sanity checks
-                if do_eval_source == "BIAS_FAIRNESS":
-                    assert row["task_by_convention"] == "bias_and_fairness"
-                t0_eval[do_eval_source].append(dataset_subset)
-            gsheet[dataset_subset] = row
-
+def create_mixture_lists(t0_train, t0_eval, gsheet):
     all_datasets = sum(t0_train.values(), []) + sum(t0_eval.values(), [])
-
-    all_templates = templates.TemplateCollection()
-    all_templates.remove("anli")  # Need to special-case ANLI due to weird split conventions
-
-    # 3 stages of training/ablation: D4 -> GPT -> SuperGLUE
-    t0_train_mixture: Dict[str, List[str]] = {key: [] for key in t0_train}
-    t0_eval_mixture: Dict[str, List[str]] = {key: [] for key in t0_eval}
-    mixture_cap: Dict[str, int] = {}
-    single_original_task: Dict[Tuple[str, str], str] = {}
-    all_original_tasks: List[str] = []
-    for dataset_name, subset_name in all_templates.keys:
-        if (dataset_name, subset_name) not in all_datasets:
-            all_templates.remove(dataset_name, subset_name)
-            continue
-
-        dataset = all_templates.get_dataset(dataset_name, subset_name)
-        num_templates = len(dataset.all_template_names)
-        train_size = gsheet[(dataset_name, subset_name)]["train_size"]
-        if train_size == "":
-            train_size = 0
-        else:
-            train_size = int(train_size)
-        if train_size > MAX_EXAMPLES_PER_DATASET:
-            cap = MAX_EXAMPLES_PER_DATASET // num_templates
-        else:
-            cap = train_size
-        for template_name in dataset.all_template_names:
-            add_task(dataset_name, subset_name, template_name, all_templates)
-
-            template = dataset[template_name]
-
-            task_name = utils.get_task_name(dataset_name, subset_name, template_name)
-
-            if (
-                dataset_name,
-                subset_name,
-            ) not in single_original_task and template.metadata.original_task:
-                single_original_task[(dataset_name, subset_name)] = task_name
-
-            if template.metadata.original_task:
-                all_original_tasks.append(task_name)
-
-            # Check that the dataset_subset_tuple is in t0_train
-            for key, dataset_subset_tuples in t0_train.items():
-                if (dataset_name, subset_name) in dataset_subset_tuples:
-                    t0_train_mixture[key].append(task_name)
-                    mixture_cap[task_name] = cap
-
-            # Check that the dataset_subset_tuple is in t0_eval
-            if (dataset_name, subset_name) in t0_eval["BASE"]:
-                if template.metadata.original_task:
-                    t0_eval_mixture["BASE"].append(task_name)
-                # TODO use template.metadata.answer_choices here for rank eval
-            if (dataset_name, subset_name) in t0_eval["BIAS_FAIRNESS"]:
-                t0_eval_mixture["BIAS_FAIRNESS"].append(task_name)
-
-    # Special case for ANLI, which has weirdly-named splits and rounds that should be subsets
-    dataset_name, subset_name = ("anli", None)
-    dataset = all_templates.get_dataset(dataset_name, subset_name)
-    for anli_round in ("r1", "r2", "r3"):
-        for template_name in all_templates.get_dataset(
-            dataset_name, subset_name
-        ).all_template_names:
-            task_name = (
-                utils.get_task_name(dataset_name, subset_name, template_name) + f"_{anli_round}"
-            )
-            split_mapping = {
-                "train": f"train_{anli_round}",
-                "validation": f"dev_{anli_round}",
-                "test": f"test_{anli_round}",
-            }
-            add_task(
-                dataset_name, subset_name, template_name, all_templates, task_name, split_mapping
-            )
-
-            template = dataset[template_name]
-            if template.metadata.original_task:
-                t0_eval_mixture["BASE"].append(task_name)  # TODO or add to ANLI special mixture
-            # TODO use template.metadata.answer_choices here for rank eval
-
-    seqio.MixtureRegistry.add(
-        "t0_train",
-        [task for task in t0_train_mixture["BASE"] if task not in TASK_BLACKLIST],
-        default_rate=lambda t: mixture_cap[t.name],
-    )
-
-    seqio.MixtureRegistry.add(
-        "t0+_train",
-        [
-            task
-            for task in t0_train_mixture["BASE"] + t0_train_mixture["GPT_EVAL"]
-            if task not in TASK_BLACKLIST
-        ],
-        default_rate=lambda t: mixture_cap[t.name],
-    )
-
-    seqio.MixtureRegistry.add(
-        "t0++_train",
-        [
-            task
-            for task in t0_train_mixture["BASE"]
-            + t0_train_mixture["GPT_EVAL"]
-            + t0_train_mixture["SGLUE"]
-            if task not in TASK_BLACKLIST
-        ],
-        default_rate=lambda t: mixture_cap[t.name],
-    )
-
-    seqio.MixtureRegistry.add(
-        "t0_eval_score_eval",
-        [
-            task
-            for task in seqio.TaskRegistry.names()
-            if task.endswith("_score_eval")
-            and task.split("_score_eval")[0] in t0_eval_mixture["BASE"]
-            and task.split("_score_eval")[0] not in TASK_BLACKLIST
-        ],
-        default_rate=functools.partial(seqio.mixing_rate_num_examples, maximum=500_000),
-    )
-
-    # a small set of tasks to develop over
-    seqio.MixtureRegistry.add(
-        "small_dev_tasks",
-        [
-            task
-            for task in t0_train_mixture["BASE"]
-            + t0_train_mixture["GPT_EVAL"]
-            + t0_train_mixture["SGLUE"]
-            if task not in TASK_BLACKLIST
-        ][:10],
-        default_rate=lambda t: mixture_cap[t.name],
-    )
-
-    # Train tasks we don't care about evaluating on
-    D4_TRAIN_SKIP_EVAL = [
-        "paws_labeled_final",
-        "adversarial_qa_dbidaf",
-        "adversarial_qa_dbert",
-        "duorc_ParaphraseRC",
-        "dream",
-        "amazon_polarity",
-        "app_reviews",
-        "imdb",
-        "wiki_bio",
-        "gigaword",
-        "multi_news",
-        "samsum",
-        "dbpedia_14",
-        "trec",
-    ]
-
-    seqio.MixtureRegistry.add(
-        "t0_train_score_eval",
-        [
-            task
-            for task in seqio.TaskRegistry.names()
-            if task.endswith("_score_eval")
-            and task.split("_score_eval")[0] in t0_train_mixture["BASE"]
-            and task.split("_score_eval")[0] not in TASK_BLACKLIST
-            and task not in D4_TRAIN_SCORE_EVAL_TASK_BLACKLIST
-            and not any([skip in task for skip in D4_TRAIN_SKIP_EVAL])
-            and task.split("_score_eval")[0] in all_original_tasks
-        ],
-        default_rate=functools.partial(seqio.mixing_rate_num_examples, maximum=500_000),
-    )
-
-    seqio.MixtureRegistry.add(
-        "t0_train_one_og_prompt",
-        [
-            task
-            for task in single_original_task.values()
-            if task in t0_train_mixture["BASE"] and task not in TASK_BLACKLIST
-        ],
-        default_rate=lambda t: mixture_cap[t.name],
-    )
-
-    seqio.MixtureRegistry.add(
-        "t0_train_all_og_prompts",
-        [
-            task
-            for task in all_original_tasks
-            if task in t0_train_mixture["BASE"] and task not in TASK_BLACKLIST
-        ],
-        default_rate=lambda t: mixture_cap[t.name],
-    )
-
-    seqio.MixtureRegistry.add(
-        "bias_fairness_eval_score_eval",
-        [
-            task
-            for task in seqio.TaskRegistry.names()
-            if task.endswith("_score_eval")
-            and task.split("_score_eval")[0] in t0_eval_mixture["BIAS_FAIRNESS"]
-        ],
-        default_rate=functools.partial(seqio.mixing_rate_num_examples, maximum=500_000),
-    )
-
-
-# smaller registry set to avoid loading all of t0
-def add_small_t0_set():
-    datatset_subset_tuple = Tuple[str, Optional[str]]
-    t0_eval: Dict[str, List[datatset_subset_tuple]] = {"BASE": [], "BIAS_FAIRNESS": []}
-    t0_train: Dict[str, List[datatset_subset_tuple]] = {
-        "BASE": [],
-        # GPT3 evaluation set
-        "GPT_EVAL": [],
-        # SuperGLUE (except RTE and CB)
-        "SGLUE": [],
-    }
-
-    gsheet: Dict[datatset_subset_tuple, Dict] = {}
-    experiment_path = pkg_resources.resource_filename(__name__, "datasets.csv")
-    with open(experiment_path) as exp_file:
-        reader = csv.DictReader(exp_file)
-        for row in reader:
-            if row["subset"] == "":
-                row["subset"] = None  # to match promptsource.Template object
-            dataset_subset = (row["HF_name"], row["subset"])
-            if row["do_train"] != "":
-                do_train_source = row["do_train"]
-                # sanity checks
-                if do_train_source == "SGLUE":
-                    assert dataset_subset[0] == "super_glue"
-                t0_train[do_train_source].append(dataset_subset)
-            if row["do_eval"] != "":
-                do_eval_source = row["do_eval"]
-                # sanity checks
-                if do_eval_source == "BIAS_FAIRNESS":
-                    assert row["task_by_convention"] == "bias_and_fairness"
-                t0_eval[do_eval_source].append(dataset_subset)
-            gsheet[dataset_subset] = row
-
-    # core part: shrink t0_train and t0_eval
-    for k in t0_train:
-        t0_train[k] = [t0_train[k][0]]
-    for k in t0_eval:
-        t0_eval[k] = [t0_eval[k][0]]
-
-    all_datasets = sum(t0_train.values(), []) + sum(t0_eval.values(), [])
-    print(all_datasets)
 
     all_templates = templates.TemplateCollection()
     all_templates.remove("anli")  # Need to special-case ANLI due to weird split conventions
@@ -543,8 +285,44 @@ def add_small_t0_set():
             if (dataset_name, subset_name) in t0_eval["BIAS_FAIRNESS"]:
                 t0_eval_mixture["BIAS_FAIRNESS"].append(task_name)
 
-    seqio.MixtureRegistry.add(
-        "t0_small_train",
-        [task for task in t0_train_mixture["BASE"] if task not in TASK_BLACKLIST],
-        default_rate=lambda t: mixture_cap[t.name],
+    return (
+        t0_train_mixture,
+        t0_eval_mixture,
+        mixture_cap,
+        single_original_task,
+        all_original_tasks,
     )
+
+
+def load_t0_csv():
+    datatset_subset_tuple = Tuple[str, Optional[str]]
+    t0_eval: Dict[str, List[datatset_subset_tuple]] = {"BASE": [], "BIAS_FAIRNESS": []}
+    t0_train: Dict[str, List[datatset_subset_tuple]] = {
+        "BASE": [],
+        # GPT3 evaluation set
+        "GPT_EVAL": [],
+        # SuperGLUE (except RTE and CB)
+        "SGLUE": [],
+    }
+    gsheet: Dict[Tuple[str, Optional[str]], Dict] = {}
+    experiment_path = pkg_resources.resource_filename(__name__, "datasets.csv")
+    with open(experiment_path) as exp_file:
+        reader = csv.DictReader(exp_file)
+        for row in reader:
+            if row["subset"] == "":
+                row["subset"] = None  # to match promptsource.Template object
+            dataset_subset = (row["HF_name"], row["subset"])
+            if row["do_train"] != "":
+                do_train_source = row["do_train"]
+                # sanity checks
+                if do_train_source == "SGLUE":
+                    assert dataset_subset[0] == "super_glue"
+                t0_train[do_train_source].append(dataset_subset)
+            if row["do_eval"] != "":
+                do_eval_source = row["do_eval"]
+                # sanity checks
+                if do_eval_source == "BIAS_FAIRNESS":
+                    assert row["task_by_convention"] == "bias_and_fairness"
+                t0_eval[do_eval_source].append(dataset_subset)
+            gsheet[dataset_subset] = row
+    return t0_train, t0_eval, gsheet

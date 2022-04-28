@@ -21,10 +21,10 @@ from t5x import utils
 
 import seqio
 from seqio import loggers
-from hyper_task_descriptions import t0_tasks # Needed to define the task `t5x_t0_eval`
+from hyper_task_descriptions import all_t0_tasks # Needed to define the task `t5x_t0_eval`
 
 # Must be overridden
-MIXTURE_OR_TASK_NAME = "t5x_t0_eval"
+MIXTURE_OR_TASK_NAME = "t0_eval_score_eval"
 CHECKPOINT_PATH = %gin.REQUIRED
 EVAL_OUTPUT_DIR = %gin.REQUIRED
 TASK_FEATURE_LENGTHS = {"inputs": 1024, "targets": 256}

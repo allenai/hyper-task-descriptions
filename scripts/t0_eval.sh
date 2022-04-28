@@ -4,15 +4,15 @@ EXPERIMENT_NAME=$2
 
 MODEL_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/model"
 EVAL_OUTPUT_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/eval_output"
-T5X_DIR="."  # directory where the T5X repo is cloned.
-PROJECT_DIR="./hyper/gins"  # directory for extra bits
-export PYTHONPATH=${PROJECT_DIR}
 
-
-HF_DATASETS_OFFLINE=1 python3 ${T5X_DIR}/t5x/eval.py \
-    --gin_search_paths=${PROJECT_DIR} \
-    --gin_file="enc_dec_xxl.gin" \
-    --gin_file="eval_t0.gin" \
+# we go offline to avoid constant calls to get basic info (happens even when cached)
+# for your first run, you will probably need to run all these calls :(
+# note you pass in a model file and the eval file.
+HF_DATASETS_OFFLINE=1 python -m t5x.eval \
+    --gin_search_paths="gins" \
+    --gin_search_paths="t5x/examples/t5/t5_1_1" \
+    --gin_file="xl.gin" \
+    --gin_file="t0_eval.gin" \
     --gin.utils.DatasetConfig.batch_size=128 \
     --gin.CHECKPOINT_PATH="'$MODEL_DIR'" \
     --gin.EVAL_OUTPUT_DIR="'$EVAL_OUTPUT_DIR'"
