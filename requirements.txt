@@ -2,5 +2,5 @@
 ###### Core dependencies #######
 ################################
 
-git+https://github.com/google-research/t5x#egg=t5x
-promptsource
+git+https://github.com/google-research/t5x.git
+promptsource==0.2.2
