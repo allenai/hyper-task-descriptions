@@ -10,8 +10,7 @@ EVAL_OUTPUT_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/eval_output"
 # note you pass in a model file and the eval file.
 HF_DATASETS_OFFLINE=1 python -m t5x.eval \
     --gin_search_paths="gins" \
-    --gin_search_paths="t5x/examples/t5/t5_1_1" \
-    --gin_file="xl.gin" \
+    --gin_file="t5x/examples/t5/t5_1_1xl.gin" \
     --gin_file="t0_eval.gin" \
     --gin.utils.DatasetConfig.batch_size=128 \
     --gin.CHECKPOINT_PATH="'$MODEL_DIR'" \
