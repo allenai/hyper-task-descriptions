@@ -10,12 +10,12 @@ from typing import Dict, List, Optional, Tuple
 
 import datasets
 import pkg_resources
-from promptsource import templates
 import seqio
 import t5
+import tensorflow as tf
+from promptsource import templates
 from t5.data.glue_utils import get_glue_metric, get_super_glue_metric
 from t5.evaluation import metrics as mt
-import tensorflow as tf
 from tqdm import tqdm
 
 from hyper_task_descriptions.seqio_tasks import utils

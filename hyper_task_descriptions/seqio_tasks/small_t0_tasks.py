@@ -2,10 +2,11 @@
 Defines 't0_small_train', a minimal set of tasks to allow local dev without loading all of P3.
 """
 import seqio
+
 from hyper_task_descriptions.seqio_tasks.t0_tasks import (
-    load_t0_csv,
-    create_mixture_lists,
     TASK_BLACKLIST,
+    create_mixture_lists,
+    load_t0_csv,
 )
 
 t0_train, t0_eval, gsheet = load_t0_csv()

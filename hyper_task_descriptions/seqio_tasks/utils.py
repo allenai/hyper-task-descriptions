@@ -4,9 +4,8 @@ From t-zero repo
 import re
 
 import datasets
+import promptsource
 import tensorflow as tf
-
-import promptsource.utils
 
 
 def feature_to_spec(feature, length=False):

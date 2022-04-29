@@ -15,17 +15,17 @@ Adapted from T0 repo.
 import functools
 from typing import Dict, List, Tuple
 
-from promptsource import templates
 import seqio
+from promptsource import templates
 
 from hyper_task_descriptions.seqio_tasks import utils
 from hyper_task_descriptions.seqio_tasks.t0_tasks import (
-    load_t0_csv,
-    create_mixture_lists,
-    add_task,
-    TASK_BLACKLIST,
     D4_TRAIN_SCORE_EVAL_TASK_BLACKLIST,
     D4_TRAIN_SKIP_EVAL,
+    TASK_BLACKLIST,
+    add_task,
+    create_mixture_lists,
+    load_t0_csv,
 )
 
 t0_train, t0_eval, gsheet = load_t0_csv()
