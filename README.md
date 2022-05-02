@@ -19,6 +19,8 @@ Run `./scripts/local.sh` for a small model + small subset of T0 data that is use
 
 `script/t0_train.sh` will train a T0 model.
 
-`script/t0_eval.sh` will run evaluation (note: I have not tested this yet).
+`script/t0_eval.sh` will run evaluation.
 
 These scripts are fairly simple, so please look at them to determine how to run more custom samples. Note that despite caching P3 data, the code will still need to make internet connections to get dataset sizes/splits/etc. You only have to let this run through once, and afterwards you can use `HF_DATASETS_OFFLINE=1` to force the model to use its cache, which vastly speeds things up.
+
+Note that tensorboard is integrated into t5x, so you should be able to launch tensorboard locally and point it at the bucket directory where you are outputting model artifacts to monitor training/evaluation.
