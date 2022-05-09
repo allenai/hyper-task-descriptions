@@ -44,7 +44,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 class HyperT5Config(T5Config):
     adapter_size: int = 64
     hbottleneck_size: int = 128
-    roberta_model: str = "roberta-base"
+    roberta_model: str = 'roberta-base'
 
 
 class SimplerLinear(nn.Module):

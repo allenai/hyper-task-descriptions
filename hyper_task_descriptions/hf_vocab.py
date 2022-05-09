@@ -1,0 +1,78 @@
+from typing import Iterable, Optional, Sequence
+
+import tensorflow.compat.v2 as tf
+from seqio import Vocabulary
+from transformers import AutoTokenizer
+
+
+class HuggingfaceVocabulary(Vocabulary):
+    """Really simple wrapper around huggingface tokenizer."""
+
+    def __init__(self, model_name: str, extra_ids: int = 0):
+        """Vocabulary constructor.
+        Args:
+          extra_ids: The number of extra IDs to reserve.
+        """
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model_name = model_name
+        self._extra_ids = extra_ids or 0
+        assert self._extra_ids == 0
+        super().__init__(extra_ids=extra_ids)
+
+    @property
+    def eos_id(self) -> Optional[int]:
+        return self.tokenizer.eos_token_id
+
+    @property
+    def pad_id(self) -> int:
+        return self.tokenizer.pad_token_id
+
+    @property
+    def unk_id(self) -> Optional[int]:
+        return self.tokenizer.unk_token_id
+
+    @property
+    def _base_vocab_size(self) -> int:
+        """Vocabulary size, excluding extra ids but including PAD/EOS/UNK."""
+        return self.tokenizer.vocab_size
+
+    def _encode(self, s: str) -> Sequence[int]:
+        return self.tokenizer(s, add_special_tokens=False)["input_ids"]
+
+    def _decode(self, ids):
+        return self.tokenizer.decoder(ids, skip_special_tokens=True)
+
+    def decode(self, ids: Iterable[int]):
+        """Detokenizes int32 iterable to a string, up through first EOS."""
+        clean_ids = list(ids)
+
+        if self.unk_id is not None:
+            vocab_size = self._base_vocab_size
+            clean_ids = [self.unk_id if i >= vocab_size else i for i in clean_ids]
+
+        if self.eos_id is not None and self.eos_id in clean_ids:
+            clean_ids = clean_ids[: clean_ids.index(self.eos_id) + 1]
+
+        return self._decode(clean_ids)
+
+    def _encode_tf(self, s: tf.Tensor) -> tf.Tensor:
+        def enc(s):
+            return self.tokenizer(
+                s.numpy().decode("utf-8"), return_tensors="tf", add_special_tokens=False
+            )["input_ids"]
+
+        # we reshape to ensure that we get a 1-dimensional tensor.
+        return tf.reshape(tf.py_function(enc, [s], Tout=tf.int32), [-1])
+
+    def _decode_tf(self, ids: tf.Tensor) -> tf.Tensor:
+        return tf.constant(self.tokenizer.decode(ids, skip_special_tokens=True))
+
+    def __eq__(self, other):
+        # this is an overly simple implementation of __eq__, but should be okay.
+        if not isinstance(other, HuggingfaceVocabulary):
+            return False
+        try:
+            their_model_name = other.model_name
+        except AttributeError:
+            return False
+        return self.model_name == their_model_name

@@ -9,6 +9,8 @@ Before running any code, you'll need access to `gs://hamishi-tpu-bucket` (where 
 
 `pip install -e .` should work. If not, the main two dependencies are [`t5x`](https://github.com/google-research/t5x) and [`promptsource`](https://github.com/bigscience-workshop/promptsource), which you can find installation instructions for at the links. Note we don't need to run the interface bundled with promptsource, so you can safely ignore the python 3.7 requirement.
 
+**N.B. If you want to run locally without cached tasks (e.g. you might be changing the preprocessing) then you'll need to make the changes made in [this seqio PR](https://github.com/google/seqio/pull/153) in your copy of seqio.**
+
 ### TPU installation
 
 Please install t5x using the instructions found [here](https://github.com/google-research/t5x#installation) - there are some TPU-specific things to install with T5X. Afterwards, install promptsource.

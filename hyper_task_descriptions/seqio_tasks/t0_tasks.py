@@ -18,11 +18,13 @@ from t5.data.glue_utils import get_glue_metric, get_super_glue_metric
 from t5.evaluation import metrics as mt
 from tqdm import tqdm
 
+from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from hyper_task_descriptions.seqio_tasks import utils
 
 # cached locations for everything - required to find data.
 seqio.add_global_cache_dirs(
-    ["gs://hamishi-tpu-bucket/t0_data/data", "gs://hamishi-tpu-bucket/t0_data/"]
+    ["/Users/hamishivison/Programming/hyper-task-descriptions/task"]
+    # ["gs://hamishi-tpu-bucket/t0_data/data", "gs://hamishi-tpu-bucket/t0_data/"]
 )
 
 GET_METRICS = {
@@ -167,7 +169,6 @@ def add_task(
 
     dataset_fn = functools.partial(
         get_tf_dataset,
-        seed=None,
         dataset_name=dataset_name,
         subset_name=subset_name,
         template=template,
@@ -180,9 +181,14 @@ def add_task(
             s: dataset_splits[split_mapping[s]].num_examples for s in split_mapping.keys()
         },
     )
+    # use my unique vocab instead.
+    t5_vocab = HuggingfaceVocabulary("t5-base")
+    roberta_vocab = HuggingfaceVocabulary("roberta-base")
+
     output_features = {
-        "inputs": seqio.Feature(t5.data.get_default_vocabulary(), add_eos=False, dtype=tf.int32),
-        "targets": seqio.Feature(t5.data.get_default_vocabulary(), add_eos=True, dtype=tf.int32),
+        "inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
+        "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=False, dtype=tf.int32),
+        "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
     }
     preprocessors = [
         seqio.preprocessors.tokenize,

@@ -1,0 +1,15 @@
+# T5.1.1 tiny model.
+
+include 'gins/hyper_base.gin'  # imports vocab, optimizer and model.
+
+# ------------------- Network specification overrides --------------------------
+hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  emb_dim = 8
+  num_heads = 4
+  num_encoder_layers = 2
+  num_decoder_layers = 2
+  head_dim = 3
+  mlp_dim = 16
+  adapter_size = 8
+  hbottleneck_size = 16

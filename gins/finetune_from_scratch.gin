@@ -42,7 +42,7 @@ TRAIN_STEPS = %gin.REQUIRED
 
 # Commonly overridden
 DROPOUT_RATE = 0.1
-USE_CACHED_TASKS = True
+USE_CACHED_TASKS = %USE_CACHED_TASKS
 BATCH_SIZE = 128
 
 # Sometimes overridden
