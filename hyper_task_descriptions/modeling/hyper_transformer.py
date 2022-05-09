@@ -1,0 +1,421 @@
+"""
+Define wrapper class for three-input model.
+Required so we can have different underlying encoder and hypernet inputs.
+This is adapted from the EncoderDecoderModel class in t5x.
+"""
+import functools
+from typing import Any, Callable, Mapping, MutableMapping, Optional, Tuple, Union
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import seqio
+import tensorflow as tf
+from flax import linen as nn
+from flax.core import scope as flax_scope
+from seqio import FeatureConverter, non_padding_position, utils
+from t5x import decoding, optimizers
+from t5x.models import DecodeFnCallable, EncoderDecoderModel
+
+Array = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
+PyTreeDef = type(jax.tree_structure(None))
+
+
+class HyperEncDecFeatureConverter(FeatureConverter):
+    """Feature converter for an encoder-decoder with hypernet architecture.
+    Really this is just providing a second encoder input to the model.
+    """
+
+    TASK_FEATURES = {
+        "inputs": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "hyper_inputs": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "targets": FeatureConverter.FeatureSpec(dtype=tf.int32),
+    }
+    MODEL_FEATURES = {
+        "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "hyper_encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "decoder_target_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "decoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "decoder_loss_weights": FeatureConverter.FeatureSpec(dtype=tf.int32),
+    }
+    PACKING_FEATURE_DTYPES = {
+        "encoder_segment_ids": tf.int32,
+        "hyper_encoder_segment_ids": tf.int32,
+        "decoder_segment_ids": tf.int32,
+        "encoder_positions": tf.int32,
+        "decoder_positions": tf.int32,
+    }
+
+    def _convert_features(
+        self, ds: tf.data.Dataset, task_feature_lengths: Mapping[str, int]
+    ) -> tf.data.Dataset:
+        """Convert the dataset to be fed to the encoder-decoder model.
+
+        The conversion process involves two steps
+
+        1. Each feature in the `task_feature_lengths` is trimmed/padded and
+           optionally packed depending on the value of self.pack.
+        2. "inputs" fields are mapped to the encoder input and "targets" are mapped
+           to decoder input (after being shifted) and target.
+
+        All the keys in the `task_feature_lengths` should be present in the input
+        dataset, which may contain some extra features that are not in the
+        `task_feature_lengths`. They will not be included in the output dataset.
+        One common scenario is the "inputs_pretokenized" and "targets_pretokenized"
+        fields.
+
+        Args:
+          ds: an input tf.data.Dataset to be converted.
+          task_feature_lengths: a mapping from feature to its length.
+
+        Returns:
+          ds: the converted dataset.
+        """
+
+        def convert_example(features: Mapping[str, tf.Tensor]) -> Mapping[str, tf.Tensor]:
+            # targets_segment_id is present only for a packed dataset.
+            decoder_input_tokens = utils.make_autoregressive_inputs(
+                features["targets"], sequence_id=features.get("targets_segment_ids", None)
+            )
+
+            d = {
+                "encoder_input_tokens": features["inputs"],
+                "hyper_encoder_input_tokens": features["hyper_inputs"],
+                "decoder_target_tokens": features["targets"],
+                "decoder_input_tokens": decoder_input_tokens,
+                # Loss is computed for all but the padding positions.
+                "decoder_loss_weights": non_padding_position(features["targets"]),
+            }
+
+            if self.pack:
+                d["encoder_segment_ids"] = features["inputs_segment_ids"]
+                d["hyper_encoder_segment_ids"] = features["hyper_inputs_segment_ids"]
+                d["decoder_segment_ids"] = features["targets_segment_ids"]
+                d["encoder_positions"] = features["inputs_positions"]
+                d["decoder_positions"] = features["targets_positions"]
+
+            return d
+
+        ds = self._pack_or_pad(ds, task_feature_lengths)
+        return ds.map(convert_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+    def get_model_feature_lengths(
+        self, task_feature_lengths: Mapping[str, int]
+    ) -> Mapping[str, int]:
+        """Define the length relationship between input and output features."""
+        encoder_length = task_feature_lengths["inputs"]
+        hyper_encoder_length = task_feature_lengths["hyper_inputs"]
+        decoder_length = task_feature_lengths["targets"]
+
+        model_feature_lengths = {
+            "encoder_input_tokens": encoder_length,
+            "hyper_encoder_input_tokens": hyper_encoder_length,
+            "decoder_target_tokens": decoder_length,
+            "decoder_input_tokens": decoder_length,
+            "decoder_loss_weights": decoder_length,
+        }
+        if self.pack:
+            model_feature_lengths["encoder_segment_ids"] = encoder_length
+            model_feature_lengths["hyper_encoder_segment_ids"] = hyper_encoder_length
+            model_feature_lengths["decoder_segment_ids"] = decoder_length
+            model_feature_lengths["encoder_positions"] = encoder_length
+            model_feature_lengths["decoder_positions"] = decoder_length
+
+        return model_feature_lengths
+
+
+class HyperEncoderDecoderModel(EncoderDecoderModel):
+    """Wrapper class for the models.Transformer nn.module."""
+
+    FEATURE_CONVERTER_CLS = HyperEncDecFeatureConverter
+
+    def __init__(
+        self,
+        module: nn.Module,
+        input_vocabulary: seqio.Vocabulary,
+        output_vocabulary: seqio.Vocabulary,
+        optimizer_def: optimizers.OptimizerDefType,
+        decode_fn: DecodeFnCallable = decoding.beam_search,
+        feature_converter_cls: Optional[Callable[..., seqio.FeatureConverter]] = None,
+        label_smoothing: float = 0.0,
+        z_loss: float = 0.0,
+        loss_normalizing_factor: Optional[float] = None,
+    ):
+        if feature_converter_cls is not None:
+            self.FEATURE_CONVERTER_CLS = feature_converter_cls  # pylint: disable=invalid-name
+        super().__init__(
+            module=module,
+            input_vocabulary=input_vocabulary,
+            output_vocabulary=output_vocabulary,
+            optimizer_def=optimizer_def,
+            decode_fn=decode_fn,
+            label_smoothing=label_smoothing,
+            z_loss=z_loss,
+            loss_normalizing_factor=loss_normalizing_factor,
+        )
+
+    def get_initial_variables(
+        self,
+        rng: jax.random.KeyArray,
+        input_shapes: Mapping[str, Array],
+        input_types: Optional[Mapping[str, jnp.dtype]] = None,
+    ) -> flax_scope.FrozenVariableDict:
+        """Get the initial variables for an encoder-decoder model."""
+        input_types = {} if input_types is None else input_types
+        encoder_shape = input_shapes["encoder_input_tokens"]
+        encoder_type = input_types.get("encoder_input_tokens", jnp.float32)
+        hyper_encoder_shape = input_shapes["hyper_encoder_input_tokens"]
+        hyper_encoder_type = input_types.get("hyper_encoder_input_tokens", jnp.float32)
+        decoder_shape = input_shapes["decoder_input_tokens"]
+        decoder_type = input_types.get("decoder_input_tokens", jnp.float32)
+        if "encoder_positions" in input_shapes:
+            encoder_positions = jnp.ones(
+                input_shapes["encoder_positions"], input_types.get("encoder_positions", jnp.int32)
+            )
+        else:
+            encoder_positions = None
+        if "hyper_encoder_positions" in input_shapes:
+            hyper_encoder_positions = jnp.ones(
+                input_shapes["hyper_encoder_positions"],
+                input_types.get("hyper_encoder_positions", jnp.int32),
+            )
+        else:
+            hyper_encoder_positions = None
+        if "decoder_positions" in input_shapes:
+            decoder_positions = jnp.ones(
+                input_shapes["decoder_positions"], input_types.get("decoder_positions", jnp.int32)
+            )
+        else:
+            decoder_positions = None
+        if "encoder_segment_ids" in input_shapes:
+            encoder_segment_ids = jnp.ones(
+                input_shapes["encoder_segment_ids"],
+                input_types.get("encoder_segment_ids", jnp.int32),
+            )
+        else:
+            encoder_segment_ids = None
+        if "hyper_encoder_segment_ids" in input_shapes:
+            hyper_encoder_segment_ids = jnp.ones(
+                input_shapes["hyper_encoder_segment_ids"],
+                input_types.get("hyper_encoder_segment_ids", jnp.int32),
+            )
+        else:
+            hyper_encoder_segment_ids = None
+        if "decoder_segment_ids" in input_shapes:
+            decoder_segment_ids = jnp.ones(
+                input_shapes["decoder_segment_ids"],
+                input_types.get("decoder_segment_ids", jnp.int32),
+            )
+        else:
+            decoder_segment_ids = None
+        initial_variables = self.module.init(
+            rng,
+            jnp.ones(encoder_shape, encoder_type),
+            jnp.ones(hyper_encoder_shape, hyper_encoder_type),
+            jnp.ones(decoder_shape, decoder_type),
+            jnp.ones(decoder_shape, decoder_type),
+            encoder_positions=encoder_positions,
+            hyper_encoder_positions=hyper_encoder_positions,
+            decoder_positions=decoder_positions,
+            encoder_segment_ids=encoder_segment_ids,
+            hyper_encoder_segment_ids=hyper_encoder_segment_ids,
+            decoder_segment_ids=decoder_segment_ids,
+            decode=False,
+            enable_dropout=False,
+        )
+        #  roberta has no partitions, so we add that here.
+        from flax.core.frozen_dict import freeze, unfreeze
+
+        from hyper_task_descriptions.modeling.roberta_partitioning import set_partitions
+
+        roberta_params = initial_variables["params"]["hyper"]["encoder"]
+        roberta_partitions = set_partitions(roberta_params)
+        initial_variables = unfreeze(initial_variables)
+        initial_variables["params_axes"]["hyper"]["encoder"] = roberta_partitions
+        initial_variables = freeze(initial_variables)
+        return initial_variables
+
+    def _compute_logits(
+        self,
+        params: PyTreeDef,
+        batch: Mapping[str, jnp.ndarray],
+        dropout_rng: Optional[jax.random.KeyArray] = None,
+        mutable: flax_scope.CollectionFilter = False,
+        other_variables: Optional[PyTreeDef] = None,
+    ) -> Union[jnp.ndarray, Tuple[jnp.ndarray, flax_scope.FrozenVariableDict]]:
+        """Computes logits via a forward pass of `self.module_cls`."""
+        # Dropout is provided only for the training mode.
+        rngs = {"dropout": dropout_rng} if dropout_rng is not None else None
+        if other_variables is None:
+            other_variables = {}
+        return self.module.apply(
+            {"params": params, **other_variables},
+            batch["encoder_input_tokens"],
+            batch["hyper_encoder_input_tokens"],
+            batch["decoder_input_tokens"],
+            batch["decoder_target_tokens"],
+            encoder_segment_ids=batch.get("encoder_segment_ids", None),
+            hyper_encoder_segment_ids=batch.get("hyper_encoder_segment_ids", None),
+            decoder_segment_ids=batch.get("decoder_segment_ids", None),
+            encoder_positions=batch.get("encoder_positions", None),
+            hyper_encoder_positions=batch.get("hyper_encoder_positions", None),
+            decoder_positions=batch.get("decoder_positions", None),
+            decode=False,
+            enable_dropout=rngs is not None,
+            rngs=rngs,
+            mutable=mutable,
+        )
+
+    # for now, not heavily editing the decoder side.
+    # will require more edits when I add hypernet stuff to decoder.
+    def predict_batch_with_aux(
+        self,
+        params: PyTreeDef,
+        batch: Mapping[str, jnp.ndarray],
+        rng: Optional[jax.random.KeyArray] = None,
+        decoder_params: Optional[MutableMapping[str, Any]] = None,
+        return_all_decodes: bool = False,
+        num_decodes: int = 1,
+        prompt_with_targets: bool = False,
+    ) -> Tuple[jnp.ndarray, Mapping[str, jnp.ndarray]]:
+        """Predict with fast decoding beam search on a batch.
+
+        Here we refer to "parameters" for values that can be compiled into the
+        model dynamically, as opposed to static configuration settings that require
+        a recompile. For example, the model weights and the decoder brevity-penalty
+        are parameters and can be modified without requiring a recompile. The number
+        of layers, the batch size and the decoder beam size are configuration
+        options that require recompilation if changed.
+
+        This method can be used with a customizable decoding function as long as it
+        follows the signature of `DecodeFnCallable`. In order to provide a unified
+        interface for the decoding functions, we use a generic names. For example, a
+        beam size is a concept unique to beam search. Conceptually, it corresponds
+        to the number of sequences returned by the beam search.  Therefore, the
+        generic argument `num_decodes` corresponds to the beam size if
+        `self._decode_fn` is a beam search. For temperature sampling, `num_decodes`
+        corresponds to the number of independent sequences to be sampled. Typically
+        `num_decodes = 1` is used for temperature sampling.
+
+        If `return_all_decodes = True`, the return tuple contains the predictions
+        with a shape [batch, num_decodes, max_decode_len] and the scores (i.e., log
+        probability of the generated sequence) with a shape [batch, num_decodes].
+
+        If `return_all_decodes = False`, the return tuple contains the predictions
+        with a shape [batch, max_decode_len] and the scores with a shape [batch].
+
+        `decoder_params` can be used to pass dynamic configurations to
+        `self.decode_fn`. An example usage is to pass different random seed (i.e.,
+        `jax.random.PRNGKey(seed)` with different `seed` value). This can be done by
+        setting `decoder_params['decode_rng'] = jax.random.PRNGKey(seed)`.
+
+        If `prompt_with_targets = True`, then `decoder_prompt_inputs` is initialized
+        from the batch's `decoder_input_tokens`. The EOS is stripped to avoid
+        decoding to stop after the prompt by matching to `output_vocabulary.eos_id`.
+
+        Args:
+          params: model parameters.
+          batch: a batch of inputs.
+          rng: an optional RNG key to use during prediction, which is passed as
+            'decode_rng' to the decoding function.
+          decoder_params: additional (model-independent) parameters for the decoder.
+          return_all_decodes: whether to return the entire beam or just the top-1.
+          num_decodes: the number of beams to use in beam search.
+          prompt_with_targets: Whether the force decode decoder_inputs.
+
+        Returns:
+          A tuple containing:
+            the batch of predictions, with the entire beam if requested
+            an auxiliary dictionary of decoder scores
+        """
+        # Prepare zeroed-out autoregressive cache.
+        # [batch, input_len]
+        inputs = batch["encoder_input_tokens"]
+        hyper_inputs = batch["hyper_encoder_input_tokens"]
+        # [batch, target_len]
+        target_shape = batch["decoder_input_tokens"].shape
+        target_type = batch["decoder_input_tokens"].dtype
+        _, variables_with_cache = self.module.apply(
+            {"params": params},
+            jnp.ones(inputs.shape, inputs.dtype),
+            jnp.ones(hyper_inputs.shape, hyper_inputs.dtype),
+            jnp.ones(target_shape, target_type),
+            jnp.ones(target_shape, target_type),
+            decode=True,
+            enable_dropout=False,
+            mutable=["cache"],
+        )
+
+        cache = variables_with_cache["cache"]
+
+        # Prepare transformer fast-decoder call for beam search: for beam search, we
+        # need to set up our decoder model to handle a batch size equal to
+        # batch_size * num_decodes, where each batch item's data is expanded
+        # in-place rather than tiled.
+        # i.e. if we denote each batch element subtensor as el[n]:
+        # [el0, el1, el2] --> beamsize=2 --> [el0,el0,el1,el1,el2,el2]
+        # [batch * num_decodes, input_len, emb_dim]
+        encoded_inputs = decoding.flat_batch_beam_expand(
+            self.module.apply(
+                {"params": params}, inputs, enable_dropout=False, method=self.module.encode
+            ),
+            num_decodes,
+        )
+
+        # [batch * num_decodes, input_len]
+        raw_inputs = decoding.flat_batch_beam_expand(inputs, num_decodes)
+
+        tokens_ids_to_logits = functools.partial(
+            self._compute_logits_from_slice,
+            params=params,
+            encoded_inputs=encoded_inputs,
+            raw_inputs=raw_inputs,
+            max_decode_length=target_shape[1],
+        )
+
+        if decoder_params is None:
+            decoder_params = {}
+        if rng is not None:
+            if decoder_params.get("decode_rng") is not None:
+                raise ValueError(
+                    f"Got RNG both from the `rng` argument ({rng}) and "
+                    f"`decoder_params['decode_rng']` ({decoder_params['decode_rng']}). "
+                    "Please specify one or the other."
+                )
+            decoder_params["decode_rng"] = rng
+
+        # `decoder_prompt_inputs` is initialized from the batch's
+        # `decoder_input_tokens`. The EOS is stripped to avoid decoding to stop
+        # after the prompt by matching to `output_vocabulary.eos_id`.
+        # These inputs are ignored by the beam search decode fn.
+        if prompt_with_targets:
+            decoder_prompt_inputs = batch["decoder_input_tokens"]
+            decoder_prompt_inputs = decoder_prompt_inputs * (
+                decoder_prompt_inputs != self.output_vocabulary.eos_id
+            )
+        else:
+            decoder_prompt_inputs = jnp.zeros_like(batch["decoder_input_tokens"])
+
+        # TODO(hwchung): rename the returned value names to more generic ones.
+        # Using the above-defined single-step decoder function, run a
+        # beam search over possible sequences given input encoding.
+        # decodes: [batch, num_decodes, max_decode_len + 1]
+        # scores: [batch, num_decodes]
+        scanned = hasattr(self.module, "scan_layers") and self.module.scan_layers
+        decodes, scores = self._decode_fn(
+            inputs=decoder_prompt_inputs,
+            cache=cache,
+            tokens_to_logits=tokens_ids_to_logits,
+            eos_id=self.output_vocabulary.eos_id,
+            num_decodes=num_decodes,
+            cache_offset=1 if scanned else 0,
+            **decoder_params,
+        )
+
+        # Beam search returns [n_batch, n_beam, n_length] with beam dimension sorted
+        # in increasing order of log-probability.
+        # Return the highest scoring beam sequence.
+        if return_all_decodes:
+            return decodes, {"scores": scores}
+        else:
+            return decodes[:, -1, :], {"scores": scores[:, -1]}
