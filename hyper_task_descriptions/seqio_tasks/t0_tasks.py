@@ -187,7 +187,7 @@ def add_task(
 
     output_features = {
         "inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
-        "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=False, dtype=tf.int32),
+        "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=True, dtype=tf.int32),
         "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
     }
     preprocessors = [
