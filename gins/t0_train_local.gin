@@ -1,0 +1,19 @@
+# For training T0, but locally (using tiny model and training from scratch on a small set)
+# use this to test your modeling code - you'll need a gin that adds your modeling code (it should be compat. with t5 gins)
+from __gin__ import dynamic_registration
+
+from t5x import models
+from t5x import trainer
+from t5x import utils
+import seqio
+from hyper_task_descriptions.seqio_tasks import small_t0_tasks
+
+include "t5x/examples/t5/t5_1_1/tiny.gin"
+include "gins/finetune_from_scratch.gin"
+include "gins/t0.gin"
+
+TASK_FEATURE_LENGTHS = {"inputs": 128, "targets": 64} # shorter lengths to run faster
+MIXTURE_OR_TASK_NAME = "t0_small_train"
+BATCH_SIZE = 4
+
+trainer.Trainer.num_microbatches = 1 # gradient accumulation
