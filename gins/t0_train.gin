@@ -1,0 +1,17 @@
+# For training T0 (xxl = 11b, xl = 3b). Make sure you have cached p3 first!
+from __gin__ import dynamic_registration
+
+from t5x import models
+from t5x import trainer
+from t5x import utils
+import seqio
+from hyper_task_descriptions.seqio_tasks import all_t0_tasks
+
+include "t5x/examples/t5/t5_1_1/xl.gin"
+include "t5x/configs/runs/finetune.gin"
+include "gins/t0.gin" # This overrides some default config in `t5x/configs/runs/finetune.gin`
+
+TASK_FEATURE_LENGTHS = {"inputs": 1024, "targets": 256}
+MIXTURE_OR_TASK_NAME = "t0_train"
+
+trainer.Trainer.num_microbatches = 128 # 2048 // 128
