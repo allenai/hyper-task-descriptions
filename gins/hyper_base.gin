@@ -60,4 +60,5 @@ hyper_network.HyperT5Config:
   dropout_rate = %DROPOUT_RATE
   logits_via_embedding = False
   adapter_size = 64
+  num_prefix_tokens = 30
   hbottleneck_size = 64
