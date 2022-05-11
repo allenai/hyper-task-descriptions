@@ -61,3 +61,4 @@ utils.RestoreCheckpointConfig:
   path = %CHECKPOINT_PATH
   mode = 'specific'
   dtype = 'float32'
+  strict = True # make sure we actually load everything!
