@@ -7,7 +7,6 @@ from t5x import utils
 import seqio
 from hyper_task_descriptions.seqio_tasks import all_t0_tasks
 
-include "t5x/examples/t5/t5_1_1/small.gin"
 include "t5x/configs/runs/finetune.gin"
 include "gins/t0.gin" # This overrides some default config in `t5x/configs/runs/finetune.gin`
 

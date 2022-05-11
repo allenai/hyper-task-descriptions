@@ -20,7 +20,6 @@ import re
 from typing import Any, Callable, Optional, Sequence, Tuple
 
 from t5x import partitioning
-from t5x.checkpoints import RestoreStateTransformationFn
 
 PartitionRule = Tuple[str, Optional[partitioning.PartitionSpec]]
 

@@ -12,4 +12,5 @@ hyper_network.HyperT5Config:
   head_dim = 64
   mlp_dim = 1024
   adapter_size = 8
+  num_prefix_tokens = 7
   hbottleneck_size = 16

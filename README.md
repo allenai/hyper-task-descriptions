@@ -26,3 +26,9 @@ Run `./scripts/local.sh` for a small model + small subset of T0 data that is use
 These scripts are fairly simple, so please look at them to determine how to run more custom samples. Note that despite caching P3 data, the code will still need to make internet connections to get dataset sizes/splits/etc. You only have to let this run through once, and afterwards you can use `HF_DATASETS_OFFLINE=1` to force the model to use its cache, which vastly speeds things up.
 
 Note that tensorboard is integrated into t5x, so you should be able to launch tensorboard locally and point it at the bucket directory where you are outputting model artifacts to monitor training/evaluation.
+
+### Running on the TPU
+
+Running on TPU slices is a bit of a pain as you cannot 'just ssh to the machine and run stuff directly'. Rather, you send commands to all the TPUs, and Jax/Flax/t5x works it all out for you in the background. Here's a rough guide of useful steps for setting up and running directly on a TPU.
+
+TODO.
