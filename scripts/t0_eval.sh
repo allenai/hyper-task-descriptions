@@ -14,5 +14,5 @@ HF_DATASETS_OFFLINE=0 python3 -m t5x.eval \
     --gin_file="t5x/examples/t5/t5_1_1/xl.gin" \
     --gin_file="t0_eval.gin" \
     --gin.utils.DatasetConfig.batch_size=32 \
-    --gin.CHECKPOINT_PATH="'$MODEL_DIR'" \
-    --gin.EVAL_OUTPUT_DIR="'$EVAL_OUTPUT_DIR'"
+    --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
+    --gin.EVAL_OUTPUT_DIR=\"$EVAL_OUTPUT_DIR\"

@@ -11,3 +11,6 @@ network.T5Config:
   num_decoder_layers = 24
   head_dim = 64
   mlp_dim = 5120
+  adapter_size = 64
+  num_prefix_tokens = 30
+  hbottleneck_size = 128
