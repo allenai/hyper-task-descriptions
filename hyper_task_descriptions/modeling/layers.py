@@ -172,12 +172,6 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
         key = projection(kernel_init=self.kernel_init, name="key")(inputs_kv)
         value = projection(kernel_init=self.kernel_init, name="value")(inputs_kv)
 
-        # ADD PREFIXES ###
-        # key has dim [batch, len, num_heads, head_dim], and we add prefixes
-        key = jnp.concatenate([key_prefix, key], axis=1)
-        value = jnp.concatenate([value_prefix, value], axis=1)
-        ####################
-
         query = with_sharding_constraint(query, ("batch", "length", "heads", "kv"))
         key = with_sharding_constraint(key, ("batch", "length", "heads", "kv"))
         value = with_sharding_constraint(value, ("batch", "length", "heads", "kv"))
@@ -258,6 +252,12 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
                     bias = dynamic_vector_slice_in_dim(
                         jnp.squeeze(bias, axis=0), jnp.reshape(cur_index, (-1)), 1, -2
                     )
+
+        # ADD PREFIXES ###
+        # key has dim [batch, len, num_heads, head_dim], and we add prefixes
+        key = jnp.concatenate([key_prefix, key], axis=1)
+        value = jnp.concatenate([value_prefix, value], axis=1)
+        ####################
 
         # Convert the boolean attention mask to an attention bias.
         if mask is not None:

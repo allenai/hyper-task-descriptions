@@ -12,3 +12,5 @@ seqio_cache_tasks \
 ```
 
 n.b. you'll probably have to add the repo location to your `PYTHONPATH` to be able to import the t0 task module.
+
+I'm working on a script for running all the preprocessing and caching it.

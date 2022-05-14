@@ -22,9 +22,11 @@ import seqio
 import tensorflow as tf
 from flax import linen as nn
 from flax.core import scope as flax_scope
+from flax.core.frozen_dict import freeze, unfreeze
 from seqio import FeatureConverter, non_padding_position, utils
 from t5x import decoding, optimizers
 from t5x.models import DecodeFnCallable, EncoderDecoderModel
+from transformers import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
@@ -237,14 +239,14 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
         )
         #  roberta has no partitions, so we add that here.
-        from flax.core.frozen_dict import freeze, unfreeze
-
         from hyper_task_descriptions.modeling.roberta_partitioning import set_partitions
 
-        roberta_params = initial_variables["params"]["hyper"]["encoder"]
+        roberta_params = FlaxRobertaModel.from_pretrained(self.module.config.roberta_model).params
         roberta_partitions = set_partitions(roberta_params)
         initial_variables = unfreeze(initial_variables)
+        # we also want to use the init from roberta!
         initial_variables["params_axes"]["hyper"]["encoder"] = roberta_partitions
+        initial_variables["params"]["hyper"]["encoder"] = roberta_params
         initial_variables = freeze(initial_variables)
         return initial_variables
 
@@ -382,7 +384,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         # Prepare zeroed-out autoregressive cache.
         # [batch, input_len]
         inputs = batch["encoder_input_tokens"]
-        hyper_inputs = batch["encoder_hyper_input_tokens"]
+        hyper_inputs = batch["hyper_encoder_input_tokens"]
         # [batch, target_len]
         target_shape = batch["decoder_input_tokens"].shape
         target_type = batch["decoder_input_tokens"].dtype
@@ -404,7 +406,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         adaptations = self.module.apply(
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
-        batch_adaptions = (decoding.flat_batch_beam_expand(a, num_decodes) for a in adaptations)
+        batch_adaptions = [decoding.flat_batch_beam_expand(a, num_decodes) for a in adaptations]
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
         # need to set up our decoder model to handle a batch size equal to

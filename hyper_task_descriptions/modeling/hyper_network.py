@@ -49,7 +49,7 @@ class HyperT5Config(T5Config):
     adapter_size: int = 64
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
-    roberta_model: str = "roberta-base"
+    roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
 
 
 class Hypernet(nn.Module):
@@ -59,8 +59,8 @@ class Hypernet(nn.Module):
     # we setup here as loading huggingface weights
     def setup(self):
         cfg = self.config
-        roberta = FlaxRobertaModel.from_pretrained(cfg.roberta_model)
-        self.encoder = roberta.module
+        self.roberta = FlaxRobertaModel.from_pretrained(cfg.roberta_model)
+        self.encoder = self.roberta.module  # the module is the 'actual' flax module
         self.embedder = jnp.asarray(
             param_with_axes(
                 "embedding",

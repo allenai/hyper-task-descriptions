@@ -40,7 +40,7 @@ class HuggingfaceVocabulary(Vocabulary):
         return self.tokenizer(s, add_special_tokens=False)["input_ids"]
 
     def _decode(self, ids):
-        return self.tokenizer.decoder(ids, skip_special_tokens=True)
+        return self.tokenizer.decode(ids, skip_special_tokens=True)
 
     def decode(self, ids: Iterable[int]):
         """Detokenizes int32 iterable to a string, up through first EOS."""
