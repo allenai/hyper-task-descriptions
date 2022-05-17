@@ -56,7 +56,8 @@ def _replacement_rules(rules):
     return replace
 
 
-# replicate the hidden dim and shard feed-forward and head dim
+# See https://github.com/google-research/t5x/blob/main/docs/usage/partitioning.md for details on dims
+# i'm not sure if it works well since the dims are diff to underlying t5 model, but should be fine.
 def _get_partition_rules():
     return [
         # embeddings
@@ -121,11 +122,11 @@ def _get_partition_rules():
             AxisMetadata(
                 (
                     "embed",
-                    "mlp",
+                    "embed",
                 )
             ),
         ),
-        (("pooler", "dense", "bias"), AxisMetadata(("mlp",))),
+        (("pooler", "dense", "bias"), AxisMetadata(("embed",))),
     ]
 
 
