@@ -239,6 +239,9 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
         )
         #  roberta has no partitions, so we add that here.
+        # TODO: currently this is a self-implementation of posthoc partitioning,
+        # but I should use the 'override_params_axes_names' func that t5x provides.
+        # my code does basically the same thing, though.
         from hyper_task_descriptions.modeling.roberta_partitioning import set_partitions
 
         roberta_params = FlaxRobertaModel.from_pretrained(self.module.config.roberta_model).params
