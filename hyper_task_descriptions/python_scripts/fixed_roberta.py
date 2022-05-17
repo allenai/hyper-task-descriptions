@@ -1,0 +1,32 @@
+"""
+I want to use a roberta encoder, but t5x needs internal parameters to be even.
+This messes with the token type and word embeddings, which are not even.
+This script just fixes these things and then uploads to huggingface.
+"""
+from transformers import FlaxRobertaModel, RobertaModel
+
+model = RobertaModel.from_pretrained(
+    "roberta-base", type_vocab_size=2, ignore_mismatched_sizes=True
+)
+
+# resize vocab to be a little smaller
+if model.config.vocab_size % 2 == 1:
+    model.resize_token_embeddings(model.config.vocab_size - 1)
+
+# token_type_embeddings has vocab size 1 so it wont be inited above. instead copy a pretrained matrix over
+pt_model = RobertaModel.from_pretrained("roberta-base")
+model.embeddings.token_type_embeddings.weight.data.copy_(
+    pt_model.embeddings.token_type_embeddings.weight.data
+)
+assert (
+    model.embeddings.token_type_embeddings.weight.data[0]
+    == pt_model.embeddings.token_type_embeddings.weight.data
+).all()
+
+# save our model in flax
+model.save_pretrained("fixed-roberta-base")
+flax_model = FlaxRobertaModel.from_pretrained("fixed-roberta-base", from_pt=True)
+flax_model.push_to_hub(
+    "fixed-roberta-base",
+    use_temp_dir=True,
+)

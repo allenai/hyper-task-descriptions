@@ -16,13 +16,13 @@ BATCH_SIZE = 2048
 
 train/utils.DatasetConfig:
   batch_size = %BATCH_SIZE
-  use_cached = True
-  pack = True
+  use_cached = %USE_CACHED_TASKS
+  pack = %USE_CACHED_TASKS
   use_custom_packing_ops = False
 
 train_eval/utils.DatasetConfig:
   batch_size = %BATCH_SIZE
-  use_cached = True
+  use_cached = %USE_CACHED_TASKS
   pack = True
   use_custom_packing_ops = False
 

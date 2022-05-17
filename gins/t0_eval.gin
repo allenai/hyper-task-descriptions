@@ -51,8 +51,8 @@ utils.DatasetConfig:
   split = 'validation'
   batch_size = 256
   shuffle = False
-  seed = None
-  use_cached = True
+  seed = 42
+  use_cached = %USE_CACHED_TASKS
   pack = False
   use_custom_packing_ops = False
   module = %MIXTURE_OR_TASK_MODULE

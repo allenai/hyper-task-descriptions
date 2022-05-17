@@ -4,8 +4,8 @@ From t-zero repo
 import re
 
 import datasets
-import promptsource
 import tensorflow as tf
+from promptsource.utils import removeHyphen
 
 
 def feature_to_spec(feature, length=False):
@@ -39,7 +39,7 @@ def hf_dataset_to_tf_dataset(dataset):
 
 def apply_template(dataset, template):
     def map_fn(ex):
-        ex = promptsource.utils.removeHyphen(ex)
+        ex = removeHyphen(ex)
         inputs_and_targets = template.apply(ex)
         answer_choices = template.get_answer_choices_list(ex)
         if len(inputs_and_targets) == 2:
@@ -70,7 +70,7 @@ def apply_template(dataset, template):
 
 def apply_template_split(dataset, template):
     def map_fn(ex):
-        ex = promptsource.utils.removeHyphen(ex)
+        ex = removeHyphen(ex)
         inputs_and_targets = template.apply(ex)
         answer_choices = template.get_answer_choices_list(ex)
         if len(inputs_and_targets) == 2:
@@ -91,11 +91,11 @@ def apply_template_split(dataset, template):
         # new code - grab the input items and *remove them from the input text*. This is our template.
         counter = 0
         ex["template"] = ex["inputs"]
-        ex["no_template_input"] = ""
+        ex["hyper_inputs"] = ""
         for v in ex.values():
             if str(v) in ex["inputs"]:
                 ex["template"] = ex["template"].replace(str(v), f"[{counter + 1}]")
-                ex["no_template_input"] = ex["no_template_input"] + f"[{counter + 1}]: {str(v)}\n"
+                ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v)}\n"
                 counter += 1
         return ex
 
@@ -105,7 +105,9 @@ def apply_template_split(dataset, template):
     original_columns = dataset.column_names
     dataset = dataset.map(map_fn).filter(filter_fn)
     # map keeps original columns, remove them
-    return dataset.remove_columns(set(original_columns) - {"inputs", "targets", "answer_choices"})
+    return dataset.remove_columns(
+        set(original_columns) - {"inputs", "hyper_inputs", "targets", "answer_choices"}
+    )
 
 
 def get_dataset_splits(dataset_name, subset_name=None):
