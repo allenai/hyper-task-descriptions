@@ -1,0 +1,10 @@
+absl-py
+numpy
+sentencepiece
+tensorflow-text
+tfds-nightly
+t5
+tqdm
+promptsource
+tensorflow
+transformers

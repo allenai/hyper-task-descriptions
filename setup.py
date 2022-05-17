@@ -51,6 +51,10 @@ setup(
     packages=find_packages(
         exclude=["*.tests", "*.tests.*", "tests.*", "tests"],
     ),
+    package_data={
+        "hyper_task_descriptions": ["seqio_tasks/datasets.csv"],
+        "": ["requirements.txt", "dev-requirements.txt"],
+    },
     install_requires=read_requirements("requirements.txt"),
     extras_require={"dev": read_requirements("dev-requirements.txt")},
     python_requires=">=3.7",

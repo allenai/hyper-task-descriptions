@@ -8,5 +8,9 @@ t5x expects that tasks are preprocessed and cached prior to running. While I sho
 seqio_cache_tasks \
    --tasks=<task regex> \
    --output_cache_dir=<output_dir> \
-   --module_import=seqio_tasks.all_t0_tasks
+   --module_import=hyper_task_descriptions.seqio_tasks.all_t0_tasks
 ```
+
+n.b. you'll probably have to add the repo location to your `PYTHONPATH` to be able to import the t0 task module.
+
+I'm working on a script for running all the preprocessing and caching it.

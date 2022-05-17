@@ -15,8 +15,7 @@
 """T5.1.1 Transformer model.
 Altered to include hypernet stuff.
 """
-
-from typing import Any, Callable, Iterable, Union
+from typing import Callable, Iterable
 
 import jax.numpy as jnp
 from flax import linen as nn
@@ -24,17 +23,22 @@ from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
 from t5x.examples.t5 import layers
-from t5x.examples.t5.layers import DenseGeneral, _convert_to_activation_function
-from t5x.examples.t5.network import Decoder, T5Config
+from t5x.examples.t5.network import T5Config
 from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
+from typing_extensions import TypeAlias
+
+from hyper_task_descriptions.modeling.layers import (
+    MultiHeadDotProductAttentionWithPrefix,
+    SimpleLinear,
+)
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
 
 # Type annotations
-Array = jnp.ndarray
-DType = jnp.dtype
-PRNGKey = jnp.ndarray
+Array: TypeAlias = jnp.ndarray
+DType: TypeAlias = jnp.dtype
+PRNGKey: TypeAlias = jnp.ndarray
 Shape = Iterable[int]
 # Parameter initializers.
 Initializer = Callable[[PRNGKey, Shape, DType], Array]
@@ -44,47 +48,8 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 class HyperT5Config(T5Config):
     adapter_size: int = 64
     hbottleneck_size: int = 128
-    roberta_model: str = "roberta-base"
-
-
-class SimplerLinear(nn.Module):
-    """Feed-forward block that allows output values to be set.
-    TODO: allow gated-gelu here?
-    TODO: hypernet init
-
-    Attributes:
-      output_dim: Output dimension.
-      activations: Type of activations for layer. Can be string or flax module.
-      kernel_init: Kernel function, passed to the dense layers.
-      deterministic: Whether the dropout layers should be deterministic.
-      intermediate_dropout_rate: Dropout rate used after the intermediate layers.
-      dtype: Type for the dense layer.
-    """
-
-    output_dim: int = 2048
-    act_fn: Union[str, Callable] = "gelu"
-    kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "truncated_normal")
-    dropout_rate: float = 0.1
-    dtype: Any = jnp.float32
-
-    @nn.compact
-    def __call__(self, inputs, decode: bool = False, deterministic: bool = False):
-        """Applies SimpleLinear module."""
-        # Iterate over specified MLP input activation functions.
-        # e.g. ('relu',) or ('gelu', 'linear') for gated-gelu.
-        x = DenseGeneral(
-            self.output_dim,
-            dtype=self.dtype,
-            kernel_init=self.kernel_init,
-            kernel_axes=("embed", "mlp"),
-            name="wi",
-        )(inputs)
-        x = _convert_to_activation_function(self.act_fn)(x)
-        output = nn.Dropout(rate=self.dropout_rate, broadcast_dims=(-2,))(
-            x, deterministic=deterministic
-        )  # Broadcast along length.
-
-        return output
+    num_prefix_tokens: int = 30
+    roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
 
 
 class Hypernet(nn.Module):
@@ -94,8 +59,8 @@ class Hypernet(nn.Module):
     # we setup here as loading huggingface weights
     def setup(self):
         cfg = self.config
-        roberta = FlaxRobertaModel.from_pretrained(cfg.roberta_model)
-        self.encoder = roberta.module
+        self.roberta = FlaxRobertaModel.from_pretrained(cfg.roberta_model)
+        self.encoder = self.roberta.module  # the module is the 'actual' flax module
         self.embedder = jnp.asarray(
             param_with_axes(
                 "embedding",
@@ -106,40 +71,54 @@ class Hypernet(nn.Module):
             ),
             jnp.float32,
         )
-        self.intermediate_embedder = SimplerLinear(
+        self.intermediate_embedder = SimpleLinear(
             output_dim=cfg.hbottleneck_size,
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             name="intermediate_hypernet",
         )
-        self.adapter_down_gen = SimplerLinear(
+        self.adapter_down_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.adapter_size,
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             name="adapter_down_mlp",
         )
-        self.adapter_up_gen = SimplerLinear(
+        self.adapter_up_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.adapter_size,
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             name="adapter_up_mlp",
         )
-        self.adapter_bias_down_gen = SimplerLinear(
+        self.adapter_bias_down_gen = SimpleLinear(
             output_dim=cfg.adapter_size,
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             name="adapter_bias_down_mlp",
         )
-        self.adapter_bias_up_gen = SimplerLinear(
+        self.adapter_bias_up_gen = SimpleLinear(
             output_dim=cfg.emb_dim,
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            name="adapter_bia_up_mlp",
+            name="adapter_bias_up_mlp",
+        )
+        self.prefix_key_gen = SimpleLinear(
+            output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+            act_fn="gelu",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            name="prefix_key_mlp",
+        )
+        self.prefix_value_gen = SimpleLinear(
+            output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+            act_fn="gelu",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            name="prefix_value_mlp",
         )
 
     def __call__(self, encoder_input_tokens, deterministic=False):
@@ -172,7 +151,22 @@ class Hypernet(nn.Module):
         adapter_bias_up = self.adapter_bias_up_gen(
             intermediate_embeddings, deterministic=deterministic
         )
-        return adapter_down, adapter_up, adapter_bias_down, adapter_bias_up
+        prefix_key = self.prefix_key_gen(intermediate_embeddings, deterministic=deterministic)
+        prefix_key = jnp.reshape(
+            prefix_key, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
+        )
+        prefix_value = self.prefix_value_gen(intermediate_embeddings, deterministic=deterministic)
+        prefix_value = jnp.reshape(
+            prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
+        )
+        return (
+            adapter_down,
+            adapter_up,
+            adapter_bias_down,
+            adapter_bias_up,
+            prefix_key,
+            prefix_value,
+        )
 
 
 class HyperEncoderLayer(nn.Module):
@@ -189,6 +183,8 @@ class HyperEncoderLayer(nn.Module):
         adapter_wu=None,
         adapter_bd=None,
         adapter_bu=None,
+        prefix_key=None,
+        prefix_value=None,
         encoder_mask=None,
         deterministic=False,
     ):
@@ -202,14 +198,14 @@ class HyperEncoderLayer(nn.Module):
         assert inputs.ndim == 3
         x = layers.LayerNorm(dtype=cfg.dtype, name="pre_attention_layer_norm")(inputs)
         # [batch, length, emb_dim] -> [batch, length, emb_dim]
-        x = layers.MultiHeadDotProductAttention(
+        x = MultiHeadDotProductAttentionWithPrefix(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="attention",
-        )(x, x, encoder_mask, encoder_bias, deterministic=deterministic)
+        )(x, x, prefix_key, prefix_value, encoder_mask, encoder_bias, deterministic=deterministic)
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
 
@@ -226,7 +222,7 @@ class HyperEncoderLayer(nn.Module):
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         # adapter block
         adapter_y = (
-            lax.batch_matmul(y, adapter_wd)
+            lax.batch_matmul(lx, adapter_wd)
             + adapter_bd[
                 :,
                 None,
@@ -246,10 +242,109 @@ class HyperEncoderLayer(nn.Module):
         return y
 
 
+class HyperDecoderLayer(nn.Module):
+    """Transformer decoder layer that attends to the encoder."""
+
+    config: HyperT5Config
+    relative_embedding: nn.Module
+
+    @nn.compact
+    def __call__(
+        self,
+        inputs,
+        encoded,
+        adapter_wd=None,
+        adapter_wu=None,
+        adapter_bd=None,
+        adapter_bu=None,
+        prefix_key=None,
+        prefix_value=None,
+        decoder_mask=None,
+        encoder_decoder_mask=None,
+        deterministic=False,
+        decode=False,
+        max_decode_length=None,
+    ):
+        cfg = self.config
+
+        # Relative position embedding as attention biases.
+        l = max_decode_length if decode and max_decode_length else inputs.shape[-2]  # noqa: E741
+        decoder_bias = self.relative_embedding(l, l, False)
+
+        # inputs: embedded inputs to the decoder with shape [batch, length, emb_dim]
+        x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
+
+        # Self-attention block
+        x = MultiHeadDotProductAttentionWithPrefix(
+            num_heads=cfg.num_heads,
+            dtype=cfg.dtype,
+            head_dim=cfg.head_dim,
+            dropout_rate=cfg.dropout_rate,
+            float32_logits=cfg.float32_attention_logits,
+            name="self_attention",
+        )(
+            x,
+            x,
+            prefix_key,
+            prefix_value,
+            decoder_mask,
+            decoder_bias,
+            deterministic=deterministic,
+            decode=decode,
+        )
+        x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
+        x = x + inputs
+
+        # Encoder-Decoder block.
+        y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
+        y = layers.MultiHeadDotProductAttention(
+            num_heads=cfg.num_heads,
+            dtype=cfg.dtype,
+            head_dim=cfg.head_dim,
+            dropout_rate=cfg.dropout_rate,
+            float32_logits=cfg.float32_attention_logits,
+            name="encoder_decoder_attention",
+        )(y, encoded, encoder_decoder_mask, deterministic=deterministic)
+        y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
+        y = y + x
+
+        # MLP block.
+        lz = layers.LayerNorm(dtype=cfg.dtype, name="pre_mlp_layer_norm")(y)
+        z = layers.MlpBlock(
+            intermediate_dim=cfg.mlp_dim,
+            activations=cfg.mlp_activations,
+            intermediate_dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            name="mlp",
+        )(lz, deterministic=deterministic)
+        z = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(z, deterministic=deterministic)
+        # adapter block
+        adapter_z = (
+            lax.batch_matmul(lz, adapter_wd)
+            + adapter_bd[
+                :,
+                None,
+            ]
+        )
+        adapter_z = nn.gelu(adapter_z)
+        adapter_z = (
+            lax.batch_matmul(adapter_z, adapter_wu)
+            + adapter_bu[
+                :,
+                None,
+            ]
+        )
+        # final residual connection
+        # TODO: scaled add?
+        z = z + y + adapter_z
+
+        return z
+
+
 class HyperEncoder(nn.Module):
     """A stack of encoder layers."""
 
-    config: T5Config
+    config: HyperT5Config
     shared_embedding: nn.Module
 
     @nn.compact
@@ -260,6 +355,8 @@ class HyperEncoder(nn.Module):
         adapter_wu=None,
         adapter_bd=None,
         adapter_bu=None,
+        prefix_key=None,
+        prefix_value=None,
         encoder_mask=None,
         deterministic=False,
     ):
@@ -287,12 +384,89 @@ class HyperEncoder(nn.Module):
                 adapter_wu[:, lyr],
                 adapter_bd[:, lyr],
                 adapter_bu[:, lyr],
+                prefix_key[:, lyr],
+                prefix_value[:, lyr],
                 encoder_mask,
                 deterministic,
             )
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
+
+
+class HyperDecoder(nn.Module):
+    config: HyperT5Config
+    shared_embedding: nn.Module
+
+    @nn.compact
+    def __call__(
+        self,
+        encoded,
+        decoder_input_tokens,
+        adapter_wd=None,
+        adapter_wu=None,
+        adapter_bd=None,
+        adapter_bu=None,
+        prefix_key=None,
+        prefix_value=None,
+        decoder_positions=None,
+        decoder_mask=None,
+        encoder_decoder_mask=None,
+        deterministic=False,
+        decode=False,
+        max_decode_length=None,
+    ):
+        cfg = self.config
+        assert decoder_input_tokens.ndim == 2  # [batch, len]
+        rel_emb = layers.RelativePositionBiases(
+            num_buckets=32,
+            max_distance=128,
+            num_heads=cfg.num_heads,
+            dtype=cfg.dtype,
+            embedding_init=nn.initializers.variance_scaling(1.0, "fan_avg", "uniform"),
+            name="relpos_bias",
+        )
+
+        # [batch, length] -> [batch, length, emb_dim]
+        y = self.shared_embedding(decoder_input_tokens.astype("int32"))
+        y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
+        y = y.astype(cfg.dtype)
+
+        for lyr in range(cfg.num_decoder_layers):
+            # [batch, length, emb_dim] -> [batch, length, emb_dim]
+            y = HyperDecoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
+                y,
+                encoded,
+                decoder_mask=decoder_mask,
+                adapter_wd=adapter_wd[:, cfg.num_encoder_layers + lyr],
+                adapter_wu=adapter_wu[:, cfg.num_encoder_layers + lyr],
+                adapter_bd=adapter_bd[:, cfg.num_encoder_layers + lyr],
+                adapter_bu=adapter_bu[:, cfg.num_encoder_layers + lyr],
+                prefix_key=prefix_key[:, cfg.num_encoder_layers + lyr],
+                prefix_value=prefix_value[:, cfg.num_encoder_layers + lyr],
+                encoder_decoder_mask=encoder_decoder_mask,
+                deterministic=deterministic,
+                decode=decode,
+                max_decode_length=max_decode_length,
+            )
+
+        y = layers.LayerNorm(dtype=cfg.dtype, name="decoder_norm")(y)
+        y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
+
+        # [batch, length, emb_dim] -> [batch, length, vocab_size]
+        if cfg.logits_via_embedding:
+            # Use the transpose of embedding matrix for logit transform.
+            logits = self.shared_embedding.attend(y)
+            # Correctly normalize pre-softmax logits for this shared case.
+            logits = logits / jnp.sqrt(y.shape[-1])
+        else:
+            logits = layers.DenseGeneral(
+                cfg.vocab_size,
+                dtype=jnp.float32,  # Use float32 for stabiliity.
+                kernel_axes=("embed", "vocab"),
+                name="logits_dense",
+            )(y)
+        return logits
 
 
 class HyperTransformer(nn.Module):
@@ -315,10 +489,19 @@ class HyperTransformer(nn.Module):
         self.hyper = Hypernet(config=cfg, shared_embedding=self.shared_embedding)
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
         # TODO: also condition decoder.
-        self.decoder = Decoder(config=cfg, shared_embedding=self.shared_embedding)
+        self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)
 
     def encode(
-        self, encoder_input_tokens, awd, awu, bd, bu, encoder_segment_ids=None, enable_dropout=True
+        self,
+        encoder_input_tokens,
+        awd,
+        awu,
+        bd,
+        bu,
+        pk,
+        pv,
+        encoder_segment_ids=None,
+        enable_dropout=True,
     ):
         """Applies Transformer encoder-branch on the inputs."""
         cfg = self.config
@@ -338,8 +521,19 @@ class HyperTransformer(nn.Module):
             )
 
         return self.encoder(
-            encoder_input_tokens, awd, awu, bd, bu, encoder_mask, deterministic=not enable_dropout
+            encoder_input_tokens,
+            awd,
+            awu,
+            bd,
+            bu,
+            pk,
+            pv,
+            encoder_mask,
+            deterministic=not enable_dropout,
         )
+
+    def hyperencode(self, hyper_input_tokens, enable_dropout=True):
+        return self.hyper(hyper_input_tokens, deterministic=not enable_dropout)
 
     # TODO: add hypernet stuff here. Will require touching some beam search stuff.
     def decode(
@@ -348,6 +542,12 @@ class HyperTransformer(nn.Module):
         encoder_input_tokens,  # only needed for masks
         decoder_input_tokens,
         decoder_target_tokens,
+        adapter_wd=None,
+        adapter_wu=None,
+        adapter_bd=None,
+        adapter_bu=None,
+        prefix_key=None,
+        prefix_value=None,
         encoder_segment_ids=None,
         decoder_segment_ids=None,
         decoder_positions=None,
@@ -394,6 +594,12 @@ class HyperTransformer(nn.Module):
         logits = self.decoder(
             encoded,
             decoder_input_tokens=decoder_input_tokens,
+            adapter_wd=adapter_wd,
+            adapter_wu=adapter_wu,
+            adapter_bd=adapter_bd,
+            adapter_bu=adapter_bu,
+            prefix_key=prefix_key,
+            prefix_value=prefix_value,
             decoder_positions=decoder_positions,
             decoder_mask=decoder_mask,
             encoder_decoder_mask=encoder_decoder_mask,
@@ -441,13 +647,17 @@ class HyperTransformer(nn.Module):
           logits array from full transformer.
         """
         # generate adapters
-        awd, awu, bd, bu = self.hyper(hyper_encoder_input_tokens, deterministic=not enable_dropout)
+        awd, awu, bd, bu, pk, pv = self.hyperencode(
+            hyper_encoder_input_tokens, enable_dropout=enable_dropout
+        )
         encoded = self.encode(
             encoder_input_tokens,
             awd,
             awu,
             bd,
             bu,
+            pk,
+            pv,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
         )
@@ -457,6 +667,12 @@ class HyperTransformer(nn.Module):
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
+            adapter_wd=awd,
+            adapter_wu=awu,
+            adapter_bd=bd,
+            adapter_bu=bu,
+            prefix_key=pk,
+            prefix_value=pv,
             encoder_segment_ids=encoder_segment_ids,
             decoder_segment_ids=decoder_segment_ids,
             decoder_positions=decoder_positions,

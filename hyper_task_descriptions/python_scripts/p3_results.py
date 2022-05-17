@@ -63,7 +63,8 @@ def process_ps_results(folder: str) -> Dict[str, Dict[str, float]]:
             s = blob.download_as_string().decode("utf-8")
             filename = Path(blob.name).stem.replace("-metrics", "")
             task, prompt = process_task_prompt(filename)
-            accuracies[task][prompt] = json.loads(s.split("\n")[0])["accuracy"]
+            # last step
+            accuracies[task][prompt] = json.loads(s.split("\n")[-2])["accuracy"]
     return accuracies
 
 
