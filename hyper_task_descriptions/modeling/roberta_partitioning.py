@@ -123,7 +123,7 @@ def _get_partition_rules():
             AxisMetadata(
                 (
                     "embed",
-                    "embed",
+                    "mlp",
                 )
             ),
         ),

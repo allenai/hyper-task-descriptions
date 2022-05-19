@@ -10,7 +10,7 @@ from t5x import utils
 import seqio
 
 MIXTURE_OR_TASK_MODULE = "t5.data.mixtures"
-TRAIN_STEPS = 1117200 # 1112200 (pretrain) + 5000 (finetune)
+TRAIN_STEPS = 1212200 # 1112200 (pretrain) + 100000 (finetune)
 DROPOUT_RATE = 0.1
 BATCH_SIZE = 2048
 
@@ -42,7 +42,7 @@ utils.SaveCheckpointConfig:
   keep = None # only keep one checkpoint
 
 utils.RestoreCheckpointConfig:
-  strict = False
+  strict = True
   dtype = 'bfloat16'
 
 partitioning.PjitPartitioner.num_partitions = 2
