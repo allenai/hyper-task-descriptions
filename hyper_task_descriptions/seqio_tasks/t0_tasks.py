@@ -23,7 +23,7 @@ from hyper_task_descriptions.seqio_tasks import utils
 
 # cached locations for everything - required to find data.
 seqio.add_global_cache_dirs(
-    ["/Users/hamishivison/Programming/hyper-task-descriptions/task"]
+        ["gs://hamishi-dev/t0_data_roberta"]
     # ["gs://hamishi-tpu-bucket/t0_data/data", "gs://hamishi-tpu-bucket/t0_data/"]
 )
 
