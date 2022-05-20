@@ -1,3 +1,6 @@
+# install versions of tensorflow and tf-text that work (hopefully i can remove these eventually)
+python3 -m pip install tensorflow==2.8.1
+python3 -m pip install tensorflow-text==2.8.1
 # setup t5x (important)
 git clone --branch=main https://github.com/google-research/t5x # TODO: pin to specific commit.
 cd t5x
