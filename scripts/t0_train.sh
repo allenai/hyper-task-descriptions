@@ -13,6 +13,6 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_file="t0_train.gin" \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1212200 \
-  --gin.partitioning.PjitPartitioner.num_partitions=4 \
+  --gin.partitioning.PjitPartitioner.num_partitions=2 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-tpu-bucket/t0_3b/checkpoint_1112000\" \
   --tfds_data_dir="gs://hamishi-tpu-bucket/t0_data/data"
