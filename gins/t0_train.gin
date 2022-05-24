@@ -14,3 +14,8 @@ TASK_FEATURE_LENGTHS = {"inputs": 1024, "hyper_inputs": 512, "targets": 256}
 MIXTURE_OR_TASK_NAME = "t0_train"
 
 trainer.Trainer.num_microbatches = 16 # 2048 // 16
+
+# the batch sizes are really big so I increase stats logging
+# for more visibility.
+train_script.train:
+    stats_period = 100 # default is eval_period, which is 1000
