@@ -26,8 +26,13 @@ from flax.core.frozen_dict import freeze, unfreeze
 from seqio import FeatureConverter, non_padding_position, utils
 from t5x import decoding, optimizers
 from t5x.models import DecodeFnCallable, EncoderDecoderModel
+from t5x.utils import override_params_axes_names
 from transformers import FlaxRobertaModel
 from typing_extensions import TypeAlias
+
+from hyper_task_descriptions.modeling.roberta_partitioning import (
+    roberta_axes_names_override,
+)
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -239,16 +244,12 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
         )
         #  roberta has no partitions, so we add that here.
-        # TODO: currently this is a self-implementation of posthoc partitioning,
-        # but I should use the 'override_params_axes_names' func that t5x provides.
-        # my code does basically the same thing, though.
-        from hyper_task_descriptions.modeling.roberta_partitioning import set_partitions
-
-        roberta_params = FlaxRobertaModel.from_pretrained(self.module.config.roberta_model).params
-        roberta_partitions = set_partitions(roberta_params)
+        initial_variables = override_params_axes_names(
+            initial_variables, roberta_axes_names_override
+        )
+        # add pretrained model
         initial_variables = unfreeze(initial_variables)
-        # we also want to use the init from roberta!
-        initial_variables["params_axes"]["hyper"]["encoder"] = roberta_partitions
+        roberta_params = FlaxRobertaModel.from_pretrained(self.module.config.roberta_model).params
         initial_variables["params"]["hyper"]["encoder"] = roberta_params
         initial_variables = freeze(initial_variables)
         return initial_variables

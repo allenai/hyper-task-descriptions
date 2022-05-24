@@ -34,6 +34,7 @@ from hyper_task_descriptions.modeling.layers import (
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
+with_sharding_constraint = nn_partitioning.with_sharding_constraint
 
 # Type annotations
 Array: TypeAlias = jnp.ndarray
@@ -59,8 +60,9 @@ class Hypernet(nn.Module):
     # we setup here as loading huggingface weights
     def setup(self):
         cfg = self.config
-        self.roberta = FlaxRobertaModel.from_pretrained(cfg.roberta_model)
-        self.encoder = self.roberta.module  # the module is the 'actual' flax module
+        self.encoder = FlaxRobertaModel.from_pretrained(
+            cfg.roberta_model
+        ).module  # the module is the 'actual' flax module
         self.embedder = jnp.asarray(
             param_with_axes(
                 "embedding",
@@ -76,6 +78,7 @@ class Hypernet(nn.Module):
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
+            kernel_axes=("embed", "mlp"),
             name="intermediate_hypernet",
         )
         self.adapter_down_gen = SimpleLinear(
@@ -83,6 +86,7 @@ class Hypernet(nn.Module):
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),
             name="adapter_down_mlp",
         )
         self.adapter_up_gen = SimpleLinear(
@@ -90,6 +94,7 @@ class Hypernet(nn.Module):
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),
             name="adapter_up_mlp",
         )
         self.adapter_bias_down_gen = SimpleLinear(
@@ -97,6 +102,7 @@ class Hypernet(nn.Module):
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),
             name="adapter_bias_down_mlp",
         )
         self.adapter_bias_up_gen = SimpleLinear(
@@ -104,6 +110,7 @@ class Hypernet(nn.Module):
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),
             name="adapter_bias_up_mlp",
         )
         self.prefix_key_gen = SimpleLinear(
@@ -111,6 +118,7 @@ class Hypernet(nn.Module):
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),
             name="prefix_key_mlp",
         )
         self.prefix_value_gen = SimpleLinear(
@@ -118,6 +126,7 @@ class Hypernet(nn.Module):
             act_fn="gelu",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),
             name="prefix_value_mlp",
         )
 

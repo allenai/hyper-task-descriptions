@@ -16,7 +16,7 @@
 Layers with changes for my model
 """
 import functools
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -50,7 +50,6 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 class SimpleLinear(nn.Module):
     """Feed-forward block that allows output values to be set.
-    TODO: allow gated-gelu here?
     TODO: hypernet init
 
     Attributes:
@@ -67,6 +66,7 @@ class SimpleLinear(nn.Module):
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "truncated_normal")
     dropout_rate: float = 0.1
     dtype: Any = jnp.float32
+    kernel_axes: Tuple[str, ...] = ()
 
     @nn.compact
     def __call__(self, inputs, decode: bool = False, deterministic: bool = False):
@@ -77,7 +77,7 @@ class SimpleLinear(nn.Module):
             self.output_dim,
             dtype=self.dtype,
             kernel_init=self.kernel_init,
-            kernel_axes=("embed", "mlp"),
+            kernel_axes=self.kernel_axes,
             name="wi",
         )(inputs)
         x = _convert_to_activation_function(self.act_fn)(x)

@@ -105,7 +105,6 @@ def apply_template_split(dataset, template):
                 ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v).lower()}\n"
                 counter += 1
         # flip due to earlier decisions made.
-        import pdb; pdb.set_trace()
         ex["hyper_inputs"], ex["template"] = ex["template"], ex["hyper_inputs"]
         return ex
 
