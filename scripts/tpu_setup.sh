@@ -1,6 +1,3 @@
-# install versions of tensorflow and tf-text that work (hopefully i can remove these eventually)
-python3 -m pip install tensorflow==2.8.1
-python3 -m pip install tensorflow-text==2.8.1
 # setup t5x (important)
 git clone --branch=main https://github.com/google-research/t5x # TODO: pin to specific commit.
 cd t5x
@@ -10,6 +7,9 @@ python3 -m pip install -e '.[tpu]' -f https://storage.googleapis.com/jax-release
 python3 -m pip install promptsource
 python3 -m pip uninstall -y seqio seqio-nightly
 python3 -m pip install git+https://github.com/hamishivi/seqio.git
+# I've had some issues with tensorflow. these versions seem to work
+python3 -m pip install tensorflow==2.9.0
+python3 -m pip install tensorflow-text==2.9.0
 echo "----- ALL DEPENDENCIES INSTALLED -----"
 # next, we cache the tokenizers / HF splits used so we don't have to load them later.
 # This can take ~15 minutes.
