@@ -1,3 +1,4 @@
+export PYTHONPATH=${PYTHONPATH}:${PWD}
 # setup t5x (important)
 git clone --branch=main https://github.com/google-research/t5x # TODO: pin to specific commit.
 cd t5x
