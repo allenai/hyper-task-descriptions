@@ -1,8 +1,9 @@
 # Model dir to save logs, ckpts, etc. in "gs://model_dir" format.
 EXPERIMENT_NAME=$1
+CHECKPOINT_NAME=$2
 
 # model checkpoint location
-MODEL_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/model/${CHECKPOINT_NAME}"
 # where to put eval results
 EVAL_OUTPUT_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/eval"
 
