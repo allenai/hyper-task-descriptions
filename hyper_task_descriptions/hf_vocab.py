@@ -13,11 +13,20 @@ class HuggingfaceVocabulary(Vocabulary):
         Args:
           extra_ids: The number of extra IDs to reserve.
         """
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self._tokenizer = None  # lazy load tokenizer
         self.model_name = model_name
         self._extra_ids = extra_ids or 0
         assert self._extra_ids == 0
         super().__init__(extra_ids=extra_ids)
+
+    def _load_model(self):
+        self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+
+    @property
+    def tokenizer(self):
+        if self._tokenizer is None:
+            self._load_model()
+        return self._tokenizer
 
     @property
     def eos_id(self) -> Optional[int]:

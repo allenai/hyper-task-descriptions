@@ -71,6 +71,7 @@ def apply_template(dataset, template):
 def apply_template_split(dataset, template):
     def map_fn(ex):
         ex = removeHyphen(ex)
+        og_ex = ex
         inputs_and_targets = template.apply(ex)
         answer_choices = template.get_answer_choices_list(ex)
         if len(inputs_and_targets) == 2:
@@ -89,14 +90,22 @@ def apply_template_split(dataset, template):
             ex["answer_choices"] = answer_choices
 
         # new code - grab the input items and *remove them from the input text*. This is our template.
-        counter = 0
-        ex["template"] = ex["inputs"]
+        ex["template"] = str(ex["inputs"])  # copy
         ex["hyper_inputs"] = ""
-        for v in ex.values():
-            if str(v) in ex["inputs"]:
+        counter = 0
+        # TODO: check how many inputs this actually covers.
+        # a simple replacement setup for now.
+        for v in og_ex.values():
+            if isinstance(v, str) and v in ex["inputs"]:
                 ex["template"] = ex["template"].replace(str(v), f"[{counter + 1}]")
                 ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v)}\n"
                 counter += 1
+            elif isinstance(v, str) and v.lower() in ex["inputs"]:
+                ex["template"] = ex["template"].replace(str(v).lower(), f"[{counter + 1}]")
+                ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v).lower()}\n"
+                counter += 1
+        # flip due to earlier decisions made.
+        ex["hyper_inputs"], ex["template"] = ex["template"], ex["hyper_inputs"]
         return ex
 
     def filter_fn(ex):
