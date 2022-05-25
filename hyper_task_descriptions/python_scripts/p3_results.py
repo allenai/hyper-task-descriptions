@@ -70,10 +70,14 @@ def process_ps_results(folder: str) -> Dict[str, Dict[str, float]]:
 
 # min, max, average per prompt
 def summarise_ps_results(accuracies: Dict[str, Dict[str, float]]) -> None:
-    print("TASK: MIN MAX AVG")
+    print("TASK: MIN MAX AVG MED")
+    from statistics import mean, median
+
     for task in accuracies:
         scores = [x for x in accuracies[task].values()]
-        print(f"{task}: {min(scores):.2f} {max(scores):.2f} {sum(scores) / len(scores):.2f}")
+        print(
+            f"{task}: {min(scores):.2f} {max(scores):.2f} {mean(scores):.2f} {median(scores):.2f}"
+        )
     print("-------------" * 2)
 
 
