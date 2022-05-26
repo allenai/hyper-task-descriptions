@@ -20,7 +20,7 @@ include "gins/partial_train.gin"
 TASK_FEATURE_LENGTHS = {"inputs": 8, "hyper_inputs": 8, "task_names": 1, "targets": 7}
 MIXTURE_OR_TASK_NAME = "t0_small_train"
 BATCH_SIZE = 4
-TRAIN_STEPS = 1100005
+TRAIN_STEPS = 1100010
 
 train_script.train.random_seed = 42  # dropout seed
 train/utils.DatasetConfig.seed = 42  # dataset seed
@@ -34,8 +34,9 @@ train_eval/utils.DatasetConfig.batch_size = 8
 train_script.train:
   eval_period = 3
   eval_steps = 3
+  stats_period = 1
 
-trainer.Trainer.num_microbatches = 0
+trainer.Trainer.num_microbatches = 2
 partitioning.PjitPartitioner:
   num_partitions = 1
   model_parallel_submesh = None

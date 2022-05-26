@@ -1,5 +1,6 @@
 from typing import Optional, Tuple, Union
 
+import jax
 import jax.numpy as jnp
 
 
@@ -8,9 +9,24 @@ def cosine_similarity_loss(
     target_vectors: jnp.ndarray,
     ground_truth_similarity: jnp.ndarray,
 ) -> jnp.ndarray:
-    cosine_sim = cosine_similarity(pred_vectors, target_vectors)
+    cosine_sim = jax.vmap(cosine_similarity_one_to_many, in_axes=[0, None])(
+        pred_vectors, target_vectors
+    )
     loss = jnp.mean((cosine_sim - ground_truth_similarity) ** 2)
     return loss
+
+
+def cosine_similarity_one_to_many(
+    pred_vector: jnp.ndarray,
+    target_vectors: jnp.ndarray,
+) -> jnp.ndarray:
+    cosine_sim = cosine_similarity(
+        pred_vector[
+            None,
+        ],
+        target_vectors,
+    )
+    return cosine_sim
 
 
 def cosine_similarity(

@@ -15,11 +15,10 @@ from typing import (
     Union,
 )
 
+import clu.metrics as clu_metrics
 import jax
 import jax.numpy as jnp
 import numpy as np
-import clu.metrics as clu_metrics
-
 import seqio
 import tensorflow as tf
 from flax import linen as nn
