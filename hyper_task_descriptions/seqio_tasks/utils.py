@@ -7,6 +7,8 @@ import datasets
 import tensorflow as tf
 from promptsource.utils import removeHyphen
 
+from hyper_task_descriptions.seqio_tasks.t0_datasets_mapping import T0_DS_MAPPING
+
 
 def feature_to_spec(feature, length=False):
     if isinstance(feature, datasets.ClassLabel):
@@ -68,10 +70,9 @@ def apply_template(dataset, template):
     return dataset.remove_columns(set(original_columns) - {"inputs", "targets", "answer_choices"})
 
 
-def apply_template_split(dataset, template):
+def apply_template_split(dataset, template, dataset_name, subset_name=None):
     def map_fn(ex):
         ex = removeHyphen(ex)
-        og_ex = ex
         inputs_and_targets = template.apply(ex)
         answer_choices = template.get_answer_choices_list(ex)
         if len(inputs_and_targets) == 2:
@@ -92,20 +93,26 @@ def apply_template_split(dataset, template):
         # new code - grab the input items and *remove them from the input text*. This is our template.
         ex["template"] = str(ex["inputs"])  # copy
         ex["hyper_inputs"] = ""
-        counter = 0
+        # counter = 0
         # TODO: check how many inputs this actually covers.
         # a simple replacement setup for now.
-        for v in og_ex.values():
-            if isinstance(v, str) and v in ex["inputs"]:
-                ex["template"] = ex["template"].replace(str(v), f"[{counter + 1}]")
-                ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v)}\n"
-                counter += 1
-            elif isinstance(v, str) and v.lower() in ex["inputs"]:
-                ex["template"] = ex["template"].replace(str(v).lower(), f"[{counter + 1}]")
-                ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v).lower()}\n"
-                counter += 1
+        # for v in og_ex.values():
+        #     if isinstance(v, str) and v in ex["inputs"]:
+        #         ex["template"] = ex["template"].replace(str(v), f"[{counter + 1}]")
+        #         ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v)}\n"
+        #         counter += 1
+        #     elif isinstance(v, str) and v.lower() in ex["inputs"]:
+        #         ex["template"] = ex["template"].replace(str(v).lower(), f"[{counter + 1}]")
+        #         ex["hyper_inputs"] = ex["hyper_inputs"] + f"[{counter + 1}]: {str(v).lower()}\n"
+        #         counter += 1
         # flip due to earlier decisions made.
         ex["hyper_inputs"], ex["template"] = ex["template"], ex["hyper_inputs"]
+        if subset_name is not None:
+            ex["task_names"] = tf.constant(
+                [T0_DS_MAPPING[dataset_name + "_" + subset_name]], dtype=tf.int32
+            )
+        else:
+            ex["task_names"] = tf.constant([T0_DS_MAPPING[dataset_name]], dtype=tf.int32)
         return ex
 
     def filter_fn(ex):
@@ -115,7 +122,8 @@ def apply_template_split(dataset, template):
     dataset = dataset.map(map_fn).filter(filter_fn)
     # map keeps original columns, remove them
     return dataset.remove_columns(
-        set(original_columns) - {"inputs", "hyper_inputs", "targets", "answer_choices"}
+        set(original_columns)
+        - {"inputs", "hyper_inputs", "targets", "answer_choices", "task_names"}
     )
 
 

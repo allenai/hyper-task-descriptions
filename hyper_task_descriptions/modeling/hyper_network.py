@@ -135,7 +135,9 @@ class Hypernet(nn.Module):
         # '1' is roberta pad token.
         output = self.encoder(encoder_input_tokens, encoder_input_tokens != 1)
         pooled_output = output[1]  # jnp.mean(output, axis=1)
-        # grab embeds, and
+        # save pooled output for later (eg contrastive training)
+        self.sow("intermediates", "features", pooled_output)
+        # add the layer embeddings, and pass through a single mlp layer
         total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
         embeds = jnp.arange(total_layers)
         embeds = self.embedder[embeds][
@@ -150,6 +152,7 @@ class Hypernet(nn.Module):
         intermediate_embeddings = self.intermediate_embedder(
             hyper_input, deterministic=deterministic
         )
+        # generate all our adapters, prefixes, etc.
         adapter_down = self.adapter_down_gen(intermediate_embeddings, deterministic=deterministic)
         adapter_down = jnp.reshape(adapter_down, (-1, total_layers, cfg.emb_dim, cfg.adapter_size))
         adapter_up = self.adapter_up_gen(intermediate_embeddings, deterministic=deterministic)

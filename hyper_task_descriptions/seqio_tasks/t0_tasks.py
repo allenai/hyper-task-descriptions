@@ -142,7 +142,7 @@ def get_tf_dataset(split, shuffle_files, seed, dataset_name, subset_name, templa
     del shuffle_files, seed
     dataset = datasets.load_dataset(dataset_name, subset_name)
     dataset = dataset[split_mapping[split]]
-    dataset = utils.apply_template_split(dataset, template)
+    dataset = utils.apply_template_split(dataset, template, dataset_name, subset_name)
     return utils.hf_dataset_to_tf_dataset(dataset)
 
 
@@ -190,6 +190,7 @@ def add_task(
         "inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
         "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=True, dtype=tf.int32),
         "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
+        "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
     }
     preprocessors = [
         seqio.preprocessors.tokenize,

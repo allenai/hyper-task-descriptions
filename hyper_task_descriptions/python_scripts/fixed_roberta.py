@@ -23,8 +23,13 @@ for i in range(0, 8):
         model.embeddings.token_type_embeddings.weight.data[0]
         == pt_model.embeddings.token_type_embeddings.weight.data
     ).all()
-model.embeddings.position_embeddings.weight.data[:514, :] = pt_model.embeddings.position_embeddings.weight.data
-assert(model.embeddings.position_embeddings.weight.data[:514] == pt_model.embeddings.position_embeddings.weight.data).all()
+model.embeddings.position_embeddings.weight.data[
+    :514, :
+] = pt_model.embeddings.position_embeddings.weight.data
+assert (
+    model.embeddings.position_embeddings.weight.data[:514]
+    == pt_model.embeddings.position_embeddings.weight.data
+).all()
 
 # save our model in flax
 model.save_pretrained("fixed-roberta-base")

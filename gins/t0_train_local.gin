@@ -16,8 +16,8 @@ include "gins/hyper_small.gin"
 include "gins/t0.gin"
 include "gins/partial_train.gin"
 
-
-TASK_FEATURE_LENGTHS = {"inputs": 8, "hyper_inputs": 8, "targets": 7}
+# 'task_names' is a string, so no length.
+TASK_FEATURE_LENGTHS = {"inputs": 8, "hyper_inputs": 8, "task_names": 1, "targets": 7}
 MIXTURE_OR_TASK_NAME = "t0_small_train"
 BATCH_SIZE = 4
 TRAIN_STEPS = 1100005

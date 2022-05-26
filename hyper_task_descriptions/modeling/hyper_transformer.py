@@ -24,12 +24,15 @@ from flax import linen as nn
 from flax.core import scope as flax_scope
 from flax.core.frozen_dict import freeze, unfreeze
 from seqio import FeatureConverter, non_padding_position, utils
-from t5x import decoding, optimizers
-from t5x.models import DecodeFnCallable, EncoderDecoderModel
+from t5x import decoding, losses
+from t5x import metrics as metrics_lib
+from t5x import optimizers
+from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
 from t5x.utils import override_params_axes_names
 from transformers import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
+from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
 from hyper_task_descriptions.modeling.roberta_partitioning import (
     roberta_axes_names_override,
 )
@@ -490,4 +493,181 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         else:
             return decodes[:, -1, :], {"scores": scores[:, -1]}
 
-    # score_batch *should* work out of the box fine (but I need to test this).
+
+class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
+    """Feature converter for an encoder-decoder with hypernet architecture.
+    Really this is just providing a second encoder input to the model.
+    """
+
+    TASK_FEATURES = {
+        "inputs": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "hyper_inputs": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "targets": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
+    }
+    MODEL_FEATURES = {
+        "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "hyper_encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "decoder_target_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "decoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "decoder_loss_weights": FeatureConverter.FeatureSpec(dtype=tf.int32),
+        "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
+    }
+    PACKING_FEATURE_DTYPES = {
+        "encoder_segment_ids": tf.int32,
+        "hyper_encoder_segment_ids": tf.int32,
+        "decoder_segment_ids": tf.int32,
+        "encoder_positions": tf.int32,
+        "decoder_positions": tf.int32,
+        "task_names": tf.int32,
+    }
+
+    def _convert_features(
+        self, ds: tf.data.Dataset, task_feature_lengths: Mapping[str, int]
+    ) -> tf.data.Dataset:
+        """Convert the dataset to be fed to the encoder-decoder model.
+
+        The conversion process involves two steps
+
+        1. Each feature in the `task_feature_lengths` is trimmed/padded and
+           optionally packed depending on the value of self.pack.
+        2. "inputs" fields are mapped to the encoder input and "targets" are mapped
+           to decoder input (after being shifted) and target.
+
+        All the keys in the `task_feature_lengths` should be present in the input
+        dataset, which may contain some extra features that are not in the
+        `task_feature_lengths`. They will not be included in the output dataset.
+        One common scenario is the "inputs_pretokenized" and "targets_pretokenized"
+        fields.
+
+        Args:
+          ds: an input tf.data.Dataset to be converted.
+          task_feature_lengths: a mapping from feature to its length.
+
+        Returns:
+          ds: the converted dataset.
+        """
+
+        def convert_example(features: Mapping[str, tf.Tensor]) -> Mapping[str, tf.Tensor]:
+            # targets_segment_id is present only for a packed dataset.
+            decoder_input_tokens = utils.make_autoregressive_inputs(
+                features["targets"], sequence_id=features.get("targets_segment_ids", None)
+            )
+
+            d = {
+                "encoder_input_tokens": features["inputs"],
+                "hyper_encoder_input_tokens": features["hyper_inputs"],
+                "decoder_target_tokens": features["targets"],
+                "decoder_input_tokens": decoder_input_tokens,
+                # Loss is computed for all but the padding positions.
+                "decoder_loss_weights": non_padding_position(features["targets"]),
+                "task_names": features["task_names"],
+            }
+
+            if self.pack:
+                d["encoder_segment_ids"] = features["inputs_segment_ids"]
+                d["hyper_encoder_segment_ids"] = features["hyper_inputs_segment_ids"]
+                d["decoder_segment_ids"] = features["targets_segment_ids"]
+                d["encoder_positions"] = features["inputs_positions"]
+                d["decoder_positions"] = features["targets_positions"]
+                d["task_names"] = features["task_names"]
+
+            return d
+
+        ds = self._pack_or_pad(ds, task_feature_lengths)
+        return ds.map(convert_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+    def get_model_feature_lengths(
+        self, task_feature_lengths: Mapping[str, int]
+    ) -> Mapping[str, int]:
+        """Define the length relationship between input and output features."""
+        encoder_length = task_feature_lengths["inputs"]
+        hyper_encoder_length = task_feature_lengths["hyper_inputs"]
+        decoder_length = task_feature_lengths["targets"]
+        task_name_length = task_feature_lengths["task_names"]
+
+        model_feature_lengths = {
+            "encoder_input_tokens": encoder_length,
+            "hyper_encoder_input_tokens": hyper_encoder_length,
+            "decoder_target_tokens": decoder_length,
+            "decoder_input_tokens": decoder_length,
+            "decoder_loss_weights": decoder_length,
+            "task_names": task_name_length,
+        }
+        if self.pack:
+            model_feature_lengths["encoder_segment_ids"] = encoder_length
+            model_feature_lengths["hyper_encoder_segment_ids"] = hyper_encoder_length
+            model_feature_lengths["decoder_segment_ids"] = decoder_length
+            model_feature_lengths["encoder_positions"] = encoder_length
+            model_feature_lengths["decoder_positions"] = decoder_length
+            model_feature_lengths["task_names"] = task_name_length
+
+        return model_feature_lengths
+
+
+class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
+    """
+    Basically our hypernet-based model, but with a contrastive loss.
+    """
+
+    FEATURE_CONVERTER_CLS = HyperEncDecContFeatureConverter
+
+    def loss_fn(
+        self,
+        params: PyTreeDef,
+        batch: Mapping[str, jnp.ndarray],
+        dropout_rng: Optional[jax.random.KeyArray],
+    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, metrics_lib.MetricsMap]]:
+        """"""
+        logits, mod_vars = self._compute_logits(params, batch, dropout_rng, mutable="intermediates")
+        # note we should only have one hypernet feature (hypernet called once)
+        hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
+        # construct the contrastive loss truth
+
+        cosine_truth = (
+            (batch["task_names"][:, None, :] == batch["task_names"]).all(axis=-1).astype(jnp.int32)
+        )
+        # cosine loss
+        cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, cosine_truth)
+
+        loss_normalizing_factor: Optional[
+            Union[float, int, str, losses.SpecialLossNormalizingFactor]
+        ]
+        (loss_normalizing_factor, weights) = losses.get_loss_normalizing_factor_and_weights(
+            self._loss_normalizing_factor, batch
+        )
+
+        loss, z_loss, weight_sum = losses.compute_weighted_cross_entropy(
+            logits,
+            targets=batch["decoder_target_tokens"],
+            weights=weights,
+            label_smoothing=self._label_smoothing,
+            z_loss=self._z_loss,
+            loss_normalizing_factor=loss_normalizing_factor,
+        )
+        loss += cos_loss
+        metrics = self._compute_metrics(
+            logits=logits,
+            targets=batch["decoder_target_tokens"],
+            mask=weights,
+            loss=loss,
+            z_loss=z_loss,
+            cosine_loss=cos_loss,
+        )
+        return loss, (weight_sum, metrics)
+
+    def _compute_metrics(
+        self,
+        logits: jnp.ndarray,
+        targets: jnp.ndarray,
+        mask: jnp.ndarray,
+        loss: jnp.ndarray,
+        z_loss: Optional[jnp.ndarray] = None,
+        cosine_loss: Optional[jnp.ndarray] = None,
+    ) -> metrics_lib.MetricsMap:
+        metrics = compute_base_metrics(
+            logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
+        )
+        if cosine_loss is not None:
+            metrics.update({"cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss)})
+        return metrics
