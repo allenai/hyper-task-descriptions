@@ -18,6 +18,8 @@ from typing import (
 import jax
 import jax.numpy as jnp
 import numpy as np
+import clu.metrics as clu_metrics
+
 import seqio
 import tensorflow as tf
 from flax import linen as nn
@@ -623,12 +625,11 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         # note we should only have one hypernet feature (hypernet called once)
         hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
         # construct the contrastive loss truth
-
         cosine_truth = (
             (batch["task_names"][:, None, :] == batch["task_names"]).all(axis=-1).astype(jnp.int32)
         )
-        # cosine loss
-        cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, cosine_truth)
+        # cosine loss - for truth we want -1 for neg (not same task), 1 for pos (same task)
+        cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, (2 * cosine_truth) - 1)
 
         loss_normalizing_factor: Optional[
             Union[float, int, str, losses.SpecialLossNormalizingFactor]
@@ -653,6 +654,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             loss=loss,
             z_loss=z_loss,
             cosine_loss=cos_loss,
+            cosine_truth=cosine_truth,
         )
         return loss, (weight_sum, metrics)
 
@@ -664,10 +666,18 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         loss: jnp.ndarray,
         z_loss: Optional[jnp.ndarray] = None,
         cosine_loss: Optional[jnp.ndarray] = None,
+        cosine_truth: Optional[jnp.ndarray] = None,
     ) -> metrics_lib.MetricsMap:
         metrics = compute_base_metrics(
             logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
         )
         if cosine_loss is not None:
             metrics.update({"cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss)})
+            metrics.update(
+                {
+                    "matching_tasks_percentage": clu_metrics.Average(
+                        total=jnp.sum(cosine_truth), count=jnp.ones_like(cosine_truth).sum()
+                    )
+                }
+            )
         return metrics
