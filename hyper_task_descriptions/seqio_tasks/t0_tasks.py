@@ -215,6 +215,7 @@ def add_task(
                 ex["answer_choices"], tf.strings.strip(ex["targets"])
             ),
             weight_fn=lambda ex: 1.0,
+            passthrough_feature_keys=["hyper_inputs", "task_names"],
         )
         fixed_choices = template.get_fixed_answer_choices_list()
         num_classes = len(fixed_choices) if fixed_choices else None
