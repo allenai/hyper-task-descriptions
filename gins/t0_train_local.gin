@@ -11,8 +11,9 @@ from hyper_task_descriptions.seqio_tasks import small_t0_tasks
 import __main__ as train_script
 
 # include "t5x/examples/t5/t5_1_1/tiny.gin"
-include "t5x/configs/runs/finetune.gin"
-include "gins/hyper_small.gin"
+# include "t5x/configs/runs/finetune.gin"
+include "gins/finetune_from_scratch.gin"
+include "gins/hyper_tiny.gin"
 include "gins/t0.gin"
 include "gins/partial_train.gin"
 
@@ -21,6 +22,7 @@ TASK_FEATURE_LENGTHS = {"inputs": 8, "hyper_inputs": 8, "task_names": 1, "target
 MIXTURE_OR_TASK_NAME = "t0_small_train"
 BATCH_SIZE = 4
 TRAIN_STEPS = 1100010
+DROPOUT_RATE = 0.1
 
 train_script.train.random_seed = 42  # dropout seed
 train/utils.DatasetConfig.seed = 42  # dataset seed
