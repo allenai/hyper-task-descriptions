@@ -671,12 +671,9 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
         )
         if cosine_loss is not None:
-            metrics.update({"cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss)})
             metrics.update(
                 {
-                    "matching_tasks_percentage": clu_metrics.Average(
-                        total=jnp.sum(cosine_truth), count=jnp.ones_like(cosine_truth).sum()
-                    )
+                    "cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss),
                 }
             )
         return metrics
