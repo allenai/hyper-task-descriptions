@@ -17,7 +17,7 @@ BATCH_SIZE = 2048
 train/utils.DatasetConfig:
   batch_size = %BATCH_SIZE
   use_cached = %USE_CACHED_TASKS
-  pack = %USE_CACHED_TASKS
+  pack = False  # for the hypernet, we need this off.
   use_custom_packing_ops = False
 
 train_eval/utils.DatasetConfig:
