@@ -637,7 +637,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             self._loss_normalizing_factor, batch
         )
 
-        loss, z_loss, weight_sum = losses.compute_weighted_cross_entropy(
+        loss, z_loss, _ = losses.compute_weighted_cross_entropy(
             logits,
             targets=batch["decoder_target_tokens"],
             weights=weights,
@@ -652,28 +652,31 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             mask=weights,
             loss=loss,
             z_loss=z_loss,
-            #cosine_loss=cos_loss,
-            #cosine_truth=cosine_truth,
+            cosine_loss=cos_loss,
+            cosine_truth=cosine_truth,
         )
-        return loss, (weight_sum, metrics)
+        return loss, metrics
 
-    # def _compute_metrics(
-    #     self,
-    #     logits: jnp.ndarray,
-    #     targets: jnp.ndarray,
-    #     mask: jnp.ndarray,
-    #     loss: jnp.ndarray,
-    #     z_loss: Optional[jnp.ndarray] = None,
-    #     cosine_loss: Optional[jnp.ndarray] = None,
-    #     cosine_truth: Optional[jnp.ndarray] = None,
-    # ) -> metrics_lib.MetricsMap:
-    #     metrics = compute_base_metrics(
-    #         logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
-    #     )
-    #     if cosine_loss is not None:
-    #         metrics.update(
-    #             {
-    #                 "cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss),
-    #             }
-    #         )
-    #     return metrics
+    def _compute_metrics(
+        self,
+        logits: jnp.ndarray,
+        targets: jnp.ndarray,
+        mask: jnp.ndarray,
+        loss: jnp.ndarray,
+        z_loss: Optional[jnp.ndarray] = None,
+        cosine_loss: Optional[jnp.ndarray] = None,
+        cosine_truth: Optional[jnp.ndarray] = None,
+    ) -> metrics_lib.MetricsMap:
+        metrics = compute_base_metrics(
+            logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
+        )
+        if cosine_loss is not None and cosine_truth is not None:
+            metrics.update(
+                {
+                    "cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss),
+                    "positive_cosine_samples": clu_metrics.Average(
+                        total=cosine_truth.sum(), count=jnp.ones_like(cosine_truth).sum()
+                    ),
+                }
+            )
+        return metrics
