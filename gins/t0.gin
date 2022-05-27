@@ -23,7 +23,7 @@ train/utils.DatasetConfig:
 train_eval/utils.DatasetConfig:
   batch_size = %BATCH_SIZE
   use_cached = %USE_CACHED_TASKS
-  pack = True
+  pack = False
   use_custom_packing_ops = False
 
 train_script.train:
