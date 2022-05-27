@@ -657,23 +657,23 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         )
         return loss, (weight_sum, metrics)
 
-    def _compute_metrics(
-        self,
-        logits: jnp.ndarray,
-        targets: jnp.ndarray,
-        mask: jnp.ndarray,
-        loss: jnp.ndarray,
-        z_loss: Optional[jnp.ndarray] = None,
-        cosine_loss: Optional[jnp.ndarray] = None,
-        cosine_truth: Optional[jnp.ndarray] = None,
-    ) -> metrics_lib.MetricsMap:
-        metrics = compute_base_metrics(
-            logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
-        )
-        if cosine_loss is not None:
-            metrics.update(
-                {
-                    "cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss),
-                }
-            )
-        return metrics
+    # def _compute_metrics(
+    #     self,
+    #     logits: jnp.ndarray,
+    #     targets: jnp.ndarray,
+    #     mask: jnp.ndarray,
+    #     loss: jnp.ndarray,
+    #     z_loss: Optional[jnp.ndarray] = None,
+    #     cosine_loss: Optional[jnp.ndarray] = None,
+    #     cosine_truth: Optional[jnp.ndarray] = None,
+    # ) -> metrics_lib.MetricsMap:
+    #     metrics = compute_base_metrics(
+    #         logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
+    #     )
+    #     if cosine_loss is not None:
+    #         metrics.update(
+    #             {
+    #                 "cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss),
+    #             }
+    #         )
+    #     return metrics
