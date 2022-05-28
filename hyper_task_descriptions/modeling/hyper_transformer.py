@@ -645,7 +645,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             z_loss=self._z_loss,
             loss_normalizing_factor=loss_normalizing_factor,
         )
-        loss += cos_loss
+        loss += cos_loss * 6000  # upweight since otherwise ce loss dominates
         metrics = self._compute_metrics(
             logits=logits,
             targets=batch["decoder_target_tokens"],
