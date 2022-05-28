@@ -4,10 +4,14 @@ git clone --branch=main https://github.com/google-research/t5x # TODO: pin to sp
 cd t5x
 python3 -m pip install -e '.[tpu]' -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 # install promptsource, and fix the seqio dependency
-# we install a custom fixed seqio.
 python3 -m pip install promptsource
+# i use a new feature in t5.data
+python3 -m pip uninstall -y t5
+python3 -m pip install git+https://github.com/google-research/text-to-text-transfer-transformer.git
+# custom fixed seqio
 python3 -m pip uninstall -y seqio seqio-nightly
 python3 -m pip install git+https://github.com/hamishivi/seqio.git
+
 # I've had some issues with tensorflow. these versions seem to work
 python3 -m pip install tensorflow==2.9.0
 python3 -m pip install tensorflow-text==2.9.0
