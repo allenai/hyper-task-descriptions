@@ -6,8 +6,8 @@ import re
 import datasets
 import tensorflow as tf
 from promptsource.utils import removeHyphen
-from tensorflow.python.data import (
-    Dataset,
+from tensorflow.python.data import Dataset
+from tensorflow.python.data.ops.dataset_ops import (
     DatasetV2,
     MapDataset,
     RandomDataset,
