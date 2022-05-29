@@ -6,6 +6,15 @@ import re
 import datasets
 import tensorflow as tf
 from promptsource.utils import removeHyphen
+from tensorflow.python.data import (
+    Dataset,
+    DatasetV2,
+    MapDataset,
+    RandomDataset,
+    _DirectedInterleaveDataset,
+)
+from tensorflow.python.framework import dtypes, ops
+from tensorflow.python.ops import array_ops, gen_stateless_random_ops, math_ops
 
 from hyper_task_descriptions.seqio_tasks.t0_datasets_mapping import T0_DS_MAPPING
 
@@ -144,3 +153,115 @@ def get_task_name(dataset_name, subset_name, template_name):
     return task_clean(
         dataset_name + (f"_{subset_name}_" if subset_name is not None else "_") + template_name
     )
+
+
+def double_sample_from_datasets(datasets, weights=None, seed=None, stop_on_empty_dataset=False):
+    """
+    An altered form of tf.data.Datasets.sample_from_datasets that samples the same,
+    but takes 2 samples per dataset at a time. This is to allow more more control
+    over contrastive sampling.
+    Seed is mandatory rn to recreate the random ds.
+    """
+    if seed is None:
+        seed = 42
+
+    def _skip_datasets_with_zero_weight(datasets, weights):
+        datasets_and_weights = [
+            (dataset, weight) for (dataset, weight) in zip(datasets, weights) if weight > 0
+        ]
+        return (
+            zip(*datasets_and_weights) if datasets_and_weights else ([datasets[0].take(0)], [1.0])
+        )
+
+    if not datasets:
+        raise ValueError("Invalid `datasets`. `datasets` should not be empty.")
+
+    if not isinstance(weights, DatasetV2):
+        if weights is None:
+            # Select inputs with uniform probability.
+            logits = [[1.0] * len(datasets)]
+
+        else:
+            if isinstance(weights, ops.Tensor):
+                if not weights.shape.is_compatible_with([len(datasets)]):
+                    raise ValueError(
+                        f"Invalid `weights`. The shape of `weights` "
+                        f"should be compatible with `[len(datasets)]` "
+                        f"but is {weights.shape}."
+                    )
+            else:
+                if len(datasets) != len(weights):
+                    raise ValueError(
+                        f"Invalid `weights`. `weights` should have the "
+                        f"same length as `datasets` but got "
+                        f"`len(weights)={len(weights)}` vs. "
+                        f"`len(datasets)={len(datasets)}`."
+                    )
+
+            # Use the given `weights` as the probability of choosing the respective
+            # input.
+            if not isinstance(weights, ops.Tensor):
+                datasets, weights = _skip_datasets_with_zero_weight(datasets, weights)
+            weights = ops.convert_to_tensor(weights, name="weights")
+            if weights.dtype not in (dtypes.float32, dtypes.float64):
+                raise TypeError(
+                    f"Invalid `weights`. `weights` type must be either "
+                    f"`tf.float32` or `tf.float64` but is "
+                    f"{weights.dtype}."
+                )
+
+            # The `stateless_multinomial()` op expects log-probabilities, as opposed
+            # to weights.
+            logits = array_ops.expand_dims(math_ops.log(weights, name="logits"), 0)
+
+        # NOTE(mrry): We only specialize when `weights` is not a `Dataset`. When
+        # it is a `Dataset`, it is possible that evaluating it has a side effect
+        # the user depends on.
+        if len(datasets) == 1:
+            return datasets[0]
+
+        def select_dataset_constant_logits(seed):
+            return array_ops.squeeze(
+                gen_stateless_random_ops.stateless_multinomial(logits, 1, seed=seed), axis=[0, 1]
+            )
+
+        selector_input = MapDataset(
+            RandomDataset(seed).batch(2),
+            select_dataset_constant_logits,
+            use_inter_op_parallelism=False,
+        )
+        selector_input_copy = MapDataset(
+            RandomDataset(seed).batch(2),
+            select_dataset_constant_logits,
+            use_inter_op_parallelism=False,
+        )
+
+    else:
+        # Use each element of the given `weights` dataset as the probability of
+        # choosing the respective input.
+        #
+        # The `stateless_multinomial()` op expects log-probabilities, as opposed
+        # to weights.
+        logits_ds = weights.map(lambda *p: math_ops.log(p, name="logits"))
+
+        def select_dataset_varying_logits(logits, seed):
+            return array_ops.squeeze(
+                gen_stateless_random_ops.stateless_multinomial(logits, 1, seed=seed), axis=[0, 1]
+            )
+
+        logits_and_seeds = Dataset.zip((logits_ds, RandomDataset(seed).batch(2)))
+        selector_input = MapDataset(
+            logits_and_seeds, select_dataset_varying_logits, use_inter_op_parallelism=False
+        )
+        selector_input_copy = MapDataset(
+            logits_and_seeds, select_dataset_varying_logits, use_inter_op_parallelism=False
+        )
+
+    # we combine selector inputs, so when sampling we should get two of the same at a time.
+    selector_input = selector_input.batch(1)
+    selector_input_copy = selector_input_copy.batch(1)
+    selector_input = tf.data.Dataset.zip((selector_input, selector_input_copy)).map(
+        lambda x, y: tf.concat((x, y), axis=0)
+    )
+
+    return _DirectedInterleaveDataset(selector_input, datasets, stop_on_empty_dataset)
