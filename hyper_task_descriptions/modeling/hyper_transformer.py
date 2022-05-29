@@ -625,8 +625,21 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
         # construct the contrastive loss truth
         cosine_truth = (batch["task_names"][:, None] == batch["task_names"]).astype(jnp.int32)
+        cosine_mask = cosine_truth  # our mask must contain the positives
+        # ideally, I would set this to be == to num positive samples, but static graph means we have to manually
+        # set. I know ~8% of samples are currently positive so this matches.
+        indices = jax.random.choice(
+            dropout_rng,
+            np.arange(cosine_mask.size),
+            replace=False,
+            shape=(int(cosine_mask.size * 0.08),),
+        )
+        cosine_mask = cosine_mask.at[indices].set(1)
+
         # cosine loss - for truth we want -1 for neg (not same task), 1 for pos (same task)
-        cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, (2 * cosine_truth) - 1)
+        cos_loss = cosine_similarity_loss(
+            hypernet_feats, hypernet_feats, (2 * cosine_truth) - 1, cosine_mask
+        )
 
         loss_normalizing_factor: Optional[
             Union[float, int, str, losses.SpecialLossNormalizingFactor]
@@ -664,6 +677,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         z_loss: Optional[jnp.ndarray] = None,
         cosine_loss: Optional[jnp.ndarray] = None,
         cosine_truth: Optional[jnp.ndarray] = None,
+        cosine_mask: Optional[jnp.ndarray] = None,
     ) -> metrics_lib.MetricsMap:
         metrics = compute_base_metrics(
             logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
@@ -673,7 +687,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
                 {
                     "cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss),
                     "positive_cosine_samples": clu_metrics.Average(
-                        total=cosine_truth.sum(), count=jnp.ones_like(cosine_truth).sum()
+                        total=cosine_truth.sum(), count=cosine_mask.sum()
                     ),
                 }
             )

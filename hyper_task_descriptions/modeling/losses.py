@@ -8,10 +8,12 @@ def cosine_similarity_loss(
     pred_vectors: jnp.ndarray,
     target_vectors: jnp.ndarray,
     ground_truth_similarity: jnp.ndarray,
+    mask: jnp.ndarray,
 ) -> jnp.ndarray:
     cosine_sim = jax.vmap(cosine_similarity_one_to_many, in_axes=[0, None])(
         pred_vectors, target_vectors
     )
+    cosine_sim = mask * cosine_sim
     loss = jnp.mean((cosine_sim - ground_truth_similarity) ** 2)
     return loss
 
