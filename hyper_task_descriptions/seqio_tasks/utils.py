@@ -262,6 +262,6 @@ def double_sample_from_datasets(datasets, weights=None, seed=None, stop_on_empty
     selector_input_copy = selector_input_copy.batch(1)
     selector_input = tf.data.Dataset.zip((selector_input, selector_input_copy)).map(
         lambda x, y: tf.concat((x, y), axis=0)
-    )
+    ).unbatch()
 
     return _DirectedInterleaveDataset(selector_input, datasets, stop_on_empty_dataset)
