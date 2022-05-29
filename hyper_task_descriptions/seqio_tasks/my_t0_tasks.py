@@ -1,6 +1,6 @@
 from typing import Dict, List, Tuple
-import pkg_resources
 
+import pkg_resources
 import seqio
 from promptsource import templates
 

@@ -683,12 +683,15 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         metrics = compute_base_metrics(
             logits=logits, targets=targets, mask=mask, loss=loss, z_loss=z_loss
         )
-        if cosine_loss is not None and cosine_truth is not None:
+        if cosine_loss is not None and cosine_truth is not None and cosine_mask is not None:
             metrics.update(
                 {
                     "cosine_loss": metrics_lib.AveragePerStep(total=cosine_loss),
                     "positive_cosine_samples": clu_metrics.Average(
                         total=cosine_truth.sum(), count=cosine_mask.sum()
+                    ),
+                    "total_positive_samples_per_step": metrics_lib.AveragePerStep(
+                        total=cosine_truth.sum()
                     ),
                 }
             )
