@@ -65,5 +65,5 @@ seqio.MixtureRegistry.add(
     "t0_double_train",
     [f"{dataset_name}_train" for dataset_name in dataset_names],
     default_rate=lambda t: mixture_cap[t.name],
-    sampling_fn=utils.double_sample_from_datasets,
+    sample_fn=utils.double_sample_from_datasets,
 )
