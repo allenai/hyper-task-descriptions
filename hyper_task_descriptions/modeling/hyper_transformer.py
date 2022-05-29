@@ -665,6 +665,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             z_loss=z_loss,
             cosine_loss=cos_loss,
             cosine_truth=cosine_truth,
+            cosine_mask=cosine_mask,
         )
         return loss, metrics
 
