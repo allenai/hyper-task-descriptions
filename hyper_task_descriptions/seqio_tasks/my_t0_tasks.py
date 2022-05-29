@@ -1,4 +1,5 @@
 from typing import Dict, List, Tuple
+import pkg_resources
 
 import seqio
 from promptsource import templates
@@ -43,8 +44,9 @@ for anli_round in ("r1", "r2", "r3"):
         # TODO use template.metadata.answer_choices here for rank eval
 
 # create a mixture for every dataset
+prefixes_list_filepath = pkg_resources.resource_filename(__name__, "all_t0_task_prefixes.txt")
 dataset_names = [
-    line.strip() for line in open("all_t0_task_prefixes.txt", "r").readlines() if line.strip()
+    line.strip() for line in open(prefixes_list_filepath, "r").readlines() if line.strip()
 ]
 
 for dataset_name in dataset_names:
