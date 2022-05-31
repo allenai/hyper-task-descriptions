@@ -55,6 +55,7 @@ setup(
         "hyper_task_descriptions": [
             "seqio_tasks/datasets.csv",
             "seqio_tasks/all_t0_task_prefixes.txt",
+            "seqio_tasks/all_edited_prompts.txt",
         ],
         "": ["requirements.txt", "dev-requirements.txt"],
     },

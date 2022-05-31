@@ -20,7 +20,7 @@ from hyper_task_descriptions.seqio_tasks.t0_datasets_mapping import T0_DS_MAPPIN
 
 
 def load_prewritten_prompts():
-    text = open("edited_prompts.txt", "r").read()
+    text = open("all_edited_prompts.txt", "r").read()
     text = text.split("****************************")
     text = [t.strip().split("	||||	") for t in text]
     text = {t[0] + "_" + t[1]: t[2] for t in text if len(t) > 2}
