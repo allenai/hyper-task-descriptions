@@ -1,0 +1,2177 @@
+adversarial_qa_dbert	||||	answer_the_following_q	||||	Given the following passage
+
+"[CONTEXT]",
+
+answer the following question. Note that the answer is present within the text.
+
+Question: [QUESTION]
+****************************
+adversarial_qa_dbert	||||	based_on	||||	Extract the answer to the question from the following context.
+Question: [QUESTION]
+Context: [CONTEXT]
+****************************
+adversarial_qa_dbert	||||	generate_question	||||	I want to test the ability of students to read a passage and answer questions about it. Could you please come up with a good question for the passage "[CONTEXT]"?
+****************************
+adversarial_qa_dbert	||||	question_context_answer	||||	Question: "[QUESTION]"
+
+Context: "[CONTEXT]"
+
+Answer:
+****************************
+adversarial_qa_dbert	||||	tell_what_it_is	||||	I know that the answer to the question "[QUESTION]" is in "[CONTEXT]". Can you tell me what it is?
+****************************
+adversarial_qa_dbidaf	||||	answer_the_following_q	||||	Given the following passage
+
+"[CONTEXT]",
+
+answer the following question. Note that the answer is present within the text.
+
+Question: [QUESTION]
+****************************
+adversarial_qa_dbidaf	||||	based_on	||||	Extract the answer to the question from the following context.
+Question: [QUESTION]
+Context: [CONTEXT]
+****************************
+adversarial_qa_dbidaf	||||	generate_question	||||	I want to test the ability of students to read a passage and answer questions about it. Could you please come up with a good question for the passage "[CONTEXT]"?
+****************************
+adversarial_qa_dbidaf	||||	question_context_answer	||||	Question: "[QUESTION]"
+
+Context: "[CONTEXT]"
+
+Answer:
+****************************
+adversarial_qa_dbidaf	||||	tell_what_it_is	||||	I know that the answer to the question "[QUESTION]" is in "[CONTEXT]". Can you tell me what it is?
+****************************
+adversarial_qa_droberta	||||	answer_the_following_q	||||	Given the following passage
+
+"[CONTEXT]",
+
+answer the following question. Note that the answer is present within the text.
+
+Question: [QUESTION]
+****************************
+adversarial_qa_droberta	||||	based_on	||||	Extract the answer to the question from the following context.
+Question: [QUESTION]
+Context: [CONTEXT]
+****************************
+adversarial_qa_droberta	||||	generate_question	||||	I want to test the ability of students to read a passage and answer questions about it. Could you please come up with a good question for the passage "[CONTEXT]"?
+****************************
+adversarial_qa_droberta	||||	question_context_answer	||||	Question: "[QUESTION]"
+
+Context: "[CONTEXT]"
+
+Answer:
+****************************
+adversarial_qa_droberta	||||	tell_what_it_is	||||	I know that the answer to the question "[QUESTION]" is in "[CONTEXT]". Can you tell me what it is?
+****************************
+ag_news	||||	classify	||||	[TEXT] 
+What label best describes this news article?
+****************************
+ag_news	||||	classify_question_first	||||	What label best describes this news article?
+[TEXT]
+****************************
+ag_news	||||	classify_with_choices	||||	[TEXT] 
+Is this a piece of news regarding world politics, sports, business, or science and technology?
+****************************
+ag_news	||||	classify_with_choices_question_first	||||	Is this a piece of news regarding world politics, sports, business, or science and technology?
+[TEXT]
+****************************
+ag_news	||||	recommend	||||	Would you recommend the following article to a politician, an athlete, a business executive, or a scientist?
+
+[TEXT]
+****************************
+ag_news	||||	which_section	||||	[TEXT] 
+
+Which section of a newspaper would this article likely appear in?
+****************************
+ag_news	||||	which_section_choices	||||	[TEXT] 
+
+Which of the following sections of a newspaper would this article likely appear in? World News, Sports, Business, or Science and Technology?
+****************************
+amazon_polarity	||||	Is_this_product_review_positive	||||	Is this product review positive?
+Title: [TITLE]
+Review: [CONTENT]
+Answer:
+****************************
+amazon_polarity	||||	Is_this_review	||||	Title: [TITLE]
+Review: [CONTENT]
+Is the review positive or negative?
+****************************
+amazon_polarity	||||	Is_this_review_negative	||||	Title: [TITLE]
+Review: [CONTENT]
+Is this product review negative?
+****************************
+amazon_polarity	||||	User_recommend_this_product	||||	Based on this review, would the user recommend this product?
+===
+Review: [CONTENT]
+Answer:
+****************************
+amazon_polarity	||||	convey_negative_or_positive_sentiment	||||	Title: [TITLE]
+Review: [CONTENT]
+Does this product review convey a negative or positive sentiment?
+****************************
+amazon_polarity	||||	flattering_or_not	||||	Title: [TITLE]
+Product review: [CONTENT]
+Would you say this review depicts the product in a flattering or unflattering light?
+****************************
+amazon_polarity	||||	negative_or_positive_tone	||||	Is there a negative or positive tone to this product review?
+===
+Title: [TITLE]
+Review: [CONTENT]
+Answer:
+****************************
+amazon_polarity	||||	user_satisfied	||||	Here is a review left by a customer on a product. Would you say he was satisfied or dissatisfied?
+Title: [TITLE]
+Review: [CONTENT]
+****************************
+amazon_polarity	||||	would_you_buy	||||	You are considering whether to buy a product. You look at the reviews. Would the following review decrease or increase the chances of you buying the product?
+Review title: [TITLE]
+Product review: [CONTENT]
+****************************
+anli	||||	gpt_3_style_r1	||||	[PREMISE]
+Question: [HYPOTHESIS] True, False, or Neither?
+****************************
+anli	||||	MNLI_crowdsource_r1	||||	[PREMISE] Using only the above description and what you know about the world, "[HYPOTHESIS]" is definitely correct, incorrect, or inconclusive?
+****************************
+anli	||||	always_sometimes_never_r1	||||	Suppose it's true that [PREMISE] Then, is "[HYPOTHESIS]" always, sometimes, or never true?
+****************************
+anli	||||	based_on_the_previous_passage_r1	||||	[PREMISE] Based on the previous passage, is it true that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+anli	||||	can_we_infer_r1	||||	Suppose [PREMISE] Can we infer that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+anli	||||	claim_true_false_inconclusive_r1	||||	[PREMISE] Based on that information, is the claim: "[HYPOTHESIS]" true, false, or inconclusive?
+****************************
+anli	||||	consider_always_sometimes_never_r1	||||	[PREMISE] 
+
+Keeping in mind the above text, consider: [HYPOTHESIS] Is this always, sometimes, or never correct?
+****************************
+anli	||||	does_it_follow_that_r1	||||	Given that [PREMISE] Does it follow that [HYPOTHESIS] Yes, no, or maybe?
+****************************
+anli	||||	does_this_imply_r1	||||	[PREMISE] 
+
+Question: Does this imply that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+anli	||||	guaranteed_true_r1	||||	Given [PREMISE] Is it guaranteed true that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+anli	||||	guaranteed_possible_impossible_r1	||||	Assume it is true that [PREMISE] 
+
+Therefore, "[HYPOTHESIS]" is guaranteed, possible, or impossible?
+****************************
+anli	||||	justified_in_saying_r1	||||	[PREMISE] Are we justified in saying that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+anli	||||	must_be_true_r1	||||	Given that [PREMISE] Therefore, it must be true that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+anli	||||	should_assume_r1	||||	Given [PREMISE] Should we assume that "[HYPOTHESIS]" is true? Yes, no, or maybe?
+****************************
+anli	||||	take_the_following_as_truth_r1	||||	Take the following as truth: [PREMISE]
+Then the following statement: "[HYPOTHESIS]" is true, false, or inconclusive?
+****************************
+app_reviews	||||	categorize_rating_using_review	||||	Given this review: "[REVIEW]"
+Would you recommend this app to a friend? Not at all, No, Maybe, Yes, or Definitely?
+****************************
+app_reviews	||||	convert_to_rating	||||	On a scale of 1-5 (with 1 being least favorable and 5 being most favorable), how would you rate this review? "[REVIEW]"
+****************************
+app_reviews	||||	convert_to_star_rating	||||	What would be the ★-rating of this review (★ being the lowest and ★★★★★ being the highest)? "[REVIEW]"
+****************************
+app_reviews	||||	generate_review	||||	Generate a 0-star review (1 being lowest and 5 being highest) about an app with package [PACKAGE_NAME].
+****************************
+cnn_dailymail_3.0.0	||||	2_or_3_sentences	||||	In 2 or 3 sentences, what are the main points one should remember from this news article?
+
+Article: [ARTICLE]
+****************************
+cnn_dailymail_3.0.0	||||	generate_story	||||	Generate a story from key plot points:
+
+[HIGHLIGHTS]
+****************************
+cnn_dailymail_3.0.0	||||	news_card_view	||||	Condense the article down to the essentials to present it in the form of short cards in mobile news apps:
+
+[ARTICLE]
+****************************
+cnn_dailymail_3.0.0	||||	news_stock	||||	Extract key points from the article based on which the stock market could react:
+
+[ARTICLE]
+****************************
+cnn_dailymail_3.0.0	||||	news_summary	||||	Summarise the article:
+
+[ARTICLE]
+****************************
+cnn_dailymail_3.0.0	||||	spice_up_story	||||	What details would you include in a storyline to make it more engaging and informative?
+
+[HIGHLIGHTS]
+****************************
+cnn_dailymail_3.0.0	||||	sum_in_brief	||||	Sum the following article in brief: [ARTICLE]
+****************************
+cnn_dailymail_3.0.0	||||	tldr_summary	||||	Could you please generate a TLDR (Too Long Didn't Read) summary of the following news article?
+
+Article: [ARTICLE]
+****************************
+cnn_dailymail_3.0.0	||||	write_an_outline	||||	Can you write an outline of the following article in a few points?
+
+Article: [ARTICLE]
+****************************
+common_gen	||||	Example_prompt	||||	Humans can easily string together abstract concepts to form a coherent sentence. 
+For example, with the concepts [CONCEPTS], [CONCEPTS], [CONCEPTS], a simple sentence can be
+****************************
+common_gen	||||	Given_concepts_type_1	||||	Given the list of concepts: [CONCEPTS], [CONCEPTS], [CONCEPTS]; 
+Generate a sentence with all the concepts :
+****************************
+common_gen	||||	Put_together	||||	Put the concepts together to form a sentence: [CONCEPTS], [CONCEPTS], [CONCEPTS].
+****************************
+common_gen	||||	choice_in_concept_centric_sentence_generation	||||	Construct a sentence with the word [CONCEPTS]. 
+
+Hint: Use [CONCEPTS], [CONCEPTS], [CONCEPTS] to restrict the output sentence.
+****************************
+common_gen	||||	random_task_template_prompt	||||	From the concepts mentioned below, generate a sentence:
+[CONCEPTS], [CONCEPTS], [CONCEPTS]
+****************************
+common_gen	||||	sentence_to_concepts	||||	We have the sentence: [TARGET]; 
+Extract all the key concepts:
+****************************
+common_gen	||||	topic_to_sentence	||||	Can you write a sentence about the topic [CONCEPTS]?
+****************************
+common_gen	||||	topics_from_the_sentence	||||	What are the topics in the sentence: [TARGET]
+****************************
+cosmos_qa	||||	context_answer_to_question	||||	Based on the context and the answer, generate a question. 
+
+Context: [CONTEXT]
+
+Answer:
+
+[ANSWER0]
+****************************
+cosmos_qa	||||	context_description_question_answer_id	||||	[CONTEXT]
+According to the above context, choose the best option to answer the following question.
+Question: [QUESTION]
+Options:
+A. [ANSWER0]
+B. [ANSWER1]
+C. [ANSWER2]
+D. [ANSWER3]
+****************************
+cosmos_qa	||||	context_description_question_answer_text	||||	[CONTEXT]
+According to the above context, choose the best option to answer the following question.
+Question: [QUESTION]
+Options:
+- [ANSWER0]
+ - [ANSWER1]
+ - [ANSWER2]
+ - [ANSWER3]
+****************************
+cosmos_qa	||||	context_description_question_text	||||	[CONTEXT]
+According to the above context, answer the following question.
+[QUESTION]
+****************************
+cosmos_qa	||||	context_question_description_answer_id	||||	[CONTEXT]
+[QUESTION]
+Pick the best answer from the following options:
+A. [ANSWER0]
+B. [ANSWER1]
+C. [ANSWER2]
+D. [ANSWER3]
+****************************
+cosmos_qa	||||	context_question_description_answer_text	||||	[CONTEXT]
+[QUESTION]
+Pick the best answer from the following options:
+- [ANSWER0]
+ - [ANSWER1]
+ - [ANSWER2]
+ - [ANSWER3]
+****************************
+cosmos_qa	||||	context_question_description_text	||||	[CONTEXT]
+Question: [QUESTION]
+The answer to the above question:
+****************************
+cosmos_qa	||||	description_context_question_answer_id	||||	Read the following context and choose the best option to answer the question.
+Context: [CONTEXT]
+Question: [QUESTION]
+Options: 
+A. [ANSWER0]
+B. [ANSWER1]
+C. [ANSWER2]
+D. [ANSWER3]
+****************************
+cosmos_qa	||||	description_context_question_answer_text	||||	Read the following context and choose the best option to answer the question.
+Context: [CONTEXT]
+Question: [QUESTION]
+Options: 
+- [ANSWER0]
+ - [ANSWER1]
+ - [ANSWER2]
+ - [ANSWER3]
+****************************
+cosmos_qa	||||	description_context_question_text	||||	Read the following context and answer the question.
+Context: [CONTEXT]
+Question: [QUESTION]
+Answer:
+****************************
+cosmos_qa	||||	no_prompt_id	||||	[CONTEXT]
+[QUESTION]
+A. [ANSWER0]
+B. [ANSWER1]
+C. [ANSWER2]
+D. [ANSWER3]
+****************************
+cosmos_qa	||||	no_prompt_text	||||	[CONTEXT]
+[QUESTION]
+- [ANSWER0]
+ - [ANSWER1]
+ - [ANSWER2]
+ - [ANSWER3]
+****************************
+cosmos_qa	||||	only_question_answer	||||	[QUESTION]
+****************************
+dbpedia_14	||||	given_a_choice_of_categories_	||||	[TITLE] - [CONTENT] Given a choice of categories company, educational institution, artist, athlete, office holder, mean of transportation, building, natural place, village, animal, plant, album, film or written work, the text refers to which one?
+****************************
+dbpedia_14	||||	given_a_list_of_category_what_does_the_title_belong_to	||||	"[TITLE]", given a list of categories: company, educational institution, artist, athlete, office holder, mean of transportation, building, natural place, village, animal, plant, album, film or written work, what category does the title belong to?
+****************************
+dbpedia_14	||||	given_list_what_category_does_the_paragraph_belong_to	||||	[CONTENT] Given a list of categories: company, educational institution, artist, athlete, office holder, mean of transportation, building, natural place, village, animal, plant, album, film or written work, what category does the paragraph belong to?
+****************************
+dbpedia_14	||||	pick_one_category_for_the_following_text	||||	Pick one category for the following text. The options are - company, educational institution, artist, athlete, office holder, mean of transportation, building, natural place, village, animal, plant, album, film or written work. [TITLE] - [CONTENT]
+****************************
+dream	||||	baseline	||||	Dialogue:
+
+[DIALOGUE]
+
+[DIALOGUE]
+
+Question: [QUESTION] 
+
+- [CHOICE]
+
+- [CHOICE]
+
+- [CHOICE]
+****************************
+dream	||||	read_the_following_conversation_and_answer_the_question	||||	Read the following conversation and answer the question.
+
+[DIALOGUE]
+
+[DIALOGUE]
+
+Question: [QUESTION] 
+
+- [CHOICE]
+
+- [CHOICE]
+
+- [CHOICE]
+****************************
+duorc_ParaphraseRC	||||	answer_question	||||	Please answer the following question about this movie plot. If it's un-answerable, please output "No answer".
+
+Question: [QUESTION]
+Movie plot title: [TITLE]
+Movie plot: [PLOT]
+****************************
+duorc_ParaphraseRC	||||	build_story_around_qa	||||	Build a movie plot around this: [QUESTION] [ANSWERS]
+****************************
+duorc_ParaphraseRC	||||	decide_worth_it	||||	I am trying to decide whether it's worth it to invest in this film proposal. Can you help me answer a few questions? If you can't, please say "No I can't".
+
+Question: [QUESTION]
+Movie title: [TITLE]
+Movie plot: [PLOT]
+****************************
+duorc_ParaphraseRC	||||	extract_answer	||||	Extract the answer to the following question from the movie plot. If the question isn't answerable, please output "Can't answer".
+Question: [QUESTION]
+Title: [TITLE]
+Movie plot: [PLOT]
+****************************
+duorc_ParaphraseRC	||||	generate_question	||||	Generate a question about the following movie plot: [PLOT]
+****************************
+duorc_ParaphraseRC	||||	generate_question_by_answer	||||	Generate a question that has the following answer: 
+[ANSWERS] 
+for the following movie plot: 
+[PLOT]
+****************************
+duorc_ParaphraseRC	||||	movie_director	||||	I am a movie director and I just received the following movie plot. Could you help me answer this question? If not, let me know by writing "Not answerable".
+
+Plot title: [TITLE]
+Movie plot: [PLOT]
+My question: [QUESTION]
+****************************
+duorc_ParaphraseRC	||||	question_answering	||||	Question: [QUESTION]
+If there is no answer, please output "Insufficient information to provide an answer.".
+Movie title: [TITLE]
+Context: [PLOT]
+****************************
+duorc_ParaphraseRC	||||	title_generation	||||	Suggest a movie title for the following movie plot: [PLOT]
+****************************
+duorc_SelfRC	||||	answer_question	||||	Please answer the following question about this movie plot. If it's un-answerable, please output "No answer".
+
+Question: [QUESTION]
+Movie plot title: [TITLE]
+Movie plot: [PLOT]
+****************************
+duorc_SelfRC	||||	build_story_around_qa	||||	Build a movie plot around this: [QUESTION] [ANSWERS]
+****************************
+duorc_SelfRC	||||	decide_worth_it	||||	I am trying to decide whether it's worth it to invest in this film proposal. Can you help me answer a few questions? If you can't, please say "No I can't".
+
+Question: [QUESTION]
+Movie title: [TITLE]
+Movie plot: [PLOT]
+****************************
+duorc_SelfRC	||||	extract_answer	||||	Extract the answer to the following question from the movie plot. If the question isn't answerable, please output "Can't answer".
+Question: [QUESTION]
+Title: [TITLE]
+Movie plot: [PLOT]
+****************************
+duorc_SelfRC	||||	generate_question	||||	Generate a question about the following movie plot: [PLOT]
+****************************
+duorc_SelfRC	||||	generate_question_by_answer	||||	Generate a question that has the following answer: 
+[ANSWERS] 
+for the following movie plot: 
+[PLOT]
+****************************
+duorc_SelfRC	||||	movie_director	||||	I am a movie director and I just received the following movie plot. Could you help me answer this question? If not, let me know by writing "Not answerable".
+
+Plot title: [TITLE]
+Movie plot: [PLOT]
+My question: [QUESTION]
+****************************
+duorc_SelfRC	||||	question_answering	||||	Question: [QUESTION]
+If there is no answer, please output "Insufficient information to provide an answer.".
+Movie title: [TITLE]
+Context: [PLOT]
+****************************
+duorc_SelfRC	||||	title_generation	||||	Suggest a movie title for the following movie plot: [PLOT]
+****************************
+gigaword	||||	TLDR	||||	[DOCUMENT]
+
+TL;DR:
+****************************
+gigaword	||||	first_sentence_title	||||	First sentence of the article: [DOCUMENT]
+
+Title:
+****************************
+gigaword	||||	generate_summary_for_this	||||	[DOCUMENT]
+
+===
+
+Generate a title for this article:
+****************************
+gigaword	||||	in_a_nutshell	||||	[DOCUMENT] In a nutshell,
+****************************
+gigaword	||||	make_a_title	||||	Make a title for this article: [DOCUMENT]
+****************************
+gigaword	||||	reverse_writing	||||	Title: [SUMMARY]
+****************************
+gigaword	||||	write_a_title_for_this_sentence	||||	Write a title for this sentence: [DOCUMENT] 
+
+Title:
+****************************
+gigaword	||||	write_an_article	||||	Title: [SUMMARY]
+
+===
+
+Write an article with the given title:
+****************************
+gigaword	||||	write_its_sentence	||||	[DOCUMENT]
+
+===
+
+Given the above sentence, write its title:
+****************************
+glue_mrpc	||||	equivalent	||||	Are the following two sentences "equivalent" or "not equivalent"?
+[SENTENCE1]
+[SENTENCE2]
+****************************
+glue_mrpc	||||	generate_paraphrase	||||	Paraphrase the following sentence: [SENTENCE1]
+****************************
+glue_mrpc	||||	generate_sentence	||||	Generate a sentence that means the same thing as this one:[SENTENCE1]
+****************************
+glue_mrpc	||||	paraphrase	||||	Does the sentence
+[SENTENCE1]
+paraphrase (that is, mean the same thing as) this sentence?
+[SENTENCE2]
+****************************
+glue_mrpc	||||	replace	||||	Can I replace the sentence
+[SENTENCE1]
+with the sentence
+[SENTENCE2]
+and have it mean the same thing?
+****************************
+glue_mrpc	||||	same_thing	||||	Do the following two sentences mean the same thing?
+[SENTENCE1]
+[SENTENCE2]
+****************************
+glue_mrpc	||||	want_to_know	||||	I want to know whether the following two sentences mean the same thing.
+[SENTENCE1]
+[SENTENCE2]
+Do they?
+****************************
+glue_qqp	||||	answer	||||	Can an answer to "[QUESTION1]" also be used to answer "[QUESTION2]"?
+****************************
+glue_qqp	||||	duplicate	||||	I received the questions "[QUESTION1]" and "[QUESTION2]". Are they duplicates?
+****************************
+glue_qqp	||||	duplicate_or_not	||||	[QUESTION1]
+[QUESTION2]
+Pick one: These questions are "duplicates" or "not duplicates".
+****************************
+glue_qqp	||||	meaning	||||	Question 1: [QUESTION1]
+Question 2: [QUESTION2]
+
+Do these two questions convey the same meaning? Yes or no?
+****************************
+glue_qqp	||||	quora	||||	I'm an administrator on the website Quora. There are two posts, one that asks "[QUESTION1]" and another that asks "[QUESTION2]". I can merge questions if they are asking the same thing. Can I merge these two questions?
+****************************
+glue_qqp	||||	same_thing	||||	Are the questions "[QUESTION1]" and "[QUESTION2]" asking the same thing?
+****************************
+hellaswag	||||	Predict_ending_with_hint	||||	How does this sentence end?
+[CTX]
+
+(a)  [ENDINGS]
+
+(b)  [ENDINGS]
+
+(c)  [ENDINGS]
+
+(d)  [ENDINGS]
+
+Hint: the topic of the sentence is [ACTIVITY_LABEL]
+****************************
+hellaswag	||||	Randomized_prompts_template	||||	From the list of endings described below, what ending makes the most sense for the sentence 
+[CTX]
+
+(a)  [ENDINGS]
+
+(b)  [ENDINGS]
+
+(c)  [ENDINGS]
+
+(d)  [ENDINGS]
+****************************
+hellaswag	||||	complete_first_then	||||	Complete the description with an appropriate ending:
+First, [ctx_a] Then, [ctx_b] ...
+
+(a) [ENDINGS]
+
+(b) [ENDINGS]
+
+(c) [ENDINGS]
+
+(d) [ENDINGS]
+****************************
+hellaswag	||||	if_begins_how_continues	||||	If a description of a situation begins like this: [CTX]... Then how
+does it continue? 
+
+Ending 1: [ENDINGS]
+
+Ending 2: [ENDINGS]
+
+Ending 3: [ENDINGS]
+
+Ending 4: [ENDINGS]
+****************************
+imdb	||||	Movie_Expressed_Sentiment	||||	[TEXT] The sentiment expressed for the movie is
+****************************
+imdb	||||	Movie_Expressed_Sentiment_2	||||	The following movie review expresses what sentiment? [TEXT]
+****************************
+imdb	||||	Negation_template_for_positive_and_negative	||||	[TEXT] This is definitely not a
+****************************
+imdb	||||	Reviewer_Enjoyment	||||	[TEXT] How does the reviewer feel about the movie?
+****************************
+imdb	||||	Reviewer_Enjoyment_Yes_No	||||	[TEXT] Did the reviewer enjoy the movie?
+****************************
+imdb	||||	Reviewer_Expressed_Sentiment	||||	[TEXT] What is the sentiment expressed by the reviewer for the movie?
+****************************
+imdb	||||	Reviewer_Opinion_bad_good_choices	||||	[TEXT] Did the reviewer find this movie good or bad?
+****************************
+imdb	||||	Reviewer_Sentiment_Feeling	||||	[TEXT] How does the viewer feel about the movie?
+****************************
+imdb	||||	Sentiment_with_choices_	||||	[TEXT] 
+Is this review positive or negative?
+****************************
+imdb	||||	Text_Expressed_Sentiment	||||	[TEXT] What is the sentiment expressed in this text?
+****************************
+imdb	||||	Writer_Expressed_Sentiment	||||	[TEXT] What sentiment does the writer express for the movie?
+****************************
+kilt_tasks_hotpotqa	||||	combining_facts	||||	Combine facts and answer this: [INPUT]
+****************************
+kilt_tasks_hotpotqa	||||	complex_question	||||	Here's a complex question that requires someone to reason about the input, can you answer it?
+[INPUT]
+****************************
+kilt_tasks_hotpotqa	||||	final_exam	||||	FINAL EXAM
+
+Question 1. [INPUT]
+****************************
+kilt_tasks_hotpotqa	||||	formulate	||||	Formulate an answer to this elaborate question: [INPUT]
+****************************
+kilt_tasks_hotpotqa	||||	straighforward_qa	||||	[INPUT]
+****************************
+multi_news	||||	distill	||||	I'm trying to distill these articles down into one:
+
+
+Article: [DOCUMENT]
+****************************
+multi_news	||||	summarize	||||	Write a summary of the following articles:
+
+
+Document: [DOCUMENT]
+****************************
+multi_news	||||	summary_scenario	||||	I want to edit the following articles into a more concise summary:
+
+
+Article: [DOCUMENT]
+****************************
+multi_news	||||	synthesize	||||	Synthesize these documents into a single one:
+
+
+- [DOCUMENT]
+****************************
+multi_news	||||	what_are_the_key_points	||||	What are the key points across these news articles:
+
+
+Article: [DOCUMENT]
+****************************
+paws_labeled_final	||||	Concatenation	||||	Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+Question: Does Sentence 1 paraphrase Sentence 2? Yes or No?
+****************************
+paws_labeled_final	||||	Concatenation_no_label	||||	Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+Question: Does Sentence 1 paraphrase Sentence 2?
+****************************
+paws_labeled_final	||||	Meaning	||||	Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+Question: Do Sentence 1 and Sentence 2 express the same meaning? Yes or No?
+****************************
+paws_labeled_final	||||	Meaning_no_label	||||	Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+Question: Do Sentence 1 and Sentence 2 express the same meaning?
+****************************
+paws_labeled_final	||||	Rewrite	||||	Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+Question: Can we rewrite Sentence 1 to Sentence 2? Yes or No?
+****************************
+paws_labeled_final	||||	Rewrite_no_label	||||	Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+Question: Can we rewrite Sentence 1 to Sentence 2?
+****************************
+paws_labeled_final	||||	context_question	||||	[SENTENCE1]
+Is that a paraphrase of the following sentence?
+[SENTENCE2]?
+Yes or No.
+****************************
+paws_labeled_final	||||	context_question_no_label	||||	[SENTENCE1]
+Is that a paraphrase of the following sentence?
+[SENTENCE2]?
+****************************
+paws_labeled_final	||||	paraphrase_task	||||	Paraphrase the sentence: [SENTENCE1]
+****************************
+paws_labeled_final	||||	task_description_no_label	||||	Determine if the following two sentences paraphrase each other or not.
+Sent 1: [SENTENCE1]
+Sent 2: [SENTENCE2]
+****************************
+qasc	||||	is_correct_1	||||	If I tell you that [COMBINEDFACT], and ask you the question "[QUESTION]", is the correct answer "[TEXT]"?
+****************************
+qasc	||||	is_correct_2	||||	Do you think the right answer to the question "[QUESTION]" is "[TEXT]", given that
+ [COMBINEDFACT]?
+****************************
+qasc	||||	qa_with_combined_facts_1	||||	If [COMBINEDFACT], then [QUESTION]?
+
+Answer choices:
+- [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+****************************
+qasc	||||	qa_with_separated_facts_1	||||	[FACT1], and [FACT2]. Given these facts, [QUESTION] among the following options:
+- [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+****************************
+qasc	||||	qa_with_separated_facts_2	||||	Fact 1: [FACT1].
+
+Fact 2: [FACT2].
+
+Given the two facts above, answer the question "[QUESTION]" with the following options: 
+- [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+****************************
+qasc	||||	qa_with_separated_facts_3	||||	Fact 1: [FACT1].
+
+Fact 2: [FACT2].
+
+Given the two facts above, [QUESTION]?
+****************************
+qasc	||||	qa_with_separated_facts_4	||||	You are presented with the question "[QUESTION]" and the following answer choices: 
+- [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+ - [TEXT]
+
+Now knowing that [FACT1] and [FACT2], choose the best answer.
+****************************
+qasc	||||	qa_with_separated_facts_5	||||	You are presented with the quiz "[QUESTION]" 
+
+But you don't know the answer, so you turn to your teacher to ask for hints. He says that "[FACT1]" and "[FACT2]". 
+
+So, what's the best answer to the question?
+****************************
+quail	||||	context_description_question_answer_id	||||	[CONTEXT]
+According to the above context, choose the correct option to answer the following question.
+Question: [QUESTION]
+Options:
+
+A. [ANSWERS]
+
+B. [ANSWERS]
+
+C. [ANSWERS]
+
+D. [ANSWERS]
+****************************
+quail	||||	context_description_question_answer_text	||||	[CONTEXT]
+According to the above context, choose the correct option to answer the following question.
+Question: [QUESTION]
+Options:
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+****************************
+quail	||||	context_description_question_text	||||	[CONTEXT]
+According to the above context, answer the following question.
+[QUESTION]
+****************************
+quail	||||	context_question_answer_description_id	||||	[CONTEXT]
+Question: [QUESTION]
+Options:
+
+A. [ANSWERS]
+
+B. [ANSWERS]
+
+C. [ANSWERS]
+
+D. [ANSWERS]
+
+===
+The correct answer is
+****************************
+quail	||||	context_question_answer_description_text	||||	[CONTEXT]
+Question: [QUESTION]
+Options:
+- [ANSWERS] 
+ - [ANSWERS] 
+ - [ANSWERS] 
+ - [ANSWERS]
+===
+The correct answer is
+****************************
+quail	||||	context_question_description_answer_id	||||	[CONTEXT]
+[QUESTION]
+Pick the correct answer from the following options:
+
+A. [ANSWERS]
+
+B. [ANSWERS]
+
+C. [ANSWERS]
+
+D. [ANSWERS]
+****************************
+quail	||||	context_question_description_answer_text	||||	[CONTEXT]
+[QUESTION]
+Pick the correct answer from the following options:
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+****************************
+quail	||||	context_question_description_text	||||	[CONTEXT]
+Question: [QUESTION]
+===
+The answer to the above question is
+****************************
+quail	||||	description_context_question_answer_id	||||	Read the following context and choose the correct option to answer the question.
+Context: [CONTEXT]
+Question: [QUESTION]
+Options:
+
+A. [ANSWERS]
+
+B. [ANSWERS]
+
+C. [ANSWERS]
+
+D. [ANSWERS]
+****************************
+quail	||||	description_context_question_answer_text	||||	Read the following context and choose the correct option to answer the question.
+Context: [CONTEXT]
+Question: [QUESTION]
+Options:
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+****************************
+quail	||||	description_context_question_text	||||	Read the following context and answer the question.
+Context: [CONTEXT]
+Question: [QUESTION]
+Answer:
+****************************
+quail	||||	no_prompt_id	||||	[CONTEXT]
+[QUESTION]
+
+A. [ANSWERS]
+
+B. [ANSWERS]
+
+C. [ANSWERS]
+
+D. [ANSWERS]
+****************************
+quail	||||	no_prompt_text	||||	[CONTEXT]
+[QUESTION]
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+- [ANSWERS]
+****************************
+quarel	||||	choose_between	||||	Choose between "[WORLD1]" and  "[WORLD2]".
+Question: [QUESTION]
+****************************
+quarel	||||	do_not_use	||||	Question: [QUESTION]
+
+Do not use A and B to answer the question but instead, choose between "[WORLD1]" and  "[WORLD2]".
+****************************
+quarel	||||	heres_a_story	||||	Here's a short story: [QUESTION].
+
+What is the most sensical answer between "[WORLD1]" and  "[WORLD2]"?
+****************************
+quarel	||||	logic_test	||||	Here's a logic test: [QUESTION]
+
+Choose the answer between "[WORLD1]" and "[WORLD2]".
+****************************
+quarel	||||	testing_students	||||	I am testing my students' logic.
+What is the answer they should choose between "[WORLD1]" and "[WORLD2]"?
+Logic test: [QUESTION]
+****************************
+quartz	||||	answer_question_based_on	||||	Answer the question based on the following text.
+
+Question:
+
+
+[QUESTION] [TEXT] or [TEXT]? 
+
+
+Text:
+
+[PARA]
+****************************
+quartz	||||	answer_question_below	||||	Answer the question below:
+
+
+[QUESTION] [TEXT] or [TEXT]? 
+
+
+Assuming that:
+
+[PARA]
+****************************
+quartz	||||	given_the_fact_answer_the_q	||||	Given the fact that:
+
+[PARA]
+
+Answer the question:
+
+
+[QUESTION] [TEXT] or [TEXT]?
+****************************
+quartz	||||	having_read_above_passage	||||	[PARA]
+
+Having read the above passage, choose the right answer to the following question (choices are [TEXT] or [TEXT] ):
+
+
+[QUESTION] [TEXT] or [TEXT]?
+****************************
+quartz	||||	paragraph_question_plain_concat	||||	[PARA]
+
+[QUESTION] [TEXT] or [TEXT]?
+****************************
+quartz	||||	read_passage_below_choose	||||	Read the passage below and choose the right answer to the following question (choices are [TEXT] or [TEXT] ):
+
+[PARA]
+
+
+[QUESTION] [TEXT] or [TEXT]?
+****************************
+quartz	||||	use_info_from_paragraph_question	||||	Use information from the paragraph to answer the question.
+
+Paragraph :
+
+[PARA]
+
+Question:
+
+
+[QUESTION] [TEXT] or [TEXT]?
+****************************
+quartz	||||	use_info_from_question_paragraph	||||	Use information from the paragraph to answer the question.
+
+Question:
+
+
+[QUESTION] [TEXT] or [TEXT]? 
+
+
+Paragraph :
+
+[PARA]
+****************************
+quoref	||||	Answer_Friend_Question	||||	A friend asked me to answer this question: [QUESTION], using the article: [CONTEXT], what would be the answer ?
+****************************
+quoref	||||	Answer_Question_Given_Context	||||	Given the following context:
+
+[CONTEXT]
+
+answer the following question:
+
+[QUESTION]
+****************************
+quoref	||||	Answer_Test	||||	I have a test where I am given the following article, what is an answer for the question: [QUESTION] ?
+
+[CONTEXT]
+****************************
+quoref	||||	Context_Contains_Answer	||||	This article: [CONTEXT] contains an answer for the question: [QUESTION], what is it ?
+****************************
+quoref	||||	Find_Answer	||||	The following article contains an answer for the question: [QUESTION] , can you please find it? 
+
+[CONTEXT]
+****************************
+quoref	||||	Found_Context_Online	||||	Found the following article online, use it to answer the question: [QUESTION]
+
+[CONTEXT]
+****************************
+quoref	||||	Given_Context_Answer_Question	||||	[QUESTION]
+
+Answer the above question based on the context below:
+
+[CONTEXT]
+****************************
+quoref	||||	Guess_Answer	||||	The answer to the question: [QUESTION] is inside the article: [CONTEXT], can you guess it ?
+****************************
+quoref	||||	Guess_Title_For_Context	||||	Given the below context:
+
+[CONTEXT]
+
+Guess a valid title for it!
+****************************
+quoref	||||	Read_And_Extract_	||||	Read the following paragraph and extract the answer for the question: [QUESTION]
+
+[CONTEXT]
+****************************
+quoref	||||	What_Is_The_Answer	||||	What is the answer for the question: [QUESTION] from the following article ?
+
+[CONTEXT]
+****************************
+ropes	||||	background_new_situation_answer	||||	I can use this background: [BACKGROUND]
+
+Now, I have a new situation: [SITUATION]
+
+Answer this question please: [QUESTION]
+****************************
+ropes	||||	background_situation_middle	||||	You are given a new situation: [SITUATION]
+
+and a hint : [BACKGROUND]
+
+Please answer this question : [QUESTION]
+****************************
+ropes	||||	given_background_situation	||||	Given the background: [BACKGROUND]
+
+and the situation: [SITUATION]
+
+Answer the following question: [QUESTION]
+****************************
+ropes	||||	new_situation_background_answer	||||	I have a new situation: [SITUATION]
+
+But I can use this background: [BACKGROUND]
+
+What is an answer for this question: [QUESTION]
+****************************
+ropes	||||	plain_background_situation	||||	[BACKGROUND]
+
+[SITUATION]
+
+[QUESTION]
+****************************
+ropes	||||	plain_bottom_hint	||||	[SITUATION]
+
+[QUESTION]
+
+Hint: [BACKGROUND]
+****************************
+ropes	||||	plain_no_background	||||	[SITUATION]
+
+[QUESTION]
+****************************
+ropes	||||	prompt_beginning	||||	Please answer correctly the following question related to the paragraph below. 
+
+[QUESTION]
+
+[SITUATION]
+
+Hint: [BACKGROUND]
+****************************
+ropes	||||	prompt_bottom_hint_beginning	||||	Background: [BACKGROUND]
+
+Paragraph: [SITUATION]
+
+Given the paragraph above, please answer correctly the following question: [QUESTION]
+****************************
+ropes	||||	prompt_bottom_no_hint	||||	[SITUATION]
+
+Given the paragraph above, please answer correctly the following question: 
+
+[QUESTION]
+****************************
+ropes	||||	prompt_mix	||||	[SITUATION]
+
+Given the paragraph above, please answer correctly the following question: 
+
+[QUESTION]
+
+Hint: [BACKGROUND]
+****************************
+ropes	||||	read_background_situation	||||	I read this background article the other day: [BACKGROUND]
+
+I am facing a new situation today: [SITUATION]
+
+Using the knowledge I acquired from the background article, how should I answer correctly the following question regarding my new situation: [QUESTION]
+****************************
+rotten_tomatoes	||||	Movie_Expressed_Sentiment	||||	[TEXT] The sentiment expressed for the movie is
+****************************
+rotten_tomatoes	||||	Movie_Expressed_Sentiment_2	||||	The following movie review expresses what sentiment? [TEXT]
+****************************
+rotten_tomatoes	||||	Reviewer_Enjoyment	||||	[TEXT] How does the reviewer feel about the movie?
+****************************
+rotten_tomatoes	||||	Reviewer_Enjoyment_Yes_No	||||	[TEXT] Did the reviewer enjoy the movie?
+****************************
+rotten_tomatoes	||||	Reviewer_Expressed_Sentiment	||||	[TEXT] What is the sentiment expressed by the reviewer for the movie?
+****************************
+rotten_tomatoes	||||	Reviewer_Opinion_bad_good_choices	||||	[TEXT] Did the reviewer find this movie good or bad?
+****************************
+rotten_tomatoes	||||	Reviewer_Sentiment_Feeling	||||	[TEXT] How does the viewer feel about the movie?
+****************************
+rotten_tomatoes	||||	Sentiment_with_choices_	||||	[TEXT] 
+Is this review positive or negative?
+****************************
+rotten_tomatoes	||||	Text_Expressed_Sentiment	||||	[TEXT] What is the sentiment expressed in this text?
+****************************
+rotten_tomatoes	||||	Writer_Expressed_Sentiment	||||	[TEXT] What sentiment does the writer express for the movie?
+****************************
+samsum	||||	Generate_a_summary_for_this_dialogue	||||	Generate a summary for this dialogue:
+[DIALOGUE]
+****************************
+samsum	||||	Given_the_above_dialogue_write_a_summary	||||	[DIALOGUE]
+Given the above dialogue, write a summary.
+****************************
+samsum	||||	Sum_up_the_following_dialogue	||||	Sum up the following dialogue: 
+[DIALOGUE]
+****************************
+samsum	||||	Summarize_this_dialogue_	||||	Summarize this dialogue: [DIALOGUE]
+****************************
+samsum	||||	Summarize_	||||	Summarize: [DIALOGUE]
+****************************
+samsum	||||	To_sum_up_this_dialog	||||	[DIALOGUE]
+To sum up this dialog:
+****************************
+samsum	||||	Write_a_dialogue_that_match_this_summary	||||	Write a dialogue that matches this summary: [SUMMARY]
+****************************
+sciq	||||	Direct_Question	||||	Answer the following question given this paragraph: 
+
+[SUPPORT]
+
+
+Q: [QUESTION]
+
+
+A:
+****************************
+sciq	||||	Multiple_Choice	||||	Answer the following question given this paragraph: 
+
+[SUPPORT]
+
+
+Q: [QUESTION]
+
+ Choices:
+
+- [DISTRACTOR1]
+
+- [DISTRACTOR2]
+
+- [CORRECT_ANSWER]
+
+- [DISTRACTOR3]
+
+A:
+****************************
+sciq	||||	Multiple_Choice_Question_First	||||	Q: [QUESTION]
+
+
+Read this paragraph and choose the correct option from the provided answers:
+
+[SUPPORT]
+
+ Choices:
+
+- [CORRECT_ANSWER]
+
+- [DISTRACTOR3]
+
+- [DISTRACTOR1]
+
+- [DISTRACTOR2]
+
+
+A:
+****************************
+social_i_qa	||||	Check_if_a_random_answer_is_valid_or_not	||||	[CONTEXT]
+
+Given the question "[QUESTION]", is "[ANSWERA]" a valid answer?
+****************************
+social_i_qa	||||	Generate_answer	||||	[CONTEXT]
+
+Given the context: [QUESTION]
+****************************
+social_i_qa	||||	Generate_the_question_from_the_answer	||||	[CONTEXT]
+
+Given that the answer to a question is "", what is the question?
+****************************
+social_i_qa	||||	I_was_wondering	||||	I heard that [CONTEXT]
+
+And I was wondering [QUESTION]
+****************************
+social_i_qa	||||	Show_choices_and_generate_answer	||||	[CONTEXT]
+
+Given the context: [QUESTION]
+
+Possible answers: [ANSWERA], [ANSWERB], [ANSWERC]
+****************************
+social_i_qa	||||	Show_choices_and_generate_index	||||	Context: [CONTEXT]
+
+Question: [QUESTION]
+
+Which one of these answers best answers the question according to the context?
+
+A: [ANSWERA]
+
+B: [ANSWERB]
+
+C: [ANSWERC]
+****************************
+super_glue_cb	||||	gpt_3_style	||||	[PREMISE]
+Question: [HYPOTHESIS] True, False, or Neither?
+****************************
+super_glue_cb	||||	MNLI_crowdsource	||||	[PREMISE] Using only the above description and what you know about the world, "[HYPOTHESIS]" is definitely correct, incorrect, or inconclusive?
+****************************
+super_glue_cb	||||	always_sometimes_never	||||	Suppose it's true that [PREMISE] Then, is "[HYPOTHESIS]" always, sometimes, or never true?
+****************************
+super_glue_cb	||||	based_on_the_previous_passage	||||	[PREMISE] Based on the previous passage, is it true that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+super_glue_cb	||||	can_we_infer	||||	Suppose [PREMISE] Can we infer that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+super_glue_cb	||||	claim_true_false_inconclusive	||||	[PREMISE] Based on that information, is the claim: "[HYPOTHESIS]" true, false, or inconclusive?
+****************************
+super_glue_cb	||||	consider_always_sometimes_never	||||	[PREMISE] 
+
+Keeping in mind the above text, consider: [HYPOTHESIS] Is this always, sometimes, or never correct?
+****************************
+super_glue_cb	||||	does_it_follow_that	||||	Given that [PREMISE] Does it follow that [HYPOTHESIS] Yes, no, or maybe?
+****************************
+super_glue_cb	||||	does_this_imply	||||	[PREMISE] 
+
+Question: Does this imply that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+super_glue_cb	||||	guaranteed_true	||||	Given [PREMISE] Is it guaranteed true that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+super_glue_cb	||||	guaranteed_possible_impossible	||||	Assume it is true that [PREMISE] 
+
+Therefore, "[HYPOTHESIS]" is guaranteed, possible, or impossible?
+****************************
+super_glue_cb	||||	justified_in_saying	||||	[PREMISE] Are we justified in saying that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+super_glue_cb	||||	must_be_true	||||	Given that [PREMISE] Therefore, it must be true that "[HYPOTHESIS]"? Yes, no, or maybe?
+****************************
+super_glue_cb	||||	should_assume	||||	Given [PREMISE] Should we assume that "[HYPOTHESIS]" is true? Yes, no, or maybe?
+****************************
+super_glue_cb	||||	take_the_following_as_truth	||||	Take the following as truth: [PREMISE]
+Then the following statement: "[HYPOTHESIS]" is true, false, or inconclusive?
+****************************
+super_glue_copa	||||	best_option	||||	[PREMISE] 
+
+What's the best option?
+- [CHOICE1]
+- [CHOICE2]
+
+We are looking for  an effect
+****************************
+super_glue_copa	||||	cause_effect	||||	[PREMISE]
+
+Select the most plausible  effect: 
+- [CHOICE1]
+- [CHOICE2]
+****************************
+super_glue_copa	||||	choose	||||	[PREMISE]  so... 
+Choose between:
+- [CHOICE1]
+- [CHOICE2]
+****************************
+super_glue_copa	||||	exercise	||||	Exercise: choose the most plausible alternative.
+
+[PREMISE]  so... 
+- [CHOICE1]
+- [CHOICE2]
+****************************
+super_glue_copa	||||	i_am_hesitating	||||	[PREMISE] 
+
+I am hesitating between two options. Help me choose the more likely  effect: 
+- [CHOICE1]
+- [CHOICE2]
+****************************
+super_glue_copa	||||	more_likely	||||	Pick the more likely continuation to the following sentence:
+[PREMISE]  as a consequence: 
+- [CHOICE1]
+- [CHOICE2]
+****************************
+super_glue_copa	||||	plausible_alternatives	||||	[PREMISE]  As a consequence... 
+Help me pick the more plausible option:
+- [CHOICE1]
+- [CHOICE2]
+****************************
+super_glue_copa	||||	_which_may_be_caused_by	||||	[PREMISE] Which may be caused by [ANSWER_CHOICE0] or [ANSWER_CHOICE1]?
+****************************
+super_glue_rte	||||	gpt_3_style	||||	[PREMISE]
+Question: [HYPOTHESIS] True or False?
+****************************
+super_glue_rte	||||	MNLI_crowdsource	||||	[PREMISE] Using only the above description and what you know about the world, is "[HYPOTHESIS]" definitely correct? Yes or no?
+****************************
+super_glue_rte	||||	based_on_the_previous_passage	||||	[PREMISE] Based on the previous passage, is it true that "[HYPOTHESIS]"? Yes or no?
+****************************
+super_glue_rte	||||	can_we_infer	||||	Suppose [PREMISE] Can we infer that "[HYPOTHESIS]"? Yes or no?
+****************************
+super_glue_rte	||||	does_it_follow_that	||||	Given that [PREMISE] Does it follow that [HYPOTHESIS] Yes or no?
+****************************
+super_glue_rte	||||	does_this_imply	||||	[PREMISE] 
+
+Question: Does this imply that "[HYPOTHESIS]"? Yes or no?
+****************************
+super_glue_rte	||||	guaranteed_true	||||	Given [PREMISE] Is it guaranteed true that "[HYPOTHESIS]"? Yes or no?
+****************************
+super_glue_rte	||||	justified_in_saying	||||	[PREMISE] Are we justified in saying that "[HYPOTHESIS]"? Yes or no?
+****************************
+super_glue_rte	||||	must_be_true	||||	Given that [PREMISE] Therefore, it must be true that "[HYPOTHESIS]"? Yes or no?
+****************************
+super_glue_rte	||||	should_assume	||||	Given [PREMISE] Should we assume that "[HYPOTHESIS]" is true? Yes or no?
+****************************
+super_glue_wic	||||	affirmation_true_or_false	||||	Sentence A: [SENTENCE1]
+Sentence B: [SENTENCE2]
+
+"[WORD]" has a similar meaning in sentences A and B. True or False?
+****************************
+super_glue_wic	||||	grammar_homework	||||	Homework
+
+Decide whether the word "[WORD]" is used with the same meaning in the two following sentences. Answer by yes or no.
+[SENTENCE1]
+[SENTENCE2]
+****************************
+super_glue_wic	||||	polysemous	||||	The word "[WORD]" has multiple meanings. Does it have the same meaning in sentences 1 and 2? Yes or no?
+
+Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+****************************
+super_glue_wic	||||	same_sense	||||	Sentence 1: [SENTENCE1]
+Sentence 2: [SENTENCE2]
+
+Determine whether the word "[WORD]" is used in the same sense in both sentences. Yes or no?
+****************************
+super_glue_wsc.fixed	||||	gpt_3_style	||||	Passage: [TEXT] 
+
+Question: In the passage above, does the pronoun "[SPAN2_TEXT]" refer to [SPAN1_TEXT]?
+
+Answer:
+****************************
+super_glue_wsc.fixed	||||	I_think_they_mean	||||	[TEXT] I think they mean "[TEXT]" Yes or no?
+****************************
+super_glue_wsc.fixed	||||	Who_or_what_is_are	||||	[TEXT] 
+
+Question: Who or what is "[span2_text]"? Is it [SPAN1_TEXT]?
+
+Answer:
+****************************
+super_glue_wsc.fixed	||||	by_p_they_mean	||||	[TEXT] Here, by "[SPAN2_TEXT]" they mean "[SPAN1_TEXT]". Yes or no?
+****************************
+super_glue_wsc.fixed	||||	does_p_stand_for	||||	[TEXT] Here, does "[span2_text]" stand for [SPAN1_TEXT]? Yes or no?
+****************************
+super_glue_wsc.fixed	||||	does_the_pronoun_refer_to	||||	[TEXT] In the previous sentence, does the pronoun "[span2_text]" refer to [SPAN1_TEXT]? Yes or no?
+****************************
+super_glue_wsc.fixed	||||	in_other_words	||||	[TEXT] 
+
+In other words, [TEXT] True or false?
+****************************
+super_glue_wsc.fixed	||||	p_is_are_r	||||	Context: [TEXT] 
+
+
+Question: "[SPAN2_TEXT]" is [SPAN1_TEXT]. True or false?
+
+
+Answer:
+****************************
+super_glue_wsc.fixed	||||	replaced_with	||||	[TEXT] In the previous sentence, can the pronoun "[SPAN2_TEXT]" be replaced with "[SPAN1_TEXT]"? Yes or no?
+****************************
+super_glue_wsc.fixed	||||	the_pronoun_refers_to	||||	[TEXT] 
+In the passage above, the pronoun "[SPAN2_TEXT]" refers to [SPAN1_TEXT]. True or false?
+****************************
+trec	||||	fine_grained_ABBR	||||	Is this question asking for an [ANSWER_CHOICES]?
+[TEXT]
+****************************
+trec	||||	fine_grained_ABBR_context_first	||||	[TEXT] Is this question asking for an [ANSWER_CHOICES]?
+****************************
+trec	||||	fine_grained_DESC	||||	Is this question asking for an [ANSWER_CHOICES]?
+[TEXT]
+****************************
+trec	||||	fine_grained_DESC_context_first	||||	[TEXT] Is this question asking for an [ANSWER_CHOICES]?
+****************************
+trec	||||	fine_grained_ENTY	||||	Is this question asking for an [ANSWER_CHOICES]?
+[TEXT]
+****************************
+trec	||||	fine_grained_HUM	||||	Is this question asking for an [ANSWER_CHOICES]?
+[TEXT]
+****************************
+trec	||||	fine_grained_HUM_context_first	||||	[TEXT] Is this question asking for an [ANSWER_CHOICES]?
+****************************
+trec	||||	fine_grained_LOC	||||	Is this question asking for an [ANSWER_CHOICES]?
+[TEXT]
+****************************
+trec	||||	fine_grained_LOC_context_first	||||	[TEXT] Is this question asking for an [ANSWER_CHOICES]?
+****************************
+trec	||||	fine_grained_NUM	||||	Is this question asking for an [ANSWER_CHOICES]?
+[TEXT]
+****************************
+trec	||||	fine_grained_NUM_context_first	||||	[TEXT] Is this question asking for an [ANSWER_CHOICES]?
+****************************
+trec	||||	fine_grained_open	||||	What is this question asking for?
+
+[TEXT]
+****************************
+trec	||||	fine_grained_open_context_first	||||	[TEXT]
+
+What is this question asking for?
+****************************
+trec	||||	pick_the_best_descriptor	||||	Question: [TEXT]
+
+Descriptors: Description, Entity, Abbreviation, Person, Quantity, Location
+
+Best Descriptor?
+****************************
+trec	||||	trec1	||||	[TEXT]
+
+Is this asking about Description, Entity, Abbreviation, Person, Quantity, Location?
+****************************
+trec	||||	trec2	||||	Is the following question asking about Description, Entity, Abbreviation, Person, Quantity, Location?
+
+[TEXT]
+****************************
+trec	||||	what_category_best_describe	||||	Categories: Description, Entity, Abbreviation, Person, Quantity, Location
+
+What category best describes: [TEXT] 
+Answer:
+****************************
+trec	||||	which_category_best_describes	||||	Which category best describes the following question: [TEXT] 
+
+Choose from the following list: 
+Description, Entity, Abbreviation, Person, Quantity, Location
+****************************
+wiki_bio	||||	comprehension	||||	Read the bio below and try to give details on [CONTEXT]'s: 
+ 
+- [COLUMN HEADER] 
+  
+- [COLUMN HEADER] 
+  
+- [COLUMN HEADER] 
+  
+- [COLUMN HEADER] 
+  
+- [COLUMN HEADER] 
+ 
+
+Bio: [TARGET_TEXT]
+****************************
+wiki_bio	||||	guess_person	||||	- [COLUMN HEADER] is [CONTENT]
+
+
+
+- [COLUMN HEADER] is [CONTENT]
+
+
+
+- [COLUMN HEADER] is [CONTENT]
+
+
+
+- [COLUMN HEADER] is [CONTENT]
+
+
+
+- [COLUMN HEADER] is [CONTENT]
+
+
+
+Given the details above, guess who could this information be about.
+****************************
+wiki_bio	||||	key_content	||||	What key details about [CONTEXT] can be extracted from the following bio?
+
+Bio: [TARGET_TEXT]
+****************************
+wiki_bio	||||	what_content	||||	What type of details about [CONTEXT] can be gathered from the following bio?
+
+Bio: [TARGET_TEXT]
+****************************
+wiki_bio	||||	who	||||	Facts:
+
+
+- [COLUMN HEADER]: [CONTENT]
+
+
+
+- [COLUMN HEADER]: [CONTENT]
+
+
+
+- [COLUMN HEADER]: [CONTENT]
+
+
+
+- [COLUMN HEADER]: [CONTENT]
+
+
+
+- [COLUMN HEADER]: [CONTENT]
+
+
+Based on these bullet points, write a short biography describing the life of [CONTEXT].
+****************************
+wiki_hop_original	||||	choose_best_object_affirmative_1	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+Given the information above, choose from the list below the object entity that exhibits the relation '[QUESTION]' with the subject ''.
+
+Choices:
+- [CANDIDATES]
+ - [CANDIDATES]
+ - [CANDIDATES]
+****************************
+wiki_hop_original	||||	choose_best_object_affirmative_2	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+After reading the paragraphs above, choose the best answer for the entity that related to '' with the relationship of '[QUESTION]'.
+
+Choices:
+- [CANDIDATES]
+ - [CANDIDATES]
+ - [CANDIDATES]
+****************************
+wiki_hop_original	||||	choose_best_object_affirmative_3	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+After reading the paragraphs above, we are interested in knowing the entity with which '' exhibits the relationship of '[QUESTION]'. Find the answer from the choices below.
+
+Choices:
+- [CANDIDATES]
+ - [CANDIDATES]
+ - [CANDIDATES]
+****************************
+wiki_hop_original	||||	choose_best_object_interrogative_1	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+What object entity has the relation of '[QUESTION]' with the subject ''? 
+
+Choices:
+- [CANDIDATES]
+ - [CANDIDATES]
+ - [CANDIDATES]
+****************************
+wiki_hop_original	||||	choose_best_object_interrogative_2	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+'' is related to which object entity through the relation of '[QUESTION]'?
+
+Choices:
+- [CANDIDATES]
+ - [CANDIDATES]
+ - [CANDIDATES]
+****************************
+wiki_hop_original	||||	explain_relation	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+What is the relationship between '' and '[ANSWER]'?
+****************************
+wiki_hop_original	||||	generate_object	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+What entity does '' has the relation '[QUESTION]' with?
+****************************
+wiki_hop_original	||||	generate_subject	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+Given the paragraphs above, decide what entity has the relation '[QUESTION]' with '[ANSWER]'.
+****************************
+wiki_hop_original	||||	generate_subject_and_object	||||	Information:
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+- [SUPPORTS]
+
+
+
+Given the information, choose the subject and object entities that have the relation of '[QUESTION]'.
+****************************
+wiki_qa	||||	Decide_good_answer	||||	This is a correct answer to the following question about [DOCUMENT_TITLE]. Yes or no?
+Answer: [ANSWER]
+Question: [QUESTION]
+****************************
+wiki_qa	||||	Direct_Answer_to_Question	||||	Answer this question: [QUESTION]?
+****************************
+wiki_qa	||||	Generate_Question_from_Topic	||||	Generate a question about the topic "[DOCUMENT_TITLE]" whose answer would be: [ANSWER].
+****************************
+wiki_qa	||||	Is_This_True_	||||	Question: [QUESTION]?
+Would "[ANSWER]" be a reasonable answer?
+****************************
+wiki_qa	||||	Jeopardy_style	||||	What is the question to: "[ANSWER]"? The topic is [DOCUMENT_TITLE].
+****************************
+wiki_qa	||||	automatic_system	||||	I am verifying the answers generated by an automatic system to the following question: [QUESTION]
+Suggested answer: [ANSWER]
+Should I validate this answer?
+****************************
+wiki_qa	||||	exercise	||||	The exercise is to decide whether the question accepts the proposed suggestion as a correct answer. If yes, write "True", otherwise write "False".
+Question: [QUESTION]
+Suggestion: [ANSWER]
+****************************
+wiki_qa	||||	found_on_google	||||	Question: [QUESTION]
+I found the following answer on Google: [ANSWER]
+Is that a correct answer? Yes or no.
+****************************
+winogrande_winogrande_xl	||||	Replace	||||	[SENTENCE]
+Replace the _ in the above sentence with the correct option: 
+- [OPTION1]
+- [OPTION2]
+****************************
+winogrande_winogrande_xl	||||	does_underscore_refer_to	||||	[SENTENCE] In the previous sentence, does _ refer to [OPTION1] or  [OPTION2]?
+****************************
+winogrande_winogrande_xl	||||	fill_in_the_blank	||||	Fill in the _ in the below sentence:
+[SENTENCE]
+
+Choices:
+- [OPTION1]
+- [OPTION2]
+
+Answer:
+****************************
+winogrande_winogrande_xl	||||	stand_for	||||	In the sentence below, does the _ stand for [OPTION1] or [OPTION2]?
+[SENTENCE]
+****************************
+winogrande_winogrande_xl	||||	underscore_refer_to	||||	[SENTENCE]
+What does the _ in the above sentence refer to? [OPTION1] or [OPTION2]?
+****************************
+wiqa	||||	does_the_supposed_perturbation_have_an_effect	||||	Process:
+
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+
+Perturbation hypothesis:
+[QUESTION_STEM]
+
+Does the supposed perturbation have an effect (direct or indirect) on the process?
+****************************
+wiqa	||||	effect_with_label_answer	||||	Process:
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+
+Question:
+[QUESTION_STEM]
+
+- A: more
+- B: less
+- C: no effect
+****************************
+wiqa	||||	effect_with_string_answer	||||	Process:
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+
+Question:
+[QUESTION_STEM]
+
+How does the supposed perturbation influence the second effect mentioned. Answer by more, less or no effect
+****************************
+wiqa	||||	what_is_the_final_step_of_the_following_process	||||	What is the final step of the following process:
+-  [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+****************************
+wiqa	||||	what_is_the_missing_first_step	||||	What is the missing first step of the following process:
+
+-  [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+****************************
+wiqa	||||	what_might_be_the_first_step_of_the_process	||||	-  [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+
+What might be the first step of the process?
+****************************
+wiqa	||||	what_might_be_the_last_step_of_the_process	||||	-  [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+
+What might be the last step of the process?
+****************************
+wiqa	||||	which_of_the_following_is_the_supposed_perturbation	||||	Process:
+
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+- [QUESTION_PARA_STEP]
+
+[QUESTION_STEM]
+
+Which of the following is the supposed perturbation?
+
+- directly impacting a step of the process
+- indirectly impacting a step of the process
+- not impacting any step of the process
+****************************
+xsum	||||	DOC_boils_down_to_simple_idea_that	||||	[DOCUMENT]
+This boils down to the simple idea that
+****************************
+xsum	||||	DOC_given_above_write_one_sentence	||||	[DOCUMENT]
+
+===
+
+Given the above document, write one sentence to summarize:
+****************************
+xsum	||||	DOC_how_would_you_rephrase_few_words	||||	[DOCUMENT]
+How would you rephrase that in a few words?
+****************************
+xsum	||||	DOC_tldr	||||	[DOCUMENT]
+
+TL;DR:
+****************************
+xsum	||||	DOC_write_summary_of_above	||||	[DOCUMENT]
+
+===
+
+Write a summary of the text above :
+****************************
+xsum	||||	article_DOC_summary	||||	Article: [DOCUMENT]
+
+Summary:
+****************************
+xsum	||||	college_roommate_asked_DOC_so_I_recap	||||	My college roommate asked me what this article means:
+
+[DOCUMENT]
+
+So I recapped it in layman's terms:
+****************************
+xsum	||||	read_below_DOC_write_abstract	||||	First, please read the article below.
+
+[DOCUMENT]
+
+Now, can you write me an extremely short abstract for it?
+****************************
+xsum	||||	summarize_DOC	||||	Summarize: [DOCUMENT]
+****************************
+xsum	||||	summarize_this_DOC_summary	||||	Summarize this document: [DOCUMENT]
+Summary:
+****************************
+yelp_review_full	||||	based_on_that	||||	[TEXT]
+===
+Based on that, my rating is
+****************************
+yelp_review_full	||||	format_rating	||||	Review text:
+[TEXT]
+
+Review rating:
+****************************
+yelp_review_full	||||	format_score	||||	Review text:
+[TEXT]
+
+Review score (between 1 and 5):
+****************************
+yelp_review_full	||||	format_star	||||	Review text:
+[TEXT]
+
+Stars:
+****************************
+yelp_review_full	||||	on_a_scale	||||	Review: [TEXT]
+On a scale of 1 to 5, I would give this product
+****************************
+yelp_review_full	||||	so_i_would	||||	[TEXT]
+So I would like to give it
+****************************
+story_cloze_2016	||||	answer_given_options	||||	[INPUT_SENTENCE1] [INPUT_SENTENCE2] [INPUT_SENTENCE3] [INPUT_SENTENCE4] What is a possible continuation for the story given the following options ?
+- [ANSWER_CHOICE1]
+- [ANSWER_CHOICE2]
+****************************
+story_cloze_2016	||||	choose_story_ending	||||	Read the following story :
+[INPUT_SENTENCE1]
+[INPUT_SENTENCE2]
+[INPUT_SENTENCE3]
+[INPUT_SENTENCE4]
+Choose a possible ending for the previous story from the following options:
+- [ANSWER_CHOICE1]
+- [ANSWER_CHOICE2]
+****************************
+story_cloze_2016	||||	movie_what_happens_next	||||	Yesterday, I watched a movie. Here''s what happened: [INPUT_SENTENCE1] [INPUT_SENTENCE2] [INPUT_SENTENCE3] [INPUT_SENTENCE4] What happens next? 
+- [ANSWER_CHOICE1]
+- [ANSWER_CHOICE2]
+****************************
+story_cloze_2016	||||	story_continuation_and_options	||||	What is a possible continuation for the following story ?
+[INPUT_SENTENCE1]
+[INPUT_SENTENCE2]
+[INPUT_SENTENCE3]
+[INPUT_SENTENCE4]
+Choose from the following options:
+- [ANSWER_CHOICE1]
+- [ANSWER_CHOICE2]
+****************************
+story_cloze_2016	||||	novel_correct_ending	||||	I read the following novel: [INPUT_SENTENCE1] [INPUT_SENTENCE2] [INPUT_SENTENCE3] [INPUT_SENTENCE4] What do you think is the most probable ending? You can choose from the following options:
+- [ANSWER_CHOICE1]
+- [ANSWER_CHOICE2]
+****************************
+super_glue_copa	||||	_why_c1_or_c2	||||	[PREMISE] Why? "[ANSWER_CHOICE0]" or "[ANSWER_CHOICE1]"?
+****************************
+super_glue_copa	||||	_what_could_happen_next_c1_or_c2_	||||	[PREMISE] What could happen next, "[ANSWER_CHOICE0]" or "[ANSWER_CHOICE1]"?
+****************************
+super_glue_copa	||||	c1_or_c2_premise_so_because_	||||	"[ANSWER_CHOICE0]" or "[ANSWER_CHOICE1]"? [PREMISE] because
+****************************
+super_glue_copa	||||	_as_a_result_c1_or_c2_	||||	[PREMISE] As a result, "[ANSWER_CHOICE0]" or "[ANSWER_CHOICE1]"?
+****************************
+super_glue_wic	||||	gpt_3_prompt		||||	[SENTENCE1]
+[SENTENCE2]
+Question: Is the word '[WORD]' used in the same sense in the two sentences above?
+****************************
+super_glue_wic	||||	gpt_3_prompt_with_label		||||	[SENTENCE1]
+[SENTENCE2]
+Question: Is the word '[WORD]' used in the same sense in the two sentences above? Yes, No?
+****************************
+super_glue_wic	||||	question_context		||||	Determine if the word '[WORD]' is used in the same way in the two sentences below. 
+[SENTENCE1]
+[SENTENCE2]
+****************************
+super_glue_wic	||||	question_context_meaning		||||	Does the word "[WORD]" have the same meaning in these two sentences?
+[SENTENCE1]
+[SENTENCE2]
+****************************
+super_glue_wic	||||	question_context_meaning_with_label		||||	Does the word "[WORD]" have the same meaning in these two sentences? Yes, No?
+[SENTENCE1]
+[SENTENCE2]
+****************************
+super_glue_wic	||||	similar_sense	||||	[SENTENCE1]
+[SENTENCE2]
+Similar sense of [WORD]?
+****************************
+common_gen	||||	given_concepts_type_2	||||	Ignoring the order of the concepts: [CONCEPTS], [CONCEPTS], [CONCEPTS]; 
+Generate a sentence with all the concepts :
+****************************
+dream	||||	answer_to_dialogue	||||	Given the question "[QUESTION]" and the answer "[ANSWER]", write a conversation that might have happened.
+****************************
+dream	||||	generate_first_utterance	||||	[DIALOGUE]
+
+What was said before this conversation?
+****************************
+dream	||||	generate_last_utterance	||||	Read the below conversation.
+
+[DIALOGUE]
+
+What would the listener say?
+****************************
+multi_news	||||	expand_reverse_task_	||||	Write an expanded news article with plausible details from the following summary:
+[SUMMARY]
+****************************
+paws_labeled_final	||||	paws_anli_gpt3	||||	[SENTENCE1] Question: [SENTENCE2] True or False?
+****************************
+paws_labeled_final	||||	paws_anli_gpt3_no_label	||||	[SENTENCE1] Question: [SENTENCE2] Paraphrase or not?
+****************************
+sciq	||||	direct_question_closed_book_	||||	Q: [QUESTION]
+
+
+A:
+****************************
+sciq	||||	multiple_choice_closed_book_	||||	Q: [QUESTION]
+
+
+ Choices:
+
+- [DISTRACTOR3]
+
+- [DISTRACTOR1]
+
+- [CORRECT_ANSWER]
+
+- [DISTRACTOR2]
+
+A:
+****************************
+wiki_qa	||||	topic_prediction_answer_only	||||	Determine the topic of the passage.
+
+[ANSWER]
+
+Topic:
+****************************
+wiki_qa	||||	topic_prediction_question_only	||||	Determine the topic of the question.
+
+Question: "[QUESTION]?"
+
+Topic: 
+****************************
+wiki_qa	||||	topic_prediction_question_and_answer_pair	||||	Determine the topic of the question-answer pair.
+
+Question: "[QUESTION]?";  Answer: "[ANSWER]"? Topic: 
+****************************
+yelp_review_full	||||	this_place	||||	[TEXT] My rating for this place is
+****************************
+cos_e_v1.11	||||	question_description_option_text	||||	[QUESTION]
+Choose the most suitable option to answer the above question.
+Options:
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+****************************
+cos_e_v1.11	||||	question_description_option_id	||||	[QUESTION]
+Choose the most suitable option to answer the above question.
+Options:
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+****************************
+cos_e_v1.11	||||	rationale	||||	Question: [QUESTION]
+
+Choices:
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+The rationale to choose "[ANSWER]" as the answer is that:
+****************************
+cos_e_v1.11	||||	question_option_description_text	||||	[QUESTION]
+
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+
+The best answer is
+****************************
+cos_e_v1.11	||||	aligned_with_common_sense	||||	Here's a question and a few possible answers:
+Q: [QUESTION]
+Possible A: [ANSWER0], [ANSWER1], [ANSWER2], [ANSWER3], [ANSWER4]
+Why is "[ANSWER]" an answer aligned with human common sense? 
+****************************
+cos_e_v1.11	||||	description_question_option_id	||||	Pick the option in line with common sense to answer the question.
+Question: [QUESTION]
+
+Options:
+
+A. [ANSWER0]
+B. [ANSWER1]
+C. [ANSWER2]
+D. [ANSWER3]
+E. [ANSWER4]
+****************************
+cos_e_v1.11	||||	explain_why_human	||||	Question: [QUESTION]
+
+Options:
+
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+
+Explain why a human would choose "[ANSWER]" to answer the question above:
+****************************
+cos_e_v1.11	||||	generate_explanation_given_text	||||	Question: [QUESTION]
+
+Options:
+
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+
+The answer is "[ANSWER]" because
+****************************
+cos_e_v1.11	||||	description_question_option_text	||||	Pick the option in line with common sense to answer the question.
+Questions: [QUESTION]
+
+Options:
+
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+****************************
+cos_e_v1.11	||||	i_think	||||	Here's a question: [QUESTION]
+
+Here are possible answers to this question:
+
+- [ANSWER0]
+- [ANSWER1]
+- [ANSWER2]
+- [ANSWER3]
+- [ANSWER4]
+
+I believe the correct choice is "[ANSWER]", here''s why:
+****************************
+cos_e_v1.11	||||	question_option_description_id	||||	[QUESTION]
+
+A. [ANSWER0]
+B. [ANSWER1]
+C. [ANSWER2]
+D. [ANSWER3]
+E. [ANSWER4]
+
+The best answer is
+****************************
+wiki_qa	||||	Topic_Prediction_Answer_Only	||||	Determine the topic of the passage.
+[ANSWER]
+Topic:
+****************************
+paws_labeled_final	||||	PAWS_ANLI_GPT3_no_label	||||	[SENTENCE1] Question: [SENTENCE2] Paraphrase or not?
+****************************
+sciq	||||	Multiple_Choice_Closed_Book_	||||	 Choices:
+
+- [ANSWER0]
+
+- [ANSWER1]
+
+- [ANSWER2]
+
+- [ANSWER3]
+
+A:
+****************************
+common_gen	||||	Given_concepts_type_2	||||	Ignoring the order of the concepts: [CONCEPTS]; 
+Generate a sentence with all the concepts :
+****************************
+wiki_qa	||||	Topic_Prediction_Question_Only	||||	Determine the topic of the question.
+Question: "[QUESTION]?"
+Topic:
+****************************
+paws_labeled_final	||||	PAWS_ANLI_GPT3	||||	[SENTENCE1] Question: [SENTENCE2] True or False?
+****************************
+wiki_qa	||||	Topic_Prediction_Question_and_Answer_Pair	||||	Determine the topic of the question-answer pair.
+Question: "[QUESTION]?";  Answer: "[ANSWER]"? Topic:
+****************************
+sciq	||||	Direct_Question_Closed_Book_	||||	Q: [QUESTION]
+
+
+A:
+****************************

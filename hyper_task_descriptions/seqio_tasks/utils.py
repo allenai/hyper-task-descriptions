@@ -19,6 +19,14 @@ from tensorflow.python.ops import array_ops, gen_stateless_random_ops, math_ops
 from hyper_task_descriptions.seqio_tasks.t0_datasets_mapping import T0_DS_MAPPING
 
 
+def load_prewritten_prompts():
+    text = open("edited_prompts.txt", "r").read()
+    text = text.split("****************************")
+    text = [t.strip().split("	||||	") for t in text]
+    text = {t[0] + "_" + t[1]: t[2] for t in text if len(t) > 2}
+    return text
+
+
 def feature_to_spec(feature, length=False):
     if isinstance(feature, datasets.ClassLabel):
         return tf.TensorSpec(
@@ -99,8 +107,14 @@ def apply_template_split(dataset, template, dataset_name, subset_name=None):
         if answer_choices:
             ex["answer_choices"] = answer_choices
 
+        # load prewritten prompts and grab respective one
+        prompt_dict = load_prewritten_prompts()
+        ds_name = dataset_name
+        if subset_name is not None:
+            ds_name += "_" + subset_name
+
         # new code - grab the input items and *remove them from the input text*. This is our template.
-        ex["template"] = str(ex["inputs"])  # copy
+        ex["template"] = prompt_dict[ds_name]
         ex["hyper_inputs"] = ""
         # counter = 0
         # TODO: check how many inputs this actually covers.
