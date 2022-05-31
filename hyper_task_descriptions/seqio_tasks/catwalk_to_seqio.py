@@ -94,12 +94,15 @@ def maybe_get_class_id_postprocessor(task: EleutherTask):
 
 
 def add_eleuther_task(task_name: str):
+    logger.info(f"Adding '{task_name} to seqio")
     task = TASKS[task_name]
     assert isinstance(task, EleutherTask)  # For now.
 
     # TODO: Fix.
     if InstanceFormat.RANK_CLASSIFICATION in task.instance_conversions:
-        metrics = [mt.accuracy]  # TODO: eleuther has f1, precision, recall too. Get t5 equivalent.
+        metrics = [
+            mt.accuracy
+        ]  # TODO: catwalk eleuther has f1, precision, recall too. Get t5 equivalent.
     else:
         metrics = [mt.accuracy]
 
@@ -135,6 +138,7 @@ def add_eleuther_task(task_name: str):
     ]
 
     # Add train and normal eval tasks
+    logger.info(f'Adding {"eleuther::" + task_name} to seqio task registry')
     seqio.TaskRegistry.add(
         "eleuther::" + task_name,
         data_source,
@@ -144,33 +148,34 @@ def add_eleuther_task(task_name: str):
         postprocess_fn=maybe_get_class_id_postprocessor(task),
     )
 
-    # # Add rank classification eval task
-    # if InstanceFormat.RANK_CLASSIFICATION in task.instance_conversions:
-    #     rank_classification_preprocessor = functools.partial(
-    #         t5.data.preprocessors.rank_classification,
-    #         inputs_fn=lambda ex: tf.fill((len(ex["answer_choices"]),), ex["inputs"]),
-    #         targets_fn=lambda ex: ex["answer_choices"],
-    #         is_correct_fn=lambda ex: tf.equal(
-    #             ex["answer_choices"], tf.strings.strip(ex["targets"])
-    #         ),
-    #         weight_fn=lambda ex: 1.0,
-    #     )
-    #     fixed_choices = get_eleuther_fixed_answer_choices(task)
-    #     num_classes = len(fixed_choices) if fixed_choices else None
-    #
-    #     # TODO: debug issue with rank_classification_preprocessor.
-    #     seqio.TaskRegistry.add(
-    #         "eleuther::" + task_name + "_score_eval",
-    #         data_source,
-    #         preprocessors=[rank_classification_preprocessor] + preprocessors,
-    #         output_features=output_features,
-    #         metric_fns=[
-    #             functools.partial(
-    #                 t5.evaluation.metrics.rank_classification, num_classes=num_classes
-    #             )
-    #         ],
-    #         postprocess_fn=t5.data.postprocessors.rank_classification,
-    #     )
+    # Add rank classification eval task
+    if InstanceFormat.RANK_CLASSIFICATION in task.instance_conversions:
+        rank_classification_preprocessor = functools.partial(
+            t5.data.preprocessors.rank_classification,
+            inputs_fn=lambda ex: tf.fill((len(ex["answer_choices"]),), ex["inputs"]),
+            targets_fn=lambda ex: ex["answer_choices"],
+            is_correct_fn=lambda ex: tf.equal(
+                ex["answer_choices"], tf.strings.strip(ex["targets"])
+            ),
+            weight_fn=lambda ex: 1.0,
+            passthrough_feature_keys=["hyper_inputs"],
+        )
+        fixed_choices = get_eleuther_fixed_answer_choices(task)
+        num_classes = len(fixed_choices) if fixed_choices else None
+
+        logger.info(f'Adding {"eleuther::" + task_name + "_score_eval"} to seqio task registry')
+        seqio.TaskRegistry.add(
+            "eleuther::" + task_name + "_score_eval",
+            data_source,
+            preprocessors=[rank_classification_preprocessor] + preprocessors,
+            output_features=output_features,
+            metric_fns=[
+                functools.partial(
+                    t5.evaluation.metrics.rank_classification, num_classes=num_classes
+                )
+            ],
+            postprocess_fn=t5.data.postprocessors.rank_classification,
+        )
 
 
 def create_catwalk_mixture_list(task_names: List[str]):
@@ -178,14 +183,33 @@ def create_catwalk_mixture_list(task_names: List[str]):
         add_eleuther_task(task_name)
 
     seqio.MixtureRegistry.add(
-        "catwalk_eleuther_eval_score_eval",
+        "catwalk_eleuther",
         [
             task
             for task in seqio.TaskRegistry.names()
-            if task.startswith("eleuther::")  # and task.endswith("_score_eval")
+            if task.startswith("eleuther::") and not task.endswith("_score_eval")
+        ],
+        default_rate=functools.partial(seqio.mixing_rate_num_examples, maximum=500_000),
+    )
+
+    seqio.MixtureRegistry.add(
+        "catwalk_eleuther_score_eval",
+        [
+            task
+            for task in seqio.TaskRegistry.names()
+            if task.startswith("eleuther::") and task.endswith("_score_eval")
         ],
         default_rate=functools.partial(seqio.mixing_rate_num_examples, maximum=500_000),
     )
 
 
-create_catwalk_mixture_list(["cola", "mnli"])
+def get_eleuther_rank_classification_tasks():
+    task_names = []
+    for name, task in TASKS.items():
+        if isinstance(task, EleutherTask):
+            if InstanceFormat.RANK_CLASSIFICATION in task.instance_conversions:
+                task_names.append(name)
+    return task_names
+
+
+create_catwalk_mixture_list(get_eleuther_rank_classification_tasks())  # ["cola", "mnli"])
