@@ -19,11 +19,16 @@ from tensorflow.python.ops import array_ops, gen_stateless_random_ops, math_ops
 from hyper_task_descriptions.seqio_tasks.t0_datasets_mapping import T0_DS_MAPPING
 
 
+def replace_keys(prompt):
+    return re.sub(r"\[[A-Za-z0-9_]+\]", lambda x: "[MASK]", prompt)
+
+
 def load_prewritten_prompts():
     text = open("all_edited_prompts.txt", "r").read()
     text = text.split("****************************")
     text = [t.strip().split("	||||	") for t in text]
-    text = {t[0] + "_" + t[1]: t[2] for t in text if len(t) > 2}
+    text = {t[0] + "_" + t[1]: replace_keys(t[2]) for t in text if len(t) > 2}
+    text = {k.lower().strip(): v for k, v in text.items()}
     return text
 
 
@@ -109,12 +114,14 @@ def apply_template_split(dataset, template, dataset_name, subset_name=None):
 
         # load prewritten prompts and grab respective one
         prompt_dict = load_prewritten_prompts()
-        ds_name = dataset_name
-        if subset_name is not None:
-            ds_name += "_" + subset_name
-
+        task_name = get_task_name(dataset_name, subset_name, template.name)
+        # various fixing stuff to make task name match my prompt edits.
+        if "score_eval" in task_name:
+            task_name = task_name.replace("_score_eval", "")
+        if "anli" in task_name:  # anli is handled weird
+            task_name += "_r1"
         # new code - grab the input items and *remove them from the input text*. This is our template.
-        ex["template"] = prompt_dict[ds_name]
+        ex["template"] = prompt_dict[task_name.lower()]
         ex["hyper_inputs"] = ""
         # counter = 0
         # TODO: check how many inputs this actually covers.

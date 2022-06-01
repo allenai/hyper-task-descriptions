@@ -500,7 +500,6 @@ class HyperTransformer(nn.Module):
 
         self.hyper = Hypernet(config=cfg, shared_embedding=self.shared_embedding)
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
-        # TODO: also condition decoder.
         self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)
 
     def encode(
