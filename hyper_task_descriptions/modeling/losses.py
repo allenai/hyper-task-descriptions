@@ -13,7 +13,7 @@ def cosine_similarity_loss(
         pred_vectors, target_vectors
     )
     # cosine_sim = mask * cosine_sim
-    loss = compute_bce_with_logits_loss(cosine_sim, ground_truth_similarity.squeeze(-1))
+    loss = jnp.square(cosine_sim - ground_truth_similarity).mean()
     return loss
 
 
@@ -84,9 +84,3 @@ def safe_norm(
     norm = jnp.squeeze(norm, axis=axis) if not keepdims else norm
     masked_norm = jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
     return jnp.where(norm <= min_norm, min_norm, masked_norm)
-
-
-def compute_bce_with_logits_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
-    max_val = jnp.clip(x, 0, None)
-    loss = x - x * y + max_val + jnp.log(jnp.exp(-max_val) + jnp.exp((-x - max_val)))
-    return loss.mean()

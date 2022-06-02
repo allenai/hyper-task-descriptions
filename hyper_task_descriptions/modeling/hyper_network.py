@@ -28,6 +28,7 @@ from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import (
+    MlpBlock,
     MultiHeadDotProductAttentionWithPrefix,
     SimpleLinear,
 )
@@ -47,6 +48,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 @struct.dataclass
 class HyperT5Config(T5Config):
+    layer_embed_size: int = 10
     adapter_size: int = 64
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
@@ -61,13 +63,14 @@ class Hypernet(nn.Module):
     def setup(self):
         cfg = self.config
         self.encoder = FlaxRobertaModel.from_pretrained(
-            cfg.roberta_model
+            cfg.roberta_model, max_position_embeddings=520, type_vocab_size=8, vocab_size=50272
         ).module  # the module is the 'actual' flax module
+
         self.embedder = jnp.asarray(
             param_with_axes(
                 "embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (cfg.num_encoder_layers + cfg.num_decoder_layers, cfg.emb_dim),
+                (cfg.num_encoder_layers + cfg.num_decoder_layers, cfg.layer_embed_size),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -81,17 +84,18 @@ class Hypernet(nn.Module):
             kernel_axes=("embed", "mlp"),
             name="intermediate_hypernet",
         )
-        self.contrastive_head = SimpleLinear(
-            output_dim=cfg.emb_dim,
-            act_fn="gelu",
-            dropout_rate=cfg.dropout_rate,
+        # contrastive head is two-layer mlp following simCLR
+        # they use a sigmoid activation tho but using gelu for consistency
+        self.contrastive_head = MlpBlock(
+            intermediate_dim=cfg.emb_dim,
+            activations=("gelu",),
+            intermediate_dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("embed", "mlp"),
             name="contrastive_head",
         )
         self.adapter_down_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.adapter_size,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -99,7 +103,7 @@ class Hypernet(nn.Module):
         )
         self.adapter_up_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.adapter_size,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -107,7 +111,7 @@ class Hypernet(nn.Module):
         )
         self.adapter_bias_down_gen = SimpleLinear(
             output_dim=cfg.adapter_size,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -115,7 +119,7 @@ class Hypernet(nn.Module):
         )
         self.adapter_bias_up_gen = SimpleLinear(
             output_dim=cfg.emb_dim,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -123,7 +127,7 @@ class Hypernet(nn.Module):
         )
         self.prefix_key_gen = SimpleLinear(
             output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -131,7 +135,7 @@ class Hypernet(nn.Module):
         )
         self.prefix_value_gen = SimpleLinear(
             output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
