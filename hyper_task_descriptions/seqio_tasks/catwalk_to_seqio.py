@@ -94,7 +94,7 @@ def maybe_get_class_id_postprocessor(task: EleutherTask):
 
 
 def add_eleuther_task(task_name: str):
-    logger.info(f"Adding '{task_name} to seqio")
+    logger.info(f"Adding '{task_name}' to seqio")
     task = TASKS[task_name]
     assert isinstance(task, EleutherTask)  # For now.
 
