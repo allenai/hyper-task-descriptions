@@ -8,13 +8,12 @@ def cosine_similarity_loss(
     pred_vectors: jnp.ndarray,
     target_vectors: jnp.ndarray,
     ground_truth_similarity: jnp.ndarray,
-    mask: jnp.ndarray,
 ) -> jnp.ndarray:
     cosine_sim = jax.vmap(cosine_similarity_one_to_many, in_axes=[0, None])(
         pred_vectors, target_vectors
     )
-    cosine_sim = mask * cosine_sim
-    loss = jnp.mean((cosine_sim - ground_truth_similarity) ** 2)
+    # cosine_sim = mask * cosine_sim
+    loss = compute_bce_with_logits_loss(cosine_sim, ground_truth_similarity.squeeze(-1))
     return loss
 
 
@@ -67,7 +66,7 @@ def safe_norm(
       x: jax array.
       min_norm: lower bound for the returned norm.
       ord: {non-zero int, inf, -inf, optional. Order of the norm.
-        inf means numpy’s inf object. The default is None.
+        inf means numpys inf object. The default is None.
       axis: {None, int, 2-tuple of ints}, optional. If axis is an integer, it
         specifies the axis of x along which to compute the vector norms. If axis
         is a 2-tuple, it specifies the axes that hold 2-D matrices, and the matrix
@@ -85,3 +84,9 @@ def safe_norm(
     norm = jnp.squeeze(norm, axis=axis) if not keepdims else norm
     masked_norm = jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
     return jnp.where(norm <= min_norm, min_norm, masked_norm)
+
+
+def compute_bce_with_logits_loss(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
+    max_val = jnp.clip(x, 0, None)
+    loss = x - x * y + max_val + jnp.log(jnp.exp(-max_val) + jnp.exp((-x - max_val)))
+    return loss.mean()

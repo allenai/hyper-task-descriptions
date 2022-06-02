@@ -4,6 +4,7 @@ From t-zero repo
 import re
 
 import datasets
+import pkg_resources
 import tensorflow as tf
 from promptsource.utils import removeHyphen
 from tensorflow.python.data import Dataset
@@ -24,7 +25,7 @@ def replace_keys(prompt):
 
 
 def load_prewritten_prompts():
-    text = open("all_edited_prompts.txt", "r").read()
+    text = open(pkg_resources.resource_filename(__name__, "all_edited_prompts.txt"), "r").read()
     text = text.split("****************************")
     text = [t.strip().split("	||||	") for t in text]
     text = {t[0] + "_" + t[1]: replace_keys(t[2]) for t in text if len(t) > 2}

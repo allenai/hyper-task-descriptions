@@ -81,6 +81,14 @@ class Hypernet(nn.Module):
             kernel_axes=("embed", "mlp"),
             name="intermediate_hypernet",
         )
+        self.contrastive_head = SimpleLinear(
+            output_dim=cfg.emb_dim,
+            act_fn="gelu",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("embed", "mlp"),
+            name="contrastive_head",
+        )
         self.adapter_down_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.adapter_size,
             act_fn="gelu",
@@ -136,7 +144,8 @@ class Hypernet(nn.Module):
         output = self.encoder(encoder_input_tokens, encoder_input_tokens != 1)
         pooled_output = output[1]  # jnp.mean(output, axis=1)
         # save pooled output for later (eg contrastive training)
-        self.sow("intermediates", "features", pooled_output)
+        contrastive_output = self.contrastive_head(pooled_output, deterministic=deterministic)
+        self.sow("intermediates", "features", contrastive_output)
         # add the layer embeddings, and pass through a single mlp layer
         total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
         embeds = jnp.arange(total_layers)
