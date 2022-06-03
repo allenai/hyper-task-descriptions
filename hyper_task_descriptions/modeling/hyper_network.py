@@ -145,10 +145,12 @@ class Hypernet(nn.Module):
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
         # '1' is roberta pad token.
-        output = self.encoder(encoder_input_tokens, encoder_input_tokens != 1)
-        pooled_output = output[1]  # jnp.mean(output, axis=1)
+        attn_mask = encoder_input_tokens != 1
+        output = self.encoder(encoder_input_tokens, attn_mask)
+        # average representation for embeds
+        sum_embeds = output[0].sum(axis=1) / attn_mask.sum(axis=1)
         # save pooled output for later (eg contrastive training)
-        contrastive_output = self.contrastive_head(pooled_output, deterministic=deterministic)
+        contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
         self.sow("intermediates", "features", contrastive_output)
         # add the layer embeddings, and pass through a single mlp layer
         total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
@@ -156,10 +158,10 @@ class Hypernet(nn.Module):
         embeds = self.embedder[embeds][
             None,
         ]
-        embeddings = jnp.repeat(embeds, pooled_output.shape[0], axis=0)
+        embeddings = jnp.repeat(embeds, sum_embeds.shape[0], axis=0)
 
         hyper_input = jnp.concatenate(
-            [embeddings, jnp.repeat(pooled_output[:, None], embeddings.shape[1], axis=1)], axis=-1
+            [embeddings, jnp.repeat(sum_embeds[:, None], embeddings.shape[1], axis=1)], axis=-1
         )
 
         intermediate_embeddings = self.intermediate_embedder(
