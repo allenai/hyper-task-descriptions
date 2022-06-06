@@ -1,11 +1,11 @@
 ################################
 ###### Core dependencies #######
 ################################
-git+https://github.com/google-research/text-to-text-transfer-transformer.git
+t5 @ git+https://github.com/google-research/text-to-text-transfer-transformer.git
 git+https://github.com/google-research/t5x.git
-promptsource==0.2.2
+promptsource
 transformers==4.18.0
-tensorflow==2.8.1 # 2.9 has tpu issues
-tensorflow-text==2.8.1
+tensorflow==2.9.0 # 2.9 has tpu issues
+tensorflow-text==2.9.0
 # for caching only
 apache-beam==2.38.0
