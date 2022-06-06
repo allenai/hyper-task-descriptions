@@ -18,8 +18,8 @@ from hyper_task_descriptions import utils as hyper_utils
 #   filter_fn = @hyper_utils.match_any()
 # # MultiOptimizer will match any parameter with a flattened name that
 # # matches any of these regular expressions.
-# # PROMPT_REGEX = [".*\/hyper\/(?:(?!encoder)).*"]
-# PROMPT_REGEX = ["^((?!roberta).)*$"]
+# PROMPT_REGEX = [".*/hyper/.*"]
+# # PROMPT_REGEX = ["^((?!roberta).)*$"]
 # hyper_utils.match_any.regexes = %PROMPT_REGEX
 
 # These setting allow us to partially reload a checkpoint, that is, we can load

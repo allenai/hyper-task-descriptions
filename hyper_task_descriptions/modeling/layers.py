@@ -16,7 +16,8 @@
 Layers with changes for my model
 """
 import functools
-from typing import Any, Callable, Iterable, Optional, Tuple, Union
+import operator
+from typing import Any, Callable, Iterable, Optional, Sequence, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -88,6 +89,59 @@ class SimpleLinear(nn.Module):
         return output
 
 
+class MlpBlock(nn.Module):
+    """Transformer MLP / feed-forward block.
+
+    Attributes:
+      intermediate_dim: Shared dimension of hidden layers.
+      activations: Type of activations for each layer.  Each element is either
+        'linear', a string function name in flax.linen, or a function.
+      kernel_init: Kernel function, passed to the dense layers.
+      deterministic: Whether the dropout layers should be deterministic.
+      intermediate_dropout_rate: Dropout rate used after the intermediate layers.
+      dtype: Type for the dense layer.
+    """
+
+    intermediate_dim: int = 2048
+    activations: Sequence[Union[str, Callable]] = ("relu",)
+    kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "truncated_normal")
+    intermediate_dropout_rate: float = 0.1
+    dtype: Any = jnp.float32
+
+    @nn.compact
+    def __call__(self, inputs, decode: bool = False, deterministic: bool = False):
+        """Applies Transformer MlpBlock module."""
+        # Iterate over specified MLP input activation functions.
+        # e.g. ('relu',) or ('gelu', 'linear') for gated-gelu.
+        activations = []
+        for idx, act_fn in enumerate(self.activations):
+            dense_name = "wi" if len(self.activations) == 1 else f"wi_{idx}"
+            x = DenseGeneral(
+                self.intermediate_dim,
+                dtype=self.dtype,
+                kernel_init=self.kernel_init,
+                kernel_axes=("embed", "mlp"),
+                name=dense_name,
+            )(inputs)
+            x = _convert_to_activation_function(act_fn)(x)
+            activations.append(x)
+
+        # Take elementwise product of above intermediate activations.
+        x = functools.reduce(operator.mul, activations)
+        # Apply dropout and final dense output projection.
+        x = nn.Dropout(rate=self.intermediate_dropout_rate, broadcast_dims=(-2,))(
+            x, deterministic=deterministic
+        )  # Broadcast along length.
+        output = DenseGeneral(
+            inputs.shape[-1],
+            dtype=self.dtype,
+            kernel_init=self.kernel_init,
+            kernel_axes=("mlp", "embed"),
+            name="wo",
+        )(x)
+        return output
+
+
 class MultiHeadDotProductAttentionWithPrefix(nn.Module):
     """Multi-head dot-product attention.
 
@@ -120,7 +174,7 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
         bias: Optional[Array] = None,
         *,
         decode: bool = False,
-        deterministic: bool = False
+        deterministic: bool = False,
     ) -> Array:
         """Applies multi-head dot product attention on the input data.
 
@@ -275,7 +329,7 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
             attention_bias = combine_biases(attention_bias, bias)
 
         # PREFIX CHANGE
-        # Avoid attention bias affecting the prefixes by appending 0s
+        # Avoid attention bias affecting the prefixes by prepending 0s
         # attention_bias has shape [batch, num_heads, q_length, kv_length]
         if attention_bias is not None:
             num_prefix_toks = key_prefix.shape[1]
