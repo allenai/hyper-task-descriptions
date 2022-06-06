@@ -8,7 +8,7 @@ from transformers import AutoTokenizer
 class HuggingfaceVocabulary(Vocabulary):
     """Really simple wrapper around huggingface tokenizer."""
 
-    def __init__(self, model_name: str, extra_ids: int = 0):
+    def __init__(self, model_name: str, extra_ids: int = 0, add_special_tokens: bool = False):
         """Vocabulary constructor.
         Args:
           extra_ids: The number of extra IDs to reserve.
@@ -17,6 +17,7 @@ class HuggingfaceVocabulary(Vocabulary):
         self.model_name = model_name
         self._extra_ids = extra_ids or 0
         assert self._extra_ids == 0
+        self._add_special_tokens = add_special_tokens
         super().__init__(extra_ids=extra_ids)
 
     def _load_model(self):
@@ -46,7 +47,7 @@ class HuggingfaceVocabulary(Vocabulary):
         return self.tokenizer.vocab_size
 
     def _encode(self, s: str) -> Sequence[int]:
-        return self.tokenizer(s, add_special_tokens=False)["input_ids"]
+        return self.tokenizer(s, add_special_tokens=self._add_special_tokens)["input_ids"]
 
     def _decode(self, ids):
         return self.tokenizer.decode(ids, skip_special_tokens=True)
@@ -67,7 +68,9 @@ class HuggingfaceVocabulary(Vocabulary):
     def _encode_tf(self, s: tf.Tensor) -> tf.Tensor:
         def enc(s):
             return self.tokenizer(
-                s.numpy().decode("utf-8"), return_tensors="tf", add_special_tokens=False
+                s.numpy().decode("utf-8"),
+                return_tensors="tf",
+                add_special_tokens=self._add_special_tokens,
             )["input_ids"]
 
         # we reshape to ensure that we get a 1-dimensional tensor.

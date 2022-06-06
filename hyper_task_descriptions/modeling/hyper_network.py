@@ -28,6 +28,7 @@ from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import (
+    MlpBlock,
     MultiHeadDotProductAttentionWithPrefix,
     SimpleLinear,
 )
@@ -47,6 +48,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 @struct.dataclass
 class HyperT5Config(T5Config):
+    layer_embed_size: int = 10
     adapter_size: int = 64
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
@@ -61,13 +63,14 @@ class Hypernet(nn.Module):
     def setup(self):
         cfg = self.config
         self.encoder = FlaxRobertaModel.from_pretrained(
-            cfg.roberta_model
+            cfg.roberta_model, max_position_embeddings=520, type_vocab_size=8, vocab_size=50272
         ).module  # the module is the 'actual' flax module
+
         self.embedder = jnp.asarray(
             param_with_axes(
                 "embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (cfg.num_encoder_layers + cfg.num_decoder_layers, cfg.emb_dim),
+                (cfg.num_encoder_layers + cfg.num_decoder_layers, cfg.layer_embed_size),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -81,9 +84,18 @@ class Hypernet(nn.Module):
             kernel_axes=("embed", "mlp"),
             name="intermediate_hypernet",
         )
+        # contrastive head is two-layer mlp following simCLR
+        # they use a sigmoid activation tho but using gelu for consistency
+        self.contrastive_head = MlpBlock(
+            intermediate_dim=cfg.emb_dim,
+            activations=("gelu",),
+            intermediate_dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            name="contrastive_head",
+        )
         self.adapter_down_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.adapter_size,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -91,7 +103,7 @@ class Hypernet(nn.Module):
         )
         self.adapter_up_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.adapter_size,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -99,7 +111,7 @@ class Hypernet(nn.Module):
         )
         self.adapter_bias_down_gen = SimpleLinear(
             output_dim=cfg.adapter_size,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -107,7 +119,7 @@ class Hypernet(nn.Module):
         )
         self.adapter_bias_up_gen = SimpleLinear(
             output_dim=cfg.emb_dim,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -115,7 +127,7 @@ class Hypernet(nn.Module):
         )
         self.prefix_key_gen = SimpleLinear(
             output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -123,7 +135,7 @@ class Hypernet(nn.Module):
         )
         self.prefix_value_gen = SimpleLinear(
             output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="gelu",
+            act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
@@ -133,23 +145,29 @@ class Hypernet(nn.Module):
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
         # '1' is roberta pad token.
-        output = self.encoder(encoder_input_tokens, encoder_input_tokens != 1)
-        pooled_output = output[1]  # jnp.mean(output, axis=1)
-        # grab embeds, and
+        attn_mask = encoder_input_tokens != 1
+        output = self.encoder(encoder_input_tokens, attn_mask)
+        # average representation for embeds
+        sum_embeds = output[0].sum(axis=1) / attn_mask.sum(axis=1)[:, None]
+        # save pooled output for later (eg contrastive training)
+        contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
+        self.sow("intermediates", "features", contrastive_output)
+        # add the layer embeddings, and pass through a single mlp layer
         total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
         embeds = jnp.arange(total_layers)
         embeds = self.embedder[embeds][
             None,
         ]
-        embeddings = jnp.repeat(embeds, pooled_output.shape[0], axis=0)
+        embeddings = jnp.repeat(embeds, sum_embeds.shape[0], axis=0)
 
         hyper_input = jnp.concatenate(
-            [embeddings, jnp.repeat(pooled_output[:, None], embeddings.shape[1], axis=1)], axis=-1
+            [embeddings, jnp.repeat(sum_embeds[:, None], embeddings.shape[1], axis=1)], axis=-1
         )
 
         intermediate_embeddings = self.intermediate_embedder(
             hyper_input, deterministic=deterministic
         )
+        # generate all our adapters, prefixes, etc.
         adapter_down = self.adapter_down_gen(intermediate_embeddings, deterministic=deterministic)
         adapter_down = jnp.reshape(adapter_down, (-1, total_layers, cfg.emb_dim, cfg.adapter_size))
         adapter_up = self.adapter_up_gen(intermediate_embeddings, deterministic=deterministic)
@@ -497,7 +515,6 @@ class HyperTransformer(nn.Module):
 
         self.hyper = Hypernet(config=cfg, shared_embedding=self.shared_embedding)
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
-        # TODO: also condition decoder.
         self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)
 
     def encode(

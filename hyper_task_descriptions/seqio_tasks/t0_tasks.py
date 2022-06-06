@@ -22,10 +22,7 @@ from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from hyper_task_descriptions.seqio_tasks import utils
 
 # cached locations for everything - required to find data.
-seqio.add_global_cache_dirs(
-    ["gs://hamishi-tpu-bucket/t0_data_roberta/t0_data_new"]
-    # ["gs://hamishi-tpu-bucket/t0_data/data", "gs://hamishi-tpu-bucket/t0_data/"]
-)
+seqio.add_global_cache_dirs(["gs://hamishi-tpu-bucket/t0_data_edited_prompts"])
 
 GET_METRICS = {
     "BLEU": mt.bleu,
@@ -142,7 +139,7 @@ def get_tf_dataset(split, shuffle_files, seed, dataset_name, subset_name, templa
     del shuffle_files, seed
     dataset = datasets.load_dataset(dataset_name, subset_name)
     dataset = dataset[split_mapping[split]]
-    dataset = utils.apply_template_split(dataset, template)
+    dataset = utils.apply_template_split(dataset, template, dataset_name, subset_name)
     return utils.hf_dataset_to_tf_dataset(dataset)
 
 
@@ -184,12 +181,14 @@ def add_task(
     )
     # use my unique vocab instead.
     t5_vocab = HuggingfaceVocabulary("t5-base")
-    roberta_vocab = HuggingfaceVocabulary("roberta-base")
+    # we let hf deal with the special tokens for us
+    roberta_vocab = HuggingfaceVocabulary("roberta-base", add_special_tokens=True)
 
     output_features = {
         "inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
-        "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=True, dtype=tf.int32),
+        "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=False, dtype=tf.int32),
         "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
+        "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
     }
     preprocessors = [
         seqio.preprocessors.tokenize,
@@ -217,6 +216,7 @@ def add_task(
                 ex["answer_choices"], tf.strings.strip(ex["targets"])
             ),
             weight_fn=lambda ex: 1.0,
+            passthrough_feature_keys=["hyper_inputs", "task_names"],
         )
         fixed_choices = template.get_fixed_answer_choices_list()
         num_classes = len(fixed_choices) if fixed_choices else None
