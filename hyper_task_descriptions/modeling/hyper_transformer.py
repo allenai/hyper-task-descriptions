@@ -144,7 +144,9 @@ class HyperEncDecFeatureConverter(FeatureConverter):
 
         # padding only, no packing.
         ds = ds.map(
-            lambda x: {k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()},
+            lambda x: {
+                k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()
+            },
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         return ds.map(convert_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -537,12 +539,7 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         "targets": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
-    TASK_PADDING = {
-        "inputs": 0,
-        "hyper_inputs": 1,
-        "targets": 0,
-        "task_names": 0
-    }
+    TASK_PADDING = {"inputs": 0, "hyper_inputs": 1, "targets": 0, "task_names": 0}
     MODEL_FEATURES = {
         "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "hyper_encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
@@ -614,7 +611,9 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
 
         # padding only, no packing.
         ds = ds.map(
-            lambda x: {k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()},
+            lambda x: {
+                k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()
+            },
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
         return ds.map(convert_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
