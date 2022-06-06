@@ -45,6 +45,28 @@ else:
     PyTreeDef = type(jax.tree_structure(None))
 
 
+def trim_and_pad(
+    k: str,
+    t: tf.Tensor,
+    task_feature_lengths: Mapping[str, int],
+    task_feature_paddings: Mapping[str, int],
+) -> tf.Tensor:
+    """
+    Trim/pad to the first axis of `t` to be of size `length`.
+    fixed version from seqio that allows changing pad value.
+    """
+    if k not in task_feature_lengths:
+        return t
+    length_k = task_feature_lengths[k]
+    t = t[:length_k]
+    pad_amt = length_k - tf.shape(t)[0]
+    padded_t = tf.pad(
+        t, [(0, pad_amt)] + [(0, 0)] * (len(t.shape) - 1), constant_values=task_feature_paddings[k]
+    )
+    padded_t.set_shape([length_k] + t.shape.as_list()[1:])
+    return padded_t
+
+
 class HyperEncDecFeatureConverter(FeatureConverter):
     """Feature converter for an encoder-decoder with hypernet architecture.
     Really this is just providing a second encoder input to the model.
@@ -120,7 +142,11 @@ class HyperEncDecFeatureConverter(FeatureConverter):
 
             return d
 
-        ds = self._pack_or_pad(ds, task_feature_lengths)
+        # padding only, no packing.
+        ds = ds.map(
+            lambda x: {k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()},
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
         return ds.map(convert_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     def get_model_feature_lengths(
@@ -253,7 +279,12 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         )
         # add pretrained model
         initial_variables = unfreeze(initial_variables)
-        roberta_params = FlaxRobertaModel.from_pretrained(self.module.config.roberta_model).params
+        roberta_params = FlaxRobertaModel.from_pretrained(
+            self.module.config.roberta_model,
+            max_position_embeddings=520,
+            type_vocab_size=8,
+            vocab_size=50272,
+        ).params
         initial_variables["params"]["hyper"]["encoder"] = roberta_params
         initial_variables = freeze(initial_variables)
         return initial_variables
@@ -506,6 +537,12 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         "targets": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
+    TASK_PADDING = {
+        "inputs": 0,
+        "hyper_inputs": 1,
+        "targets": 0,
+        "task_names": 0
+    }
     MODEL_FEATURES = {
         "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "hyper_encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
@@ -575,7 +612,11 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
 
             return d
 
-        ds = self._pack_or_pad(ds, task_feature_lengths)
+        # padding only, no packing.
+        ds = ds.map(
+            lambda x: {k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()},
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
         return ds.map(convert_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     def get_model_feature_lengths(
