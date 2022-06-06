@@ -60,6 +60,9 @@ setup(
         "": ["requirements.txt", "dev-requirements.txt"],
     },
     install_requires=read_requirements("requirements.txt"),
-    extras_require={"dev": read_requirements("dev-requirements.txt")},
+    extras_require={
+        "dev": read_requirements("dev-requirements.txt"),
+        "catwalk": ["catwalk @ git+https://github.com/allenai/catwalk.git"],
+    },
     python_requires=">=3.7",
 )
