@@ -664,7 +664,9 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         # note we should only have one hypernet feature (hypernet called once)
         hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
         # construct the contrastive loss truth
-        cosine_truth = (batch["task_names"][:, None] == batch["task_names"]).astype(jnp.int32)
+        cosine_truth = (
+            (batch["task_names"][:, None] == batch["task_names"]).astype(jnp.int32).squeeze(-1)
+        )
 
         # cosine loss - for truth we want 0 for neg (not same task), 1 for pos (same task)
         cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, cosine_truth)
