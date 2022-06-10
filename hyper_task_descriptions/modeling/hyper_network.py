@@ -62,9 +62,10 @@ class Hypernet(nn.Module):
     # we setup here as loading huggingface weights
     def setup(self):
         cfg = self.config
-        self.encoder = FlaxRobertaModel.from_pretrained(
+        roberta = FlaxRobertaModel.from_pretrained(
             cfg.roberta_model, max_position_embeddings=520, type_vocab_size=8, vocab_size=50272
-        ).module  # the module is the 'actual' flax module
+        )
+        self.encoder = roberta.module  # module = the 'actual' flax module
 
         self.embedder = jnp.asarray(
             param_with_axes(
@@ -87,7 +88,7 @@ class Hypernet(nn.Module):
         # contrastive head is two-layer mlp following simCLR
         # they use a sigmoid activation tho but using gelu for consistency
         self.contrastive_head = MlpBlock(
-            intermediate_dim=cfg.emb_dim,
+            intermediate_dim=roberta.config.hidden_size,
             activations=("gelu",),
             intermediate_dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
@@ -99,6 +100,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
+            kernel_init=nn.initializers.variance_scaling(1e-9, "fan_in", "truncated_normal"),
             name="adapter_down_mlp",
         )
         self.adapter_up_gen = SimpleLinear(
@@ -107,6 +109,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
+            kernel_init=nn.initializers.variance_scaling(1e-9, "fan_in", "truncated_normal"),
             name="adapter_up_mlp",
         )
         self.adapter_bias_down_gen = SimpleLinear(
@@ -115,6 +118,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
+            kernel_init=nn.initializers.variance_scaling(1e-9, "fan_in", "truncated_normal"),
             name="adapter_bias_down_mlp",
         )
         self.adapter_bias_up_gen = SimpleLinear(
@@ -123,6 +127,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
+            kernel_init=nn.initializers.variance_scaling(1e-9, "fan_in", "truncated_normal"),
             name="adapter_bias_up_mlp",
         )
         self.prefix_key_gen = SimpleLinear(
@@ -225,14 +230,14 @@ class HyperEncoderLayer(nn.Module):
         assert inputs.ndim == 3
         x = layers.LayerNorm(dtype=cfg.dtype, name="pre_attention_layer_norm")(inputs)
         # [batch, length, emb_dim] -> [batch, length, emb_dim]
-        x = MultiHeadDotProductAttentionWithPrefix(
+        x = layers.MultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="attention",
-        )(x, x, prefix_key, prefix_value, encoder_mask, encoder_bias, deterministic=deterministic)
+        )(x, x, encoder_mask, encoder_bias, deterministic=deterministic)
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
 
@@ -302,7 +307,7 @@ class HyperDecoderLayer(nn.Module):
         x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
 
         # Self-attention block
-        x = MultiHeadDotProductAttentionWithPrefix(
+        x = layers.MultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
@@ -312,8 +317,6 @@ class HyperDecoderLayer(nn.Module):
         )(
             x,
             x,
-            prefix_key,
-            prefix_value,
             decoder_mask,
             decoder_bias,
             deterministic=deterministic,
