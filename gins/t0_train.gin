@@ -16,6 +16,7 @@ TASK_FEATURE_LENGTHS = {"inputs": 1024, "hyper_inputs": 512, "task_names": 1, "t
 MIXTURE_OR_TASK_NAME = "t0_train"
 
 trainer.Trainer.num_microbatches = 16 # 2048 // 16
+trainer.Trainer.weight_metrics_computer = @trainer.WeightMetricsComputer()
 
 # the batch sizes are really big so I increase stats logging
 # for more visibility.
