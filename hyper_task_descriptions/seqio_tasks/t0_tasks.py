@@ -22,7 +22,7 @@ from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from hyper_task_descriptions.seqio_tasks import utils
 
 # cached locations for everything - required to find data.
-seqio.add_global_cache_dirs(["gs://hamishi-tpu-bucket/t0_data_edited_prompts"])
+seqio.add_global_cache_dirs(["gs://hamishi-tpu-bucket/t0_data_split_descr"])
 
 GET_METRICS = {
     "BLEU": mt.bleu,

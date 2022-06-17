@@ -27,11 +27,7 @@ from t5x.examples.t5.network import T5Config
 from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.layers import (
-    MlpBlock,
-    MultiHeadDotProductAttentionWithPrefix,
-    SimpleLinear,
-)
+from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
