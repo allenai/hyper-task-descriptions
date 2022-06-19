@@ -96,7 +96,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_in", "truncated_normal"),
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="adapter_down_mlp",
         )
         self.adapter_up_gen = SimpleLinear(
@@ -105,7 +105,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_in", "truncated_normal"),
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="adapter_up_mlp",
         )
         self.adapter_bias_down_gen = SimpleLinear(
@@ -114,7 +114,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_in", "truncated_normal"),
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="adapter_bias_down_mlp",
         )
         self.adapter_bias_up_gen = SimpleLinear(
@@ -123,7 +123,7 @@ class Hypernet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_in", "truncated_normal"),
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="adapter_bias_up_mlp",
         )
         self.prefix_key_gen = SimpleLinear(
