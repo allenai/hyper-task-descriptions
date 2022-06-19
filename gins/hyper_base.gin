@@ -33,7 +33,7 @@ adafactor.Adafactor:
   decay_rate = 0.8
   step_offset = 0
   logical_factor_rules = @adafactor.standard_logical_factor_rules()
-  clipping_threshold = None  # the hypernet updates get *consistently* clipped
+#  clipping_threshold = None  # the hypernet updates get *consistently* clipped
 
 # ------------------- Model ----------------------------------------------------
 MODEL = @hyper_transformer.HyperEncoderDecoderContrastiveModel()
