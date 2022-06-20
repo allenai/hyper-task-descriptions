@@ -36,12 +36,13 @@ my_vals_26 = get_model_data(12, data)
 cont_5 = get_model_data(13, data)
 cont_9 = get_model_data(15, data)
 nu_cont = get_model_data(16, data)
-hyper_only = get_model_data(17, data)
+base = get_model_data(18, data)
+large = get_model_data(21, data)
 
 fig, axs = plt.subplots(2, 6)
 
-models_to_eval = [t0_3b_vals, t0_11b_vals, t03b16k_vals, my_vals_14, nu_cont]
-model_names = ["T0 3B", "T0", "T03B+16K", "mine", "mine-cont"]
+models_to_eval = [t0_3b_vals, t0_11b_vals, t03b16k_vals, base, large]
+model_names = ["T0 3B", "T0", "T03B+16K", "base16k", "6k"]
 print(tasks)
 for i, task in enumerate(tasks):
     vert_idx = i // 6

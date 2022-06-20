@@ -31,14 +31,16 @@ train/utils.DatasetConfig:
   batch_size = 8
   shuffle = False
 
-train_eval/utils.DatasetConfig.batch_size = 8
+train_eval/utils.DatasetConfig.batch_size = 2
 
 train_script.train:
   eval_period = 3
   eval_steps = 3
   stats_period = 1
 
-trainer.Trainer.num_microbatches = 2
+trainer.Trainer.num_microbatches = 1
+trainer.Trainer.weight_metrics_computer = @trainer.WeightMetricsComputer()
+
 partitioning.PjitPartitioner:
   num_partitions = 1
   model_parallel_submesh = None
