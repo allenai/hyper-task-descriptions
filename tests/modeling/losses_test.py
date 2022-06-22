@@ -1,9 +1,9 @@
 import jax.numpy as jnp
-from hyper_task_descriptions.modeling.losses import (
+
+from hyper_task_descriptions.modeling.losses import (  # safe_norm,
     cosine_similarity,
     cosine_similarity_loss,
     cosine_similarity_one_to_many,
-    # safe_norm,
 )
 
 
