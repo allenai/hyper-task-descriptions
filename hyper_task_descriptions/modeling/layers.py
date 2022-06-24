@@ -132,6 +132,12 @@ class MlpBlock(nn.Module):
         x = nn.Dropout(rate=self.intermediate_dropout_rate, broadcast_dims=(-2,))(
             x, deterministic=deterministic
         )  # Broadcast along length.
+
+        # CHANGE from t5x
+        # Removing the sharding constraint as we require to use this layer for shapes of ('batch', 'mlp'),
+        # which makes below constraint invalid.
+        # x = with_sharding_constraint(x, ('batch', 'length', 'mlp'))
+
         output = DenseGeneral(
             inputs.shape[-1],
             dtype=self.dtype,
@@ -307,6 +313,7 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
                         jnp.squeeze(bias, axis=0), jnp.reshape(cur_index, (-1)), 1, -2
                     )
 
+        # CHANGE from t5x
         # ADD PREFIXES ###
         # key has dim [batch, len, num_heads, head_dim], and we add prefixes
         key = jnp.concatenate([key_prefix, key], axis=1)
@@ -328,6 +335,7 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
         if bias is not None:
             attention_bias = combine_biases(attention_bias, bias)
 
+        # CHANGE from t5x
         # PREFIX CHANGE
         # Avoid attention bias affecting the prefixes by prepending 0s
         # attention_bias has shape [batch, num_heads, q_length, kv_length]
