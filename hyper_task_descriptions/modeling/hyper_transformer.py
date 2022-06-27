@@ -84,6 +84,11 @@ class HyperEncDecFeatureConverter(FeatureConverter):
         "decoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "decoder_loss_weights": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
+    TASK_PADDING = {
+        "inputs": 0,
+        "hyper_inputs": 1,
+        "targets": 0,
+    }  # TODO: confirm that this is expected behaviour
     PACKING_FEATURE_DTYPES = {
         "encoder_segment_ids": tf.int32,
         "hyper_encoder_segment_ids": tf.int32,
@@ -141,6 +146,9 @@ class HyperEncDecFeatureConverter(FeatureConverter):
                 d["decoder_positions"] = features["targets_positions"]
 
             return d
+
+        if self.pack:
+            raise NotImplementedError("We do not use packing.")  # TODO: why?
 
         # padding only, no packing.
         ds = ds.map(
