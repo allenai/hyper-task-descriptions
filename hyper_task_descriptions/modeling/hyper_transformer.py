@@ -617,6 +617,9 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
 
             return d
 
+        if self.pack:
+            raise NotImplementedError("We do not use packing.")  # TODO: why?
+
         # padding only, no packing.
         ds = ds.map(
             lambda x: {
