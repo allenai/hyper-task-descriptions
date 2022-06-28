@@ -8,8 +8,9 @@ MODEL_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/model"
 # for your first run, you will probably need to run all these calls :(
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
-  --gin_file="t5x/examples/t5/t5_1_1/xl.gin" \
+  --gin_file="hyper_xl.gin" \
   --gin_file="t0_train.gin" \
+  --gin_file=hyper_network.HyperT5Config.add_adapters=False \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1113200 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
