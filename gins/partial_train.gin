@@ -10,17 +10,17 @@ from hyper_task_descriptions import utils as hyper_utils
 # gin that allows partial training based on regex matching.
 
 # ------------------- Partial loading ------------------------------------------------
-OPTIMIZER = @optimizers.MultiOptimizer()
-optimizers.MultiOptimizer:
-  traversals_and_optimizers = ((@optim.ModelParamTraversal(),
-                                @adafactor.Adafactor()),)
-optim.ModelParamTraversal:
-  filter_fn = @hyper_utils.match_any()
-# MultiOptimizer will match any parameter with a flattened name that
-# matches any of these regular expressions.
-PROMPT_REGEX = [".*/hyper/.*"]
-# PROMPT_REGEX = ["^((?!roberta).)*$"]
-hyper_utils.match_any.regexes = %PROMPT_REGEX
+# OPTIMIZER = @optimizers.MultiOptimizer()
+# optimizers.MultiOptimizer:
+#   traversals_and_optimizers = ((@optim.ModelParamTraversal(),
+#                                 @adafactor.Adafactor()),)
+# optim.ModelParamTraversal:
+#   filter_fn = @hyper_utils.match_any()
+# # MultiOptimizer will match any parameter with a flattened name that
+# # matches any of these regular expressions.
+# PROMPT_REGEX = [".*/hyper/.*"]
+# # PROMPT_REGEX = ["^((?!roberta).)*$"]
+# hyper_utils.match_any.regexes = %PROMPT_REGEX
 
 # These setting allow us to partially reload a checkpoint, that is, we can load
 # most of the model weights from the checkpoint, without it complaining that we
