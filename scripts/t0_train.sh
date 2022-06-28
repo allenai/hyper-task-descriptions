@@ -2,7 +2,7 @@
 EXPERIMENT_NAME=$1
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
