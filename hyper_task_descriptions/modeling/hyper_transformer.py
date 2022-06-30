@@ -283,6 +283,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             decode=False,
             enable_dropout=False,
         )
+
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(
             initial_variables, roberta_axes_names_override
