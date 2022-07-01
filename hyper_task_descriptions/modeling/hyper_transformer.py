@@ -456,6 +456,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         adaptations = self.module.apply(
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
+
         batch_adaptions = [decoding.flat_batch_beam_expand(a, num_decodes) for a in adaptations]
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
