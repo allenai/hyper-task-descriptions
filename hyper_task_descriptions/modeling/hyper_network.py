@@ -50,6 +50,9 @@ class HyperT5Config(T5Config):
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
     roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
+    roberta_max_position_embeddings: int = 520
+    roberta_type_vocab_size: int = 8
+    roberta_vocab_size: int = 50272
 
 
 class Hypernet(nn.Module):
@@ -60,8 +63,13 @@ class Hypernet(nn.Module):
     def setup(self):
         cfg = self.config
         roberta = FlaxRobertaModel.from_pretrained(
-            cfg.roberta_model, max_position_embeddings=520, type_vocab_size=8, vocab_size=50272
+            cfg.roberta_model,
+            max_position_embeddings=cfg.roberta_max_position_embeddings,
+            type_vocab_size=cfg.roberta_type_vocab_size,
+            vocab_size=cfg.roberta_vocab_size,
         )
+
+        # encodes the task description
         self.encoder = roberta.module  # module = the 'actual' flax module
 
         self.embedder = jnp.asarray(

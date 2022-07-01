@@ -84,6 +84,12 @@ class HyperEncDecFeatureConverter(FeatureConverter):
         "decoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "decoder_loss_weights": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
+    # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
+    TASK_PADDING = {
+        "inputs": 0,
+        "hyper_inputs": 1,
+        "targets": 0,
+    }
     PACKING_FEATURE_DTYPES = {
         "encoder_segment_ids": tf.int32,
         "hyper_encoder_segment_ids": tf.int32,
@@ -141,6 +147,14 @@ class HyperEncDecFeatureConverter(FeatureConverter):
                 d["decoder_positions"] = features["targets_positions"]
 
             return d
+
+        if self.pack:
+            """
+            Packing is non-trivial to get working with (a) the huggingface roberta model (possibly not supported?),
+            and (b) the adapter generation side of things, since you would need to swap what adapters you're using
+            mid-sequence (since there multiple examples in the same sequence). Not worth the effort. May revisit.
+            """
+            raise NotImplementedError("We do not use packing.")
 
         # padding only, no packing.
         ds = ds.map(
@@ -275,6 +289,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             decode=False,
             enable_dropout=False,
         )
+
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(
             initial_variables, roberta_axes_names_override
@@ -447,6 +462,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         adaptations = self.module.apply(
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
+
         batch_adaptions = [decoding.flat_batch_beam_expand(a, num_decodes) for a in adaptations]
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
@@ -539,6 +555,7 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         "targets": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
+    # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
     TASK_PADDING = {"inputs": 0, "hyper_inputs": 1, "targets": 0, "task_names": 0}
     MODEL_FEATURES = {
         "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
@@ -609,6 +626,14 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
 
             return d
 
+        if self.pack:
+            """
+            Packing is non-trivial to get working with (a) the huggingface roberta model (possibly not supported?),
+            and (b) the adapter generation side of things, since you would need to swap what adapters you're using
+            mid-sequence (since there multiple examples in the same sequence). Not worth the effort. May revisit.
+            """
+            raise NotImplementedError("We do not use packing.")
+
         # padding only, no packing.
         ds = ds.map(
             lambda x: {
@@ -658,6 +683,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         params: PyTreeDef,
         batch: Mapping[str, jnp.ndarray],
         dropout_rng: Optional[jax.random.KeyArray],
+        cosine_loss_multiplier: int = 6000,
     ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, metrics_lib.MetricsMap]]:
         """"""
         logits, mod_vars = self._compute_logits(params, batch, dropout_rng, mutable="intermediates")
@@ -684,7 +710,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             z_loss=self._z_loss,
             loss_normalizing_factor=loss_normalizing_factor,
         )
-        loss += cos_loss * 6000  # upweight since otherwise ce loss dominates
+        loss += cos_loss * cosine_loss_multiplier  # upweight since otherwise ce loss dominates
         metrics = self._compute_metrics(
             logits=logits,
             targets=batch["decoder_target_tokens"],
