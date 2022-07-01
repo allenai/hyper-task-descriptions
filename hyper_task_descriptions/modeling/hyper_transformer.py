@@ -683,6 +683,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
         params: PyTreeDef,
         batch: Mapping[str, jnp.ndarray],
         dropout_rng: Optional[jax.random.KeyArray],
+        cosine_loss_multiplier: int = 6000,
     ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, metrics_lib.MetricsMap]]:
         """"""
         logits, mod_vars = self._compute_logits(params, batch, dropout_rng, mutable="intermediates")
@@ -709,8 +710,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             z_loss=self._z_loss,
             loss_normalizing_factor=loss_normalizing_factor,
         )
-        # TODO: set upweight value as a parameter.
-        loss += cos_loss * 6000  # upweight since otherwise ce loss dominates
+        loss += cos_loss * cosine_loss_multiplier  # upweight since otherwise ce loss dominates
         metrics = self._compute_metrics(
             logits=logits,
             targets=batch["decoder_target_tokens"],
