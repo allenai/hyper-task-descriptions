@@ -4,8 +4,8 @@
 t5 @ git+https://github.com/google-research/text-to-text-transfer-transformer.git
 git+https://github.com/google-research/t5x.git
 promptsource
-transformers==4.19.2
+transformers==4.20.1
 tensorflow==2.9.0 # 2.9 has tpu issues
 tensorflow-text==2.9.0
 # for caching only
-apache-beam==2.39.0
+apache-beam==2.40.0
