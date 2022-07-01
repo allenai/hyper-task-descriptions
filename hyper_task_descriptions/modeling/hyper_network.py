@@ -44,6 +44,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 @struct.dataclass
 class HyperT5Config(T5Config):
+    add_adapters: bool = True
     layer_embed_size: int = 10
     adapter_size: int = 64
     hbottleneck_size: int = 128
@@ -257,24 +258,26 @@ class HyperEncoderLayer(nn.Module):
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         # adapter block
-        adapter_y = (
-            lax.batch_matmul(lx, adapter_wd)
-            + adapter_bd[
-                :,
-                None,
-            ]
-        )
-        adapter_y = nn.gelu(adapter_y)
-        adapter_y = (
-            lax.batch_matmul(adapter_y, adapter_wu)
-            + adapter_bu[
-                :,
-                None,
-            ]
-        )
+        if cfg.add_adapters:
+            adapter_y = (
+                lax.batch_matmul(lx, adapter_wd)
+                + adapter_bd[
+                    :,
+                    None,
+                ]
+            )
+            adapter_y = nn.gelu(adapter_y)
+            adapter_y = (
+                lax.batch_matmul(adapter_y, adapter_wu)
+                + adapter_bu[
+                    :,
+                    None,
+                ]
+            )
+            y = y + adapter_y
         # final residual connection
         # TODO: scaled add?
-        y = y + x + adapter_y
+        y = y + x
         return y
 
 
@@ -353,25 +356,26 @@ class HyperDecoderLayer(nn.Module):
         )(lz, deterministic=deterministic)
         z = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(z, deterministic=deterministic)
         # adapter block
-        adapter_z = (
-            lax.batch_matmul(lz, adapter_wd)
-            + adapter_bd[
-                :,
-                None,
-            ]
-        )
-        adapter_z = nn.gelu(adapter_z)
-        adapter_z = (
-            lax.batch_matmul(adapter_z, adapter_wu)
-            + adapter_bu[
-                :,
-                None,
-            ]
-        )
-        # final residual connection
-        # TODO: scaled add?
-        z = z + y + adapter_z
-
+        if cfg.add_adapters:
+            adapter_z = (
+                lax.batch_matmul(lz, adapter_wd)
+                + adapter_bd[
+                    :,
+                    None,
+                ]
+            )
+            adapter_z = nn.gelu(adapter_z)
+            adapter_z = (
+                lax.batch_matmul(adapter_z, adapter_wu)
+                + adapter_bu[
+                    :,
+                    None,
+                ]
+            )
+            # final residual connection
+            # TODO: scaled add?
+            z = z + adapter_z
+        z = z + y
         return z
 
 
