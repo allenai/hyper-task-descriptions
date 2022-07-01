@@ -204,7 +204,7 @@ def add_task(
         output_features=output_features,
         metric_fns=metrics,
         postprocess_fn=maybe_get_class_id_postprocessor(template),
-        shuffle_buffer_size=50000  # default of 1000 is too small
+        shuffle_buffer_size=50000,  # default of 1000 is too small
     )
 
     # Add rank classification eval task
