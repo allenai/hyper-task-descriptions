@@ -1,43 +1,8 @@
 import jax
 import numpy as np
-import seqio
 from absl.testing import parameterized
-from t5x import adafactor
 
-from hyper_task_descriptions.modeling.hyper_network import (
-    HyperT5Config,
-    HyperTransformer,
-)
-from hyper_task_descriptions.modeling.hyper_transformer import HyperEncoderDecoderModel
-
-
-def get_test_model(
-    emb_dim,
-    head_dim,
-    num_heads,
-    mlp_dim,
-    dtype="float32",
-    vocab_size=32128,
-    num_encoder_layers=2,
-    num_decoder_layers=2,
-):
-    config = HyperT5Config(
-        num_encoder_layers=num_encoder_layers,
-        num_decoder_layers=num_decoder_layers,
-        vocab_size=vocab_size,
-        dropout_rate=0,
-        emb_dim=emb_dim,
-        num_heads=num_heads,
-        head_dim=head_dim,
-        mlp_dim=mlp_dim,
-        dtype=dtype,
-        mlp_activations=("gelu", "linear"),
-    )
-    # TODO: maybe configure adapter specific things too.
-    module = HyperTransformer(config=config)
-    vocab = seqio.test_utils.sentencepiece_vocab()
-    optimizer_def = adafactor.Adafactor()
-    return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+from hyper_task_descriptions.common.testing import get_test_model
 
 
 class NetworkTest(parameterized.TestCase):
