@@ -84,11 +84,12 @@ class HyperEncDecFeatureConverter(FeatureConverter):
         "decoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "decoder_loss_weights": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
+    # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
     TASK_PADDING = {
         "inputs": 0,
         "hyper_inputs": 1,
         "targets": 0,
-    }  # TODO: confirm that this is expected behaviour
+    }
     PACKING_FEATURE_DTYPES = {
         "encoder_segment_ids": tf.int32,
         "hyper_encoder_segment_ids": tf.int32,
@@ -148,7 +149,12 @@ class HyperEncDecFeatureConverter(FeatureConverter):
             return d
 
         if self.pack:
-            raise NotImplementedError("We do not use packing.")  # TODO: why?
+            """
+            Packing is non-trivial to get working with (a) the huggingface roberta model (possibly not supported?),
+            and (b) the adapter generation side of things, since you would need to swap what adapters you're using
+            mid-sequence (since there multiple examples in the same sequence). Not worth the effort. May revisit.
+            """
+            raise NotImplementedError("We do not use packing.")
 
         # padding only, no packing.
         ds = ds.map(
@@ -549,6 +555,7 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         "targets": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
+    # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
     TASK_PADDING = {"inputs": 0, "hyper_inputs": 1, "targets": 0, "task_names": 0}
     MODEL_FEATURES = {
         "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
@@ -620,7 +627,12 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
             return d
 
         if self.pack:
-            raise NotImplementedError("We do not use packing.")  # TODO: why?
+            """
+            Packing is non-trivial to get working with (a) the huggingface roberta model (possibly not supported?),
+            and (b) the adapter generation side of things, since you would need to swap what adapters you're using
+            mid-sequence (since there multiple examples in the same sequence). Not worth the effort. May revisit.
+            """
+            raise NotImplementedError("We do not use packing.")
 
         # padding only, no packing.
         ds = ds.map(
