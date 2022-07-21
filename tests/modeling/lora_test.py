@@ -4,7 +4,11 @@ import numpy as np
 from flax import linen as nn
 
 from hyper_task_descriptions.common.testing import get_prng_key
-from hyper_task_descriptions.modeling.lora import LoraDenseGeneral, lora_linear
+from hyper_task_descriptions.modeling.lora import (
+    LoraDenseGeneral,
+    LoraMultiHeadDotProductAttention,
+    lora_linear,
+)
 
 
 def test_lora_linear():
@@ -36,6 +40,27 @@ def test_lora_dense_general():
     output = lora_dense.apply(params, inputs)
     assert output.shape == (batch_size, out_features)
 
+
+def test_lora_multihead_dot_product_attention():
+    batch_size, q_len, q_features, kv_len, kv_features = 3, 4, 5, 6, 7
+    num_heads, head_dim = 8, 16
+    rank = 2
+
+    inputs_q = jnp.array(np.random.randn(batch_size, q_len, q_features))
+    inputs_kv = jnp.array(np.random.randn(batch_size, kv_len, kv_features))
+
+    lora_multihead = LoraMultiHeadDotProductAttention(
+        num_heads=num_heads, head_dim=head_dim, rank=rank
+    )
+    key = get_prng_key(23)
+    params = lora_multihead.init(key, inputs_q, inputs_kv)
+
+    output = lora_multihead.apply(params, inputs_q, inputs_kv)
+    assert output.shape == (batch_size, q_len, q_features)
+
+
+# if __name__ == "__main__":
+#     test_lora_multihead_dot_product_attention()
 
 # def test_replace_layer():
 #     class FakeModel(nn.Module):
