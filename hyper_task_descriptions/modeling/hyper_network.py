@@ -677,7 +677,7 @@ class HyperTransformer(nn.Module):
           decoder_segment_ids: decoder segmentation info for packed examples.
           encoder_positions: encoder subsequence positions for packed examples.
           decoder_positions: decoder subsequence positions for packed examples.
-          enable_dropout: Ensables dropout if set to True.
+          enable_dropout: Enables dropout if set to True.
           decode: Whether to prepare and use an autoregressive cache.
 
         Returns:
