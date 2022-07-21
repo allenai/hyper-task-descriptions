@@ -4,6 +4,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import jax
+
 
 class HyperTaskDescriptionsTestCase:
     """
@@ -88,3 +90,11 @@ def get_test_model(
     vocab = seqio.test_utils.sentencepiece_vocab()
     optimizer_def = adafactor.Adafactor()
     return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+
+
+def get_prng_key(seed: int = 23) -> jax.random.PRNGKeyArray:
+    return jax.random.PRNGKey(seed)
+
+
+def get_multiple_keys(key: jax.random.PRNGKeyArray, multiple: int = 1) -> jax.random.PRNGKeyArray:
+    return jax.random.split(key, multiple)
