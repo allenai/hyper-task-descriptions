@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
-from flax import linen as nn
 
 from hyper_task_descriptions.common.testing import get_prng_key
 from hyper_task_descriptions.modeling.lora import (
