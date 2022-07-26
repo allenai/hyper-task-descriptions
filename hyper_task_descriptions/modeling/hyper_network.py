@@ -24,7 +24,10 @@ from flax.linen import partitioning as nn_partitioning
 from jax import lax
 from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
-from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
+from transformers.models.roberta.modeling_flax_roberta import (
+    FlaxRobertaModel,
+    create_position_ids_from_input_ids,
+)
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
@@ -154,11 +157,14 @@ class Hypernet(nn.Module):
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
+        # TODO: use config to determine padding token id
         # '1' is roberta pad token.
         attn_mask = encoder_input_tokens != 1
-        output = self.encoder(encoder_input_tokens, attn_mask)
+        # the position ids created by the FlaxRobertaModule are wrong, so use correct func.
+        pos_ids = create_position_ids_from_input_ids(encoder_input_tokens, 1)
+        output = self.encoder(encoder_input_tokens, attn_mask, position_ids=pos_ids)
         # average representation for embeds
-        sum_embeds = output[0].sum(axis=1) / attn_mask.sum(axis=1)[:, None]
+        sum_embeds = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[:, None]
         # save pooled output for later (eg contrastive training)
         contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
         self.sow("intermediates", "features", contrastive_output)
