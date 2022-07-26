@@ -49,7 +49,7 @@ class HyperT5Config(T5Config):
     adapter_size: int = 64
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
-    roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
+    roberta_model: str = "hamishivi/fixed-roberta-base" #"hamishivi/fixed-distilroberta-base" #  # fixes some partitioning issues
     roberta_max_position_embeddings: int = 520
     roberta_type_vocab_size: int = 8
     roberta_vocab_size: int = 50272

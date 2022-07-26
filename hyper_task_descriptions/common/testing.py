@@ -61,6 +61,9 @@ def get_test_model(
     vocab_size=32128,
     num_encoder_layers=2,
     num_decoder_layers=2,
+    lora_hyper_gen=False,
+    lora_rank=4,
+    do_lora=False,  # TODO: tmp until both configs are merged.
 ):
     import seqio
     from t5x import adafactor
@@ -73,23 +76,48 @@ def get_test_model(
         HyperEncoderDecoderModel,
     )
 
-    config = HyperT5Config(
-        num_encoder_layers=num_encoder_layers,
-        num_decoder_layers=num_decoder_layers,
-        vocab_size=vocab_size,
-        dropout_rate=0,
-        emb_dim=emb_dim,
-        num_heads=num_heads,
-        head_dim=head_dim,
-        mlp_dim=mlp_dim,
-        dtype=dtype,
-        mlp_activations=("gelu", "linear"),
-    )
-    # TODO: maybe configure adapter specific things too.
-    module = HyperTransformer(config=config)
-    vocab = seqio.test_utils.sentencepiece_vocab()
-    optimizer_def = adafactor.Adafactor()
-    return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+    if do_lora:
+        from hyper_task_descriptions.modeling.lora_network import (
+            HyperLoraT5Config,
+            LoraTransformer,
+        )
+        config = HyperLoraT5Config(
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            vocab_size=vocab_size,
+            dropout_rate=0,
+            emb_dim=emb_dim,
+            num_heads=num_heads,
+            head_dim=head_dim,
+            mlp_dim=mlp_dim,
+            dtype=dtype,
+            mlp_activations=("gelu", "linear"),
+            lora_hyper_gen=lora_hyper_gen,
+            rank=lora_rank,
+        )
+        # TODO: maybe configure adapter specific things too.
+        module = LoraTransformer(config=config)
+        vocab = seqio.test_utils.sentencepiece_vocab()
+        optimizer_def = adafactor.Adafactor()
+        return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+    else:
+        config = HyperT5Config(
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            vocab_size=vocab_size,
+            dropout_rate=0,
+            emb_dim=emb_dim,
+            num_heads=num_heads,
+            head_dim=head_dim,
+            mlp_dim=mlp_dim,
+            dtype=dtype,
+            mlp_activations=("gelu", "linear"),
+        )
+        # TODO: maybe configure adapter specific things too.
+        module = HyperTransformer(config=config)
+        vocab = seqio.test_utils.sentencepiece_vocab()
+        optimizer_def = adafactor.Adafactor()
+        return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
 
 
 def get_prng_key(seed: int = 23) -> jax.random.PRNGKeyArray:
