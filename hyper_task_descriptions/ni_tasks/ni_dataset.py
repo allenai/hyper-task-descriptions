@@ -107,7 +107,7 @@ class NaturalInstructions(datasets.GeneratorBasedBuilder):
         """Returns SplitGenerators."""
         if self.config.data_dir is None:
             dl_path = dl_manager.download_and_extract(_RELEASE_URL)
-            self.config.data_dir = dl_path
+            self.config.data_dir = os.listdir(dl_path)[0] # get the extracted directory
         split_dir = os.path.join(self.config.data_dir, self.config.split_subdir)
         task_dir = os.path.join(self.config.data_dir, self.config.task_subdir)
         return [
