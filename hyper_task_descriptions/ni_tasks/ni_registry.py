@@ -61,8 +61,8 @@ def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_
 dataset_fn = functools.partial(
     get_ni_data,
     seed=None,
-    max_num_instances_per_task=1,
-    max_num_instances_per_eval_task=1,
+    max_num_instances_per_task=100,
+    max_num_instances_per_eval_task=100,
 )
 
 data_source = seqio.FunctionDataSource(
