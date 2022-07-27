@@ -16,7 +16,7 @@ def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_
     del shuffle_files, seed
     dataset = load_dataset(
         "hyper_task_descriptions/ni_tasks/ni_dataset.py",
-        data_dir="../natural-instructions/",
+        # data_dir="../natural-instructions/",
         max_num_instances_per_task=max_num_instances_per_task,
         max_num_instances_per_eval_task=max_num_instances_per_eval_task,
         split=split,
