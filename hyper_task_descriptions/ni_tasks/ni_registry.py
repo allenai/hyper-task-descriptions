@@ -11,6 +11,9 @@ from hyper_task_descriptions.ni_tasks.evaluation import compute_metrics
 from hyper_task_descriptions.ni_tasks.ni_collator import DataCollatorForNI
 
 
+seqio.add_global_cache_dirs(["gs://yizhongw-tpu-bucket/ni_data"])
+
+
 def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_instances_per_eval_task, raw_input=True):
     # HF datasets does not support file-level shuffling
     del shuffle_files, seed
