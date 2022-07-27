@@ -28,6 +28,7 @@ from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
 from hyper_task_descriptions.modeling.lora import LoraMultiHeadDotProductAttention
+from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
@@ -42,23 +43,23 @@ Shape = Iterable[int]
 Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 
-@struct.dataclass
-class HyperLoraT5Config(T5Config):
-    add_adapters: bool = True
-    layer_embed_size: int = 10
-    adapter_size: int = 64
-    hbottleneck_size: int = 128
-    num_prefix_tokens: int = 30
-    roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
-    roberta_max_position_embeddings: int = 520
-    roberta_type_vocab_size: int = 8
-    roberta_vocab_size: int = 50272
-    lora_hyper_gen: bool = False
-    lora_rank: int = 2
+# @struct.dataclass
+# class HyperLoraT5Config(T5Config):
+#     add_adapters: bool = True
+#     layer_embed_size: int = 10
+#     adapter_size: int = 64
+#     hbottleneck_size: int = 128
+#     num_prefix_tokens: int = 30
+#     roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
+#     roberta_max_position_embeddings: int = 520
+#     roberta_type_vocab_size: int = 8
+#     roberta_vocab_size: int = 50272
+#     lora_hyper_gen: bool = False
+#     lora_rank: int = 2
 
 
 class HyperLoraNet(nn.Module):
-    config: HyperLoraT5Config
+    config: HyperT5Config
     shared_embedding: nn.Module
 
     # we setup here as loading huggingface weights
@@ -201,7 +202,7 @@ class HyperLoraNet(nn.Module):
 class LoraEncoderLayer(nn.Module):
     """Transformer encoder layer."""
 
-    config: HyperLoraT5Config
+    config: HyperT5Config
     relative_embedding: nn.Module
 
     @nn.compact
@@ -283,7 +284,7 @@ class LoraEncoderLayer(nn.Module):
 class LoraDecoderLayer(nn.Module):
     """Transformer decoder layer that attends to the encoder."""
 
-    config: HyperLoraT5Config
+    config: HyperT5Config
     relative_embedding: nn.Module
 
     @nn.compact
@@ -390,7 +391,7 @@ class LoraDecoderLayer(nn.Module):
 class LoraEncoder(nn.Module):
     """A stack of encoder layers."""
 
-    config: HyperLoraT5Config
+    config: HyperT5Config
     shared_embedding: nn.Module
 
     @nn.compact
@@ -441,7 +442,7 @@ class LoraEncoder(nn.Module):
 
 
 class LoraDecoder(nn.Module):
-    config: HyperLoraT5Config
+    config: HyperT5Config
     shared_embedding: nn.Module
 
     @nn.compact
@@ -518,7 +519,7 @@ class LoraDecoder(nn.Module):
 class LoraTransformer(nn.Module):
     """An encoder-decoder Transformer model, with hypernets."""
 
-    config: HyperLoraT5Config
+    config: HyperT5Config
 
     def setup(self):
         cfg = self.config
