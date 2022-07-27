@@ -37,6 +37,7 @@ from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
 from hyper_task_descriptions.modeling.roberta_partitioning import (
     roberta_axes_names_override,
 )
+from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -290,9 +291,14 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
         )
 
+        override_param_axes = roberta_axes_names_override
+
+        # TODO: override this in lora_network
+        # TODO: don't do this for every case.
+        override_param_axes += lora_axes_names_override
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(
-            initial_variables, roberta_axes_names_override
+            initial_variables, override_param_axes
         )
         # add pretrained model
         initial_variables = unfreeze(initial_variables)
