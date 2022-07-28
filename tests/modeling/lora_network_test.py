@@ -43,6 +43,7 @@ class NetworkTest(parameterized.TestCase):
             vocab_size=10,
             num_encoder_layers=1,
             num_decoder_layers=1,
+            do_lora=True,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))

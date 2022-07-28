@@ -362,12 +362,12 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             raw_inputs,  # only needed for encoder padding mask
             flat_ids,
             flat_ids,
-            adapter_wd=adaptations[0],
-            adapter_wu=adaptations[1],
-            adapter_bd=adaptations[2],
-            adapter_bu=adaptations[3],
-            prefix_key=adaptations[4],
-            prefix_value=adaptations[5],
+            # adapter_wd=adaptations[0],
+            # adapter_wu=adaptations[1],
+            # adapter_bd=adaptations[2],
+            # adapter_bu=adaptations[3],
+            prefix_key=adaptations[-2], #4
+            prefix_value=adaptations[-1], #5
             enable_dropout=False,
             decode=True,
             max_decode_length=max_decode_length,
@@ -467,7 +467,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
 
-        batch_adaptions = [decoding.flat_batch_beam_expand(a, num_decodes) for a in adaptations]
+        batch_adaptions = [decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None for a in adaptations]
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
         # need to set up our decoder model to handle a batch size equal to

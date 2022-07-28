@@ -89,22 +89,23 @@ class HyperLoraNet(nn.Module):
         )
 
         # TODO: add lora generators here.
-
-        # self.lora_a_gen = SimpleLinear(
-        #     output_dim=cfg.emb_dim * cfg.adapter_size,
+        # TODO: combine q, k, v generators?
+        # self.lora_qa_gen = SimpleLinear(
+        #     output_dim=cfg.emb_dim * cfg.lora_rank,
         #     act_fn="linear",
         #     dropout_rate=cfg.dropout_rate,
         #     dtype=cfg.dtype,
-        #     kernel_axes=("mlp", "embed"),
+        #     kernel_axes=("mlp", "embed"),  # TODO: what should this be?
         #     kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
-        #     name="adapter_down_mlp",
+        #     name="lora_qa_gen",
         # )
-        # self.lora_b_gen = SimpleLinear(
-        #     output_dim=cfg.emb_dim * cfg.adapter_size,
+        #
+        # self.lora_qb_gen = SimpleLinear(
+        #     output_dim=cfg.lora_rank * cfg.num_heads * cfg.head_dim,
         #     act_fn="linear",
         #     dropout_rate=cfg.dropout_rate,
         #     dtype=cfg.dtype,
-        #     kernel_axes=("mlp", "embed"),
+        #     kernel_axes=("mlp", "embed"),  # TODO
         #     kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
         #     name="adapter_up_mlp",
         # )
@@ -164,6 +165,10 @@ class HyperLoraNet(nn.Module):
         # )
 
         # TODO: generate lora A, B weights.
+        # lora_qa = self.lora_qa_gen(intermediate_embeddings, deterministic=deterministic)
+        # lora_qa = jnp.reshape(lora_qa, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
+        # lora_qb = self.lora_qb_gen(intermediate_embeddings, deterministic=deterministic)
+        # lora_qb = jnp.reshape(lora_qb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
 
         prefix_key = self.prefix_key_gen(intermediate_embeddings, deterministic=deterministic)
         prefix_key = jnp.reshape(
@@ -174,11 +179,24 @@ class HyperLoraNet(nn.Module):
             prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
         )
 
-        lora_a = None
-        lora_b = None
+        lora_qa = None
+        lora_qb = None
+        lora_ka = None
+        lora_kb = None
+        lora_va = None
+        lora_vb = None
+        lora_oa = None
+        lora_ob = None
+
         return (
-            lora_a,
-            lora_b,
+            lora_qa,
+            lora_qb,
+            lora_ka,
+            lora_kb,
+            lora_va,
+            lora_vb,
+            lora_oa,
+            lora_ob,
             prefix_key,
             prefix_value,
         )
@@ -194,8 +212,14 @@ class LoraEncoderLayer(nn.Module):
     def __call__(
         self,
         inputs,
-        lora_a=None,
-        lora_b=None,
+        lora_qa=None,
+        lora_qb=None,
+        lora_ka=None,
+        lora_kb=None,
+        lora_va=None,
+        lora_vb=None,
+        lora_oa=None,
+        lora_ob=None,
         prefix_key=None,
         prefix_value=None,
         encoder_mask=None,
@@ -225,8 +249,14 @@ class LoraEncoderLayer(nn.Module):
             x,
             encoder_mask,
             encoder_bias,
-            lora_a=lora_a,
-            lora_b=lora_b,
+            lora_qa=lora_qa,
+            lora_qb=lora_qb,
+            lora_ka=lora_ka,
+            lora_kb=lora_kb,
+            lora_va=lora_va,
+            lora_vb=lora_vb,
+            lora_oa=lora_oa,
+            lora_ob=lora_ob,
             deterministic=deterministic,
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
@@ -278,8 +308,14 @@ class LoraDecoderLayer(nn.Module):
         self,
         inputs,
         encoded,
-        lora_a=None,
-        lora_b=None,
+        lora_qa=None,
+        lora_qb=None,
+        lora_ka=None,
+        lora_kb=None,
+        lora_va=None,
+        lora_vb=None,
+        lora_oa=None,
+        lora_ob=None,
         prefix_key=None,
         prefix_value=None,
         decoder_mask=None,
@@ -312,8 +348,14 @@ class LoraDecoderLayer(nn.Module):
             x,
             decoder_mask,
             decoder_bias,
-            lora_a=lora_a,
-            lora_b=lora_b,
+            lora_qa=lora_qa,
+            lora_qb=lora_qb,
+            lora_ka=lora_ka,
+            lora_kb=lora_kb,
+            lora_va=lora_va,
+            lora_vb=lora_vb,
+            lora_oa=lora_oa,
+            lora_ob=lora_ob,
             deterministic=deterministic,
             decode=decode,
         )
@@ -321,6 +363,7 @@ class LoraDecoderLayer(nn.Module):
         x = x + inputs
 
         # Encoder-Decoder block.
+        # TODO: different lora weights for self and cross attn.
         y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
         y = LoraMultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
@@ -335,8 +378,14 @@ class LoraDecoderLayer(nn.Module):
             y,
             encoded,
             encoder_decoder_mask,
-            lora_a=lora_a,
-            lora_b=lora_b,
+            lora_qa=lora_qa,
+            lora_qb=lora_qb,
+            lora_ka=lora_ka,
+            lora_kb=lora_kb,
+            lora_va=lora_va,
+            lora_vb=lora_vb,
+            lora_oa=lora_oa,
+            lora_ob=lora_ob,
             deterministic=deterministic,
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
@@ -386,8 +435,14 @@ class LoraEncoder(nn.Module):
     def __call__(
         self,
         encoder_input_tokens,
-        lora_a=None,
-        lora_b=None,
+        lora_qa=None,
+        lora_qb=None,
+        lora_ka=None,
+        lora_kb=None,
+        lora_va=None,
+        lora_vb=None,
+        lora_oa=None,
+        lora_ob=None,
         prefix_key=None,
         prefix_value=None,
         encoder_mask=None,
@@ -413,16 +468,22 @@ class LoraEncoder(nn.Module):
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = LoraEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
-                lora_a,
-                lora_b,
+                # lora_qa=lora_qa[:, lyr],
+                # lora_qb=lora_qb[:, lyr],
+                # lora_ka=lora_ka[:, lyr],
+                # lora_kb=lora_kb[:, lyr],
+                # lora_va=lora_va[:, lyr],
+                # lora_vb=lora_vb[:, lyr],
+                # lora_oa=lora_oa[:, lyr],
+                # lora_ob=lora_ob[:, lyr],
                 # adapter_wd[:, lyr],
                 # adapter_wu[:, lyr],
                 # adapter_bd[:, lyr],
                 # adapter_bu[:, lyr],
-                prefix_key[:, lyr],
-                prefix_value[:, lyr],
-                encoder_mask,
-                deterministic,
+                prefix_key=prefix_key[:, lyr],
+                prefix_value=prefix_value[:, lyr],
+                encoder_mask=encoder_mask,
+                deterministic=deterministic,
             )
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
@@ -438,8 +499,14 @@ class LoraDecoder(nn.Module):
         self,
         encoded,
         decoder_input_tokens,
-        lora_a=None,
-        lora_b=None,
+        lora_qa=None,
+        lora_qb=None,
+        lora_ka=None,
+        lora_kb=None,
+        lora_va=None,
+        lora_vb=None,
+        lora_oa=None,
+        lora_ob=None,
         prefix_key=None,
         prefix_value=None,
         decoder_positions=None,
@@ -475,8 +542,14 @@ class LoraDecoder(nn.Module):
                 # adapter_wu=adapter_wu[:, cfg.num_encoder_layers + lyr],
                 # adapter_bd=adapter_bd[:, cfg.num_encoder_layers + lyr],
                 # adapter_bu=adapter_bu[:, cfg.num_encoder_layers + lyr],
-                lora_a=lora_a,
-                lora_b=lora_b,
+                # lora_qa=lora_qa[:, lyr],
+                # lora_qb=lora_qb[:, lyr],
+                # lora_ka=lora_ka[:, lyr],
+                # lora_kb=lora_kb[:, lyr],
+                # lora_va=lora_va[:, lyr],
+                # lora_vb=lora_vb[:, lyr],
+                # lora_oa=lora_oa[:, lyr],
+                # lora_ob=lora_ob[:, lyr],
                 prefix_key=prefix_key[:, cfg.num_encoder_layers + lyr],
                 prefix_value=prefix_value[:, cfg.num_encoder_layers + lyr],
                 encoder_decoder_mask=encoder_decoder_mask,
@@ -532,8 +605,14 @@ class LoraTransformer(nn.Module):
         # awu,
         # bd,
         # bu,
-        lora_a,
-        lora_b,
+        lora_qa,
+        lora_qb,
+        lora_ka,
+        lora_kb,
+        lora_va,
+        lora_vb,
+        lora_oa,
+        lora_ob,
         pk,
         pv,
         encoder_segment_ids=None,
@@ -558,8 +637,14 @@ class LoraTransformer(nn.Module):
 
         return self.encoder(
             encoder_input_tokens,
-            lora_a,
-            lora_b,
+            lora_qa,
+            lora_qb,
+            lora_ka,
+            lora_kb,
+            lora_va,
+            lora_vb,
+            lora_oa,
+            lora_ob,
             pk,
             pv,
             encoder_mask,
@@ -580,8 +665,14 @@ class LoraTransformer(nn.Module):
         # adapter_wu=None,
         # adapter_bd=None,
         # adapter_bu=None,
-        lora_a=None,
-        lora_b=None,
+        lora_qa=None,
+        lora_qb=None,
+        lora_ka=None,
+        lora_kb=None,
+        lora_va=None,
+        lora_vb=None,
+        lora_oa=None,
+        lora_ob=None,
         prefix_key=None,
         prefix_value=None,
         encoder_segment_ids=None,
@@ -634,8 +725,14 @@ class LoraTransformer(nn.Module):
             # adapter_wu=adapter_wu,
             # adapter_bd=adapter_bd,
             # adapter_bu=adapter_bu,
-            lora_a=lora_a,
-            lora_b=lora_b,
+            lora_qa=lora_qa,
+            lora_qb=lora_qb,
+            lora_ka=lora_ka,
+            lora_kb=lora_kb,
+            lora_va=lora_va,
+            lora_vb=lora_vb,
+            lora_oa=lora_oa,
+            lora_ob=lora_ob,
             prefix_key=prefix_key,
             prefix_value=prefix_value,
             decoder_positions=decoder_positions,
@@ -685,26 +782,35 @@ class LoraTransformer(nn.Module):
           logits array from full transformer.
         """
         # generate adapters
-        lora_a, lora_b, pk, pv = self.hyperencode(
+
+        # TODO: different encoder/decoder lora.
+        lora_qa, lora_qb, lora_ka, lora_kb, lora_va, lora_vb, lora_oa, lora_ob, pk, pv = self.hyperencode(
             hyper_encoder_input_tokens, enable_dropout=enable_dropout
         )
         encoded = self.encode(
             encoder_input_tokens,
-            lora_a,
-            lora_b,
+            lora_qa,
+            lora_qb,
+            lora_ka,
+            lora_kb,
+            lora_va,
+            lora_vb,
+            lora_oa,
+            lora_ob,
             pk,
             pv,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
         )
 
+        # TODO: add loras.
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
-            lora_a=lora_a,
-            lora_b=lora_b,
+            # lora_a=lora_a,
+            # lora_b=lora_b,
             # adapter_wd=awd,
             # adapter_wu=awu,
             # adapter_bd=bd,

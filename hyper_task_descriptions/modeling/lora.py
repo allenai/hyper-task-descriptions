@@ -168,8 +168,14 @@ class LoraMultiHeadDotProductAttention(nn.Module):
         inputs_kv: NumArray,
         mask: Optional[NumArray] = None,
         bias: Optional[NumArray] = None,
-        lora_a: Optional[NumArray] = None,
-        lora_b: Optional[NumArray] = None,
+        lora_qa: Optional[NumArray] = None,
+        lora_qb: Optional[NumArray] = None,
+        lora_ka: Optional[NumArray] = None,
+        lora_kb: Optional[NumArray] = None,
+        lora_va: Optional[NumArray] = None,
+        lora_vb: Optional[NumArray] = None,
+        lora_oa: Optional[NumArray] = None,
+        lora_ob: Optional[NumArray] = None,
         *,
         decode: bool = False,
         deterministic: bool = False
@@ -221,15 +227,15 @@ class LoraMultiHeadDotProductAttention(nn.Module):
         # Project inputs_q to multi-headed q/k/v
         # dimensions are then [batch, length, num_heads, head_dim]
 
-        # TODO: different lora weights for q, k, v
+        # TODO: allow turning off lora for q, k, v, o.
         query = projection(kernel_init=query_init, name="query")(
-            inputs_q, lora_a=lora_a, lora_b=lora_b
+            inputs_q, lora_a=lora_qa, lora_b=lora_qb
         )
         key = projection(kernel_init=self.kernel_init, name="key")(
-            inputs_kv, lora_a=lora_a, lora_b=lora_b
+            inputs_kv, lora_a=lora_ka, lora_b=lora_kb
         )
         value = projection(kernel_init=self.kernel_init, name="value")(
-            inputs_kv, lora_a=lora_a, lora_b=lora_b
+            inputs_kv, lora_a=lora_va, lora_b=lora_vb
         )
 
         query = with_sharding_constraint(query, ("batch", "length", "heads", "kv"))
@@ -354,7 +360,7 @@ class LoraMultiHeadDotProductAttention(nn.Module):
             kernel_axes=("joined_kv", "embed"),
             dtype=self.dtype,
             name="out",
-        )(x)
+        )(x, lora_a=lora_oa, lora_b=lora_ob)
         return out
 
 
