@@ -93,7 +93,7 @@ def get_test_model(
             dtype=dtype,
             mlp_activations=("gelu", "linear"),
             lora_hyper_gen=lora_hyper_gen,
-            rank=lora_rank,
+            lora_rank=lora_rank,
         )
         # TODO: maybe configure adapter specific things too.
         module = LoraTransformer(config=config)
