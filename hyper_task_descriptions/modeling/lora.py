@@ -111,13 +111,13 @@ class LoraDenseGeneral(nn.Module):
         if not self.hyper_gen:
             lora_a_shape = tuple([inputs.shape[ax] for ax in axis]) + tuple([self.rank])
             lora_a_param_shape = (np.prod([inputs.shape[ax] for ax in axis]), self.rank)
-            lora_a = param_with_axes("lora_a", self.lora_a_init, lora_a_param_shape)
+            lora_a = param_with_axes("lora_a", self.lora_a_init, lora_a_param_shape, axes=self.kernel_axes)  # TODO: what should the axes be?
             lora_a = jnp.asarray(lora_a, self.dtype)
             lora_a = jnp.reshape(lora_a, lora_a_shape)
 
             lora_b_shape = tuple([self.rank]) + features
             lora_b_param_shape = (self.rank, np.prod(features))
-            lora_b = param_with_axes("lora_b", nn.initializers.zeros, lora_b_param_shape)
+            lora_b = param_with_axes("lora_b", nn.initializers.zeros, lora_b_param_shape)  # TODO: axes?
             lora_b = jnp.asarray(lora_b, self.dtype)
             lora_b = jnp.reshape(lora_b, lora_b_shape)
 
