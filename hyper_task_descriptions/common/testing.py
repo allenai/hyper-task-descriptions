@@ -66,7 +66,6 @@ def get_test_model(
     do_lora=False,  # TODO: tmp until both configs are merged.
 ):
     import seqio
-    from t5x import adafactor
 
     from hyper_task_descriptions.modeling.hyper_network import (
         HyperT5Config,
@@ -75,13 +74,14 @@ def get_test_model(
     from hyper_task_descriptions.modeling.hyper_transformer import (
         HyperEncoderDecoderModel,
     )
+    from t5x import adafactor
 
     if do_lora:
         from hyper_task_descriptions.modeling.lora_network import (
-            HyperLoraT5Config,
             LoraTransformer,
         )
-        config = HyperLoraT5Config(
+
+        config = HyperT5Config(
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,
             vocab_size=vocab_size,

@@ -22,8 +22,6 @@ from flax import linen as nn
 from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config
 from transformers.models.roberta.modeling_flax_roberta import (
     FlaxRobertaModel,
     create_position_ids_from_input_ids,
@@ -31,6 +29,8 @@ from transformers.models.roberta.modeling_flax_roberta import (
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
+from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
@@ -52,7 +52,7 @@ class HyperT5Config(T5Config):
     adapter_size: int = 64
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
-    roberta_model: str = "hamishivi/fixed-roberta-base" #"hamishivi/fixed-distilroberta-base" #  # fixes some partitioning issues
+    roberta_model: str = "hamishivi/fixed-roberta-base"  # "hamishivi/fixed-distilroberta-base" #  # fixes some partitioning issues
     roberta_max_position_embeddings: int = 520
     roberta_type_vocab_size: int = 8
     roberta_vocab_size: int = 50272
@@ -167,7 +167,9 @@ class Hypernet(nn.Module):
         pos_ids = create_position_ids_from_input_ids(encoder_input_tokens, 1)
         output = self.encoder(encoder_input_tokens, attn_mask, position_ids=pos_ids)
         # average representation for embeds
-        sum_embeds = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[:, None]
+        sum_embeds = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
+            :, None
+        ]
         # save pooled output for later (eg contrastive training)
         contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
         self.sow("intermediates", "features", contrastive_output)

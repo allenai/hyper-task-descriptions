@@ -6,10 +6,10 @@ import argparse
 
 from jax import nn
 from jax import numpy as jnp
-from t5x import checkpoints
 from transformers import FlaxRobertaModel, RobertaModel, RobertaTokenizer
 
 from hyper_task_descriptions.modeling.losses import cosine_similarity
+from t5x import checkpoints
 
 
 def extract_roberta_model(t5x_checkpoint_path, flax_dump_folder_path):

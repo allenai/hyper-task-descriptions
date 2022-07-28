@@ -25,19 +25,19 @@ from flax import linen as nn
 from flax.core import scope as flax_scope
 from flax.core.frozen_dict import freeze, unfreeze
 from seqio import FeatureConverter, non_padding_position, utils
+from transformers import FlaxRobertaModel
+from typing_extensions import TypeAlias
+
+from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
+from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
+from hyper_task_descriptions.modeling.roberta_partitioning import (
+    roberta_axes_names_override,
+)
 from t5x import decoding, losses
 from t5x import metrics as metrics_lib
 from t5x import optimizers
 from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
 from t5x.utils import override_params_axes_names
-from transformers import FlaxRobertaModel
-from typing_extensions import TypeAlias
-
-from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
-from hyper_task_descriptions.modeling.roberta_partitioning import (
-    roberta_axes_names_override,
-)
-from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -297,9 +297,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         # TODO: don't do this for every case.
         override_param_axes += lora_axes_names_override
         #  roberta has no partitions, so we add that here.
-        initial_variables = override_params_axes_names(
-            initial_variables, override_param_axes
-        )
+        initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model
         initial_variables = unfreeze(initial_variables)
         roberta_params = FlaxRobertaModel.from_pretrained(

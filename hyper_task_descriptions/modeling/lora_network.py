@@ -21,14 +21,14 @@ import jax.numpy as jnp
 from flax import linen as nn
 from flax import struct
 from flax.linen import partitioning as nn_partitioning
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config
 from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
+from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
 from hyper_task_descriptions.modeling.lora import LoraMultiHeadDotProductAttention
-from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
+from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
@@ -41,21 +41,6 @@ PRNGKey: TypeAlias = jnp.ndarray
 Shape = Iterable[int]
 # Parameter initializers.
 Initializer = Callable[[PRNGKey, Shape, DType], Array]
-
-
-# @struct.dataclass
-# class HyperLoraT5Config(T5Config):
-#     add_adapters: bool = True
-#     layer_embed_size: int = 10
-#     adapter_size: int = 64
-#     hbottleneck_size: int = 128
-#     num_prefix_tokens: int = 30
-#     roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
-#     roberta_max_position_embeddings: int = 520
-#     roberta_type_vocab_size: int = 8
-#     roberta_vocab_size: int = 50272
-#     lora_hyper_gen: bool = False
-#     lora_rank: int = 2
 
 
 class HyperLoraNet(nn.Module):
