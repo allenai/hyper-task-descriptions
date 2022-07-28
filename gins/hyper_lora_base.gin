@@ -48,7 +48,7 @@ hyper_transformer.HyperEncoderDecoderContrastiveModel:
   loss_normalizing_factor = %LOSS_NORMALIZING_FACTOR
 
 # ------------------- Network specification ------------------------------------
-hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+lora_network.LoraTransformer.config = @hyper_network.HyperT5Config()
 hyper_network.HyperT5Config:
   vocab_size = 32128  # vocab size rounded to a multiple of 128 for TPU efficiency
   dtype = 'bfloat16'

@@ -234,6 +234,7 @@ class LoraEncoderLayer(nn.Module):
             float32_logits=cfg.float32_attention_logits,
             name="attention",
             hyper_gen=cfg.lora_hyper_gen,
+            rank=cfg.lora_rank,
         )(
             x,
             x,
@@ -320,6 +321,7 @@ class LoraDecoderLayer(nn.Module):
             float32_logits=cfg.float32_attention_logits,
             name="self_attention",
             hyper_gen=cfg.lora_hyper_gen,
+            rank=cfg.lora_rank,
         )(
             x,
             x,
@@ -343,6 +345,7 @@ class LoraDecoderLayer(nn.Module):
             float32_logits=cfg.float32_attention_logits,
             name="encoder_decoder_attention",
             hyper_gen=cfg.lora_hyper_gen,
+            rank=cfg.lora_rank,
         )(
             y,
             encoded,
