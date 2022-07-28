@@ -366,6 +366,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             # adapter_wu=adaptations[1],
             # adapter_bd=adaptations[2],
             # adapter_bu=adaptations[3],
+            # TODO: generalize to use adapters or lora (or have a new transformer). This is tmp for testing.
             prefix_key=adaptations[-2], #4
             prefix_value=adaptations[-1], #5
             enable_dropout=False,
