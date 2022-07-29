@@ -14,7 +14,7 @@ on:
 
 env:
   # Change this to invalidate existing cache.
-  CACHE_PREFIX: v0
+  CACHE_PREFIX: v1
   PYTHON_PATH: ./
 
 jobs:
@@ -79,6 +79,25 @@ jobs:
           test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
           . .venv/bin/activate
           pip install -e .[dev]
+          git clone --branch=main https://github.com/google-research/t5x # TODO: pin to specific commit.
+          cd t5x
+          python3 -m pip install -e . -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+          # install promptsource, and fix the seqio dependency
+          pip install promptsource
+          pip uninstall -y t5
+          pip install git+https://github.com/google-research/text-to-text-transfer-transformer.git
+          # custom fixed seqio
+          pip uninstall -y seqio seqio-nightly
+          pip install git+https://github.com/hamishivi/seqio.git
+          pip install tensorflow==2.9.0
+          pip install tensorflow-text==2.9.0
+          echo "----- ALL DEPENDENCIES INSTALLED -----"
+          # next, we cache the tokenizers / HF splits used so we don't have to load them later.
+          # This can take ~15 minutes.
+          python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('t5-base')"
+          python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('roberta-base')"
+          python3 -c "from transformers import FlaxRobertaModel; FlaxRobertaModel.from_pretrained('hamishivi/fixed-roberta-base')"
+          python3 -c "from transformers import FlaxRobertaModel; FlaxRobertaModel.from_pretrained('hamishivi/fixed-distilroberta-base')"
 
       - name: Setup virtual environment (cache hit)
         if: steps.virtualenv-cache.outputs.cache-hit == 'true'
