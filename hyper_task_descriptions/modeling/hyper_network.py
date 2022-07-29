@@ -164,7 +164,9 @@ class Hypernet(nn.Module):
         pos_ids = create_position_ids_from_input_ids(encoder_input_tokens, 1)
         output = self.encoder(encoder_input_tokens, attn_mask, position_ids=pos_ids)
         # average representation for embeds
-        sum_embeds = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[:, None]
+        sum_embeds = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
+            :, None
+        ]
         # save pooled output for later (eg contrastive training)
         contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
         self.sow("intermediates", "features", contrastive_output)
