@@ -32,12 +32,20 @@ def test_lora_dense_general():
 
     inputs = jnp.array(np.random.randn(batch_size, in_features))
 
-    lora_dense = LoraDenseGeneral(out_features, rank=rank)
+    lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=False)
     key = get_prng_key(23)
     params = lora_dense.init(key, inputs)
+    assert "lora_a" in params["params"].keys()
 
     output = lora_dense.apply(params, inputs)
     assert output.shape == (batch_size, out_features)
+
+    lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=True)
+    A = jax.random.normal(key, (in_features, rank))
+    B = jax.random.normal(key, (rank, out_features))
+    key = get_prng_key(23)
+    params = lora_dense.init(key, inputs, lora_a=A, lora_b=B)
+    assert "lora_a" not in params["params"].keys()
 
 
 def test_lora_multihead_dot_product_attention():

@@ -367,6 +367,14 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             # adapter_bd=adaptations[2],
             # adapter_bu=adaptations[3],
             # TODO: generalize to use adapters or lora (or have a new transformer). This is tmp for testing.
+            lora_qa=adaptations[0],
+            lora_qb=adaptations[1],
+            lora_ka=adaptations[2],
+            lora_kb=adaptations[3],
+            lora_va=adaptations[4],
+            lora_vb=adaptations[5],
+            lora_oa=adaptations[6],
+            lora_ob=adaptations[7],
             prefix_key=adaptations[-2], #4
             prefix_value=adaptations[-1], #5
             enable_dropout=False,

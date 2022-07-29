@@ -90,25 +90,85 @@ class HyperLoraNet(nn.Module):
 
         # TODO: add lora generators here.
         # TODO: combine q, k, v generators?
-        # self.lora_qa_gen = SimpleLinear(
-        #     output_dim=cfg.emb_dim * cfg.lora_rank,
-        #     act_fn="linear",
-        #     dropout_rate=cfg.dropout_rate,
-        #     dtype=cfg.dtype,
-        #     kernel_axes=("mlp", "embed"),  # TODO: what should this be?
-        #     kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
-        #     name="lora_qa_gen",
-        # )
-        #
-        # self.lora_qb_gen = SimpleLinear(
-        #     output_dim=cfg.lora_rank * cfg.num_heads * cfg.head_dim,
-        #     act_fn="linear",
-        #     dropout_rate=cfg.dropout_rate,
-        #     dtype=cfg.dtype,
-        #     kernel_axes=("mlp", "embed"),  # TODO
-        #     kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
-        #     name="adapter_up_mlp",
-        # )
+        self.lora_qa_gen = SimpleLinear(
+            output_dim=cfg.emb_dim * cfg.lora_rank,
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_qa_gen",
+        )
+
+        self.lora_qb_gen = SimpleLinear(
+            output_dim=cfg.lora_rank * cfg.num_heads * cfg.head_dim,
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_qb_gen",
+        )
+
+        self.lora_ka_gen = SimpleLinear(
+            output_dim=cfg.emb_dim * cfg.lora_rank,
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_ka_gen",
+        )
+
+        self.lora_kb_gen = SimpleLinear(
+            output_dim=cfg.lora_rank * cfg.num_heads * cfg.head_dim,
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_kb_gen",
+        )
+
+        self.lora_va_gen = SimpleLinear(
+            output_dim=cfg.emb_dim * cfg.lora_rank,
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_va_gen",
+        )
+
+        self.lora_vb_gen = SimpleLinear(
+            output_dim=cfg.lora_rank * cfg.num_heads * cfg.head_dim,
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_vb_gen",
+        )
+
+        self.lora_oa_gen = SimpleLinear(
+            output_dim=cfg.num_heads * cfg.head_dim * cfg.lora_rank,
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_oa_gen",
+        )
+
+        self.lora_ob_gen = SimpleLinear(
+            output_dim=cfg.lora_rank * cfg.emb_dim, # TODO: confirm size
+            act_fn="linear",
+            dropout_rate=cfg.dropout_rate,
+            dtype=cfg.dtype,
+            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            name="lora_ob_gen",
+        )
 
         self.prefix_key_gen = SimpleLinear(
             output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
@@ -164,11 +224,26 @@ class HyperLoraNet(nn.Module):
         #     intermediate_embeddings, deterministic=deterministic
         # )
 
-        # TODO: generate lora A, B weights.
-        # lora_qa = self.lora_qa_gen(intermediate_embeddings, deterministic=deterministic)
-        # lora_qa = jnp.reshape(lora_qa, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
-        # lora_qb = self.lora_qb_gen(intermediate_embeddings, deterministic=deterministic)
-        # lora_qb = jnp.reshape(lora_qb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
+        # Note: total_layers = encoder + decoder
+        lora_qa = self.lora_qa_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_qa = jnp.reshape(lora_qa, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
+        lora_qb = self.lora_qb_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_qb = jnp.reshape(lora_qb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
+
+        lora_ka = self.lora_ka_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_ka = jnp.reshape(lora_ka, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
+        lora_kb = self.lora_kb_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_kb = jnp.reshape(lora_kb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
+
+        lora_va = self.lora_va_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_va = jnp.reshape(lora_va, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
+        lora_vb = self.lora_vb_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_vb = jnp.reshape(lora_vb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
+
+        lora_oa = self.lora_oa_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_oa = jnp.reshape(lora_oa, (-1, total_layers, cfg.num_heads, cfg.head_dim, cfg.lora_rank))
+        lora_ob = self.lora_ob_gen(intermediate_embeddings, deterministic=deterministic)
+        lora_ob = jnp.reshape(lora_ob, (-1, total_layers, cfg.lora_rank, cfg.emb_dim))
 
         prefix_key = self.prefix_key_gen(intermediate_embeddings, deterministic=deterministic)
         prefix_key = jnp.reshape(
@@ -179,14 +254,14 @@ class HyperLoraNet(nn.Module):
             prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
         )
 
-        lora_qa = None
-        lora_qb = None
-        lora_ka = None
-        lora_kb = None
-        lora_va = None
-        lora_vb = None
-        lora_oa = None
-        lora_ob = None
+        # lora_qa = None
+        # lora_qb = None
+        # lora_ka = None
+        # lora_kb = None
+        # lora_va = None
+        # lora_vb = None
+        # lora_oa = None
+        # lora_ob = None
 
         return (
             lora_qa,
@@ -365,27 +440,27 @@ class LoraDecoderLayer(nn.Module):
         # Encoder-Decoder block.
         # TODO: different lora weights for self and cross attn.
         y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
-        y = LoraMultiHeadDotProductAttention(
+        y = layers.MultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="encoder_decoder_attention",
-            hyper_gen=cfg.lora_hyper_gen,
-            rank=cfg.lora_rank,
+            # hyper_gen=cfg.lora_hyper_gen,
+            # rank=cfg.lora_rank,
         )(
             y,
             encoded,
             encoder_decoder_mask,
-            lora_qa=lora_qa,
-            lora_qb=lora_qb,
-            lora_ka=lora_ka,
-            lora_kb=lora_kb,
-            lora_va=lora_va,
-            lora_vb=lora_vb,
-            lora_oa=lora_oa,
-            lora_ob=lora_ob,
+            # lora_qa=lora_qa,
+            # lora_qb=lora_qb,
+            # lora_ka=lora_ka,
+            # lora_kb=lora_kb,
+            # lora_va=lora_va,
+            # lora_vb=lora_vb,
+            # lora_oa=lora_oa,
+            # lora_ob=lora_ob,
             deterministic=deterministic,
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
@@ -468,14 +543,14 @@ class LoraEncoder(nn.Module):
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = LoraEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
-                # lora_qa=lora_qa[:, lyr],
-                # lora_qb=lora_qb[:, lyr],
-                # lora_ka=lora_ka[:, lyr],
-                # lora_kb=lora_kb[:, lyr],
-                # lora_va=lora_va[:, lyr],
-                # lora_vb=lora_vb[:, lyr],
-                # lora_oa=lora_oa[:, lyr],
-                # lora_ob=lora_ob[:, lyr],
+                lora_qa=lora_qa[:, lyr],
+                lora_qb=lora_qb[:, lyr],
+                lora_ka=lora_ka[:, lyr],
+                lora_kb=lora_kb[:, lyr],
+                lora_va=lora_va[:, lyr],
+                lora_vb=lora_vb[:, lyr],
+                lora_oa=lora_oa[:, lyr],
+                lora_ob=lora_ob[:, lyr],
                 # adapter_wd[:, lyr],
                 # adapter_wu[:, lyr],
                 # adapter_bd[:, lyr],
@@ -542,14 +617,14 @@ class LoraDecoder(nn.Module):
                 # adapter_wu=adapter_wu[:, cfg.num_encoder_layers + lyr],
                 # adapter_bd=adapter_bd[:, cfg.num_encoder_layers + lyr],
                 # adapter_bu=adapter_bu[:, cfg.num_encoder_layers + lyr],
-                # lora_qa=lora_qa[:, lyr],
-                # lora_qb=lora_qb[:, lyr],
-                # lora_ka=lora_ka[:, lyr],
-                # lora_kb=lora_kb[:, lyr],
-                # lora_va=lora_va[:, lyr],
-                # lora_vb=lora_vb[:, lyr],
-                # lora_oa=lora_oa[:, lyr],
-                # lora_ob=lora_ob[:, lyr],
+                lora_qa=lora_qa[:, cfg.num_encoder_layers + lyr],
+                lora_qb=lora_qb[:, cfg.num_encoder_layers + lyr],
+                lora_ka=lora_ka[:, cfg.num_encoder_layers + lyr],
+                lora_kb=lora_kb[:, cfg.num_encoder_layers + lyr],
+                lora_va=lora_va[:, cfg.num_encoder_layers + lyr],
+                lora_vb=lora_vb[:, cfg.num_encoder_layers + lyr],
+                lora_oa=lora_oa[:, cfg.num_encoder_layers + lyr],
+                lora_ob=lora_ob[:, cfg.num_encoder_layers + lyr],
                 prefix_key=prefix_key[:, cfg.num_encoder_layers + lyr],
                 prefix_value=prefix_value[:, cfg.num_encoder_layers + lyr],
                 encoder_decoder_mask=encoder_decoder_mask,
@@ -803,14 +878,19 @@ class LoraTransformer(nn.Module):
             enable_dropout=enable_dropout,
         )
 
-        # TODO: add loras.
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
-            # lora_a=lora_a,
-            # lora_b=lora_b,
+            lora_qa=lora_qa,
+            lora_qb=lora_qb,
+            lora_ka=lora_ka,
+            lora_kb=lora_kb,
+            lora_va=lora_va,
+            lora_vb=lora_vb,
+            lora_oa=lora_oa,
+            lora_ob=lora_ob,
             # adapter_wd=awd,
             # adapter_wu=awu,
             # adapter_bd=bd,
