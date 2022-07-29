@@ -41,4 +41,6 @@ utils.RestoreCheckpointConfig:
   # We skip hypernetwork parameters
   assignment_map = (
       (r"^.*hyper.*$", None),
+      #(r"^.*lora_a.*$", None),
+      #(r"^.*lora_b.*$", None),
       )
