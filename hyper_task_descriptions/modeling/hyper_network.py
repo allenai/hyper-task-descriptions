@@ -56,7 +56,6 @@ class HyperT5Config(T5Config):
     roberta_max_position_embeddings: int = 520
     roberta_type_vocab_size: int = 8
     roberta_vocab_size: int = 50272
-    add_lora: bool = False  # TODO: not being used right now.
     lora_hyper_gen: bool = False
     lora_rank: int = 2
 
