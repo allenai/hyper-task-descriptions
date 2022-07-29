@@ -24,7 +24,10 @@ from t5x.examples.t5 import layers
 from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
+from hyper_task_descriptions.modeling.hyper_network import (
+    HyperT5Config,
+    HyperTransformer,
+)
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
 from hyper_task_descriptions.modeling.lora import LoraMultiHeadDotProductAttention
 
@@ -591,7 +594,7 @@ class LoraDecoder(nn.Module):
         return logits
 
 
-class LoraTransformer(nn.Module):
+class LoraTransformer(HyperTransformer):
     """An encoder-decoder Transformer model, with hypernets."""
 
     config: HyperT5Config
@@ -611,197 +614,3 @@ class LoraTransformer(nn.Module):
         self.hyper = HyperLoraNet(config=cfg, shared_embedding=self.shared_embedding)
         self.encoder = LoraEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = LoraDecoder(config=cfg, shared_embedding=self.shared_embedding)
-
-    def encode(
-        self,
-        encoder_input_tokens,
-        lora_qa,
-        lora_qb,
-        lora_ka,
-        lora_kb,
-        lora_va,
-        lora_vb,
-        lora_oa,
-        lora_ob,
-        prefix_key,
-        prefix_value,
-        encoder_segment_ids=None,
-        enable_dropout=True,
-    ):
-        """Applies Transformer encoder-branch on the inputs."""
-        cfg = self.config
-        assert encoder_input_tokens.ndim == 2  # (batch, len)
-
-        # Make padding attention mask.
-        encoder_mask = layers.make_attention_mask(
-            encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
-        )
-        # Add segmentation block-diagonal attention mask if using segmented data.
-        if encoder_segment_ids is not None:
-            encoder_mask = layers.combine_masks(
-                encoder_mask,
-                layers.make_attention_mask(
-                    encoder_segment_ids, encoder_segment_ids, jnp.equal, dtype=cfg.dtype
-                ),
-            )
-
-        return self.encoder(
-            encoder_input_tokens,
-            lora_qa,
-            lora_qb,
-            lora_ka,
-            lora_kb,
-            lora_va,
-            lora_vb,
-            lora_oa,
-            lora_ob,
-            prefix_key,
-            prefix_value,
-            encoder_mask,
-            deterministic=not enable_dropout,
-        )
-
-    def hyperencode(self, hyper_input_tokens, enable_dropout=True):
-        return self.hyper(hyper_input_tokens, deterministic=not enable_dropout)
-
-    # TODO: add hypernet stuff here. Will require touching some beam search stuff.
-    def decode(
-        self,
-        encoded,
-        encoder_input_tokens,  # only needed for masks
-        decoder_input_tokens,
-        decoder_target_tokens,
-        lora_qa=None,
-        lora_qb=None,
-        lora_ka=None,
-        lora_kb=None,
-        lora_va=None,
-        lora_vb=None,
-        lora_oa=None,
-        lora_ob=None,
-        prefix_key=None,
-        prefix_value=None,
-        encoder_segment_ids=None,
-        decoder_segment_ids=None,
-        decoder_positions=None,
-        enable_dropout=True,
-        decode=False,
-        max_decode_length=None,
-    ):
-        """Applies Transformer decoder-branch on encoded-input and target."""
-        cfg = self.config
-
-        # Make padding attention masks.
-        if decode:
-            # Do not mask decoder attention based on targets padding at
-            # decoding/inference time.
-            decoder_mask = None
-            encoder_decoder_mask = layers.make_attention_mask(
-                jnp.ones_like(decoder_target_tokens), encoder_input_tokens > 0, dtype=cfg.dtype
-            )
-        else:
-            decoder_mask = layers.make_decoder_mask(
-                decoder_target_tokens=decoder_target_tokens,
-                dtype=cfg.dtype,
-                decoder_segment_ids=decoder_segment_ids,
-            )
-            encoder_decoder_mask = layers.make_attention_mask(
-                decoder_target_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
-            )
-
-        # Add segmentation block-diagonal attention masks if using segmented data.
-        if encoder_segment_ids is not None:
-            if decode:
-                raise ValueError(
-                    "During decoding, packing should not be used but "
-                    "`encoder_segment_ids` was passed to `Transformer.decode`."
-                )
-
-            encoder_decoder_mask = layers.combine_masks(
-                encoder_decoder_mask,
-                layers.make_attention_mask(
-                    decoder_segment_ids, encoder_segment_ids, jnp.equal, dtype=cfg.dtype
-                ),
-            )
-
-        logits = self.decoder(
-            encoded,
-            decoder_input_tokens=decoder_input_tokens,
-            lora_qa=lora_qa,
-            lora_qb=lora_qb,
-            lora_ka=lora_ka,
-            lora_kb=lora_kb,
-            lora_va=lora_va,
-            lora_vb=lora_vb,
-            lora_oa=lora_oa,
-            lora_ob=lora_ob,
-            prefix_key=prefix_key,
-            prefix_value=prefix_value,
-            decoder_positions=decoder_positions,
-            decoder_mask=decoder_mask,
-            encoder_decoder_mask=encoder_decoder_mask,
-            deterministic=not enable_dropout,
-            decode=decode,
-            max_decode_length=max_decode_length,
-        )
-        return logits
-
-    def __call__(
-        self,
-        encoder_input_tokens,
-        hyper_encoder_input_tokens,
-        decoder_input_tokens,
-        decoder_target_tokens,
-        encoder_segment_ids=None,
-        hyper_encoder_segment_ids=None,
-        decoder_segment_ids=None,
-        encoder_positions=None,
-        hyper_encoder_positions=None,
-        decoder_positions=None,
-        *,
-        enable_dropout: bool = True,
-        decode: bool = False,
-    ):
-        """Applies Transformer model on the inputs.
-
-        This method requires both decoder_target_tokens and decoder_input_tokens,
-        which is a shifted version of the former. For a packed dataset, it usually
-        has additional processing applied. For example, the first element of each
-        sequence has id 0 instead of the shifted EOS id from the previous sequence.
-
-        Args:
-          encoder_input_tokens: input data to the encoder.
-          decoder_input_tokens: input token to the decoder.
-          decoder_target_tokens: target token to the decoder.
-          encoder_segment_ids: encoder segmentation info for packed examples.
-          decoder_segment_ids: decoder segmentation info for packed examples.
-          encoder_positions: encoder subsequence positions for packed examples.
-          decoder_positions: decoder subsequence positions for packed examples.
-          enable_dropout: Enables dropout if set to True.
-          decode: Whether to prepare and use an autoregressive cache.
-
-        Returns:
-          logits array from full transformer.
-        """
-        # generate adapters
-
-        adapters = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
-        encoded = self.encode(
-            encoder_input_tokens,
-            **adapters,
-            encoder_segment_ids=encoder_segment_ids,
-            enable_dropout=enable_dropout,
-        )
-
-        return self.decode(
-            encoded,
-            encoder_input_tokens,  # only used for masks
-            decoder_input_tokens,
-            decoder_target_tokens,
-            **adapters,
-            encoder_segment_ids=encoder_segment_ids,
-            decoder_segment_ids=decoder_segment_ids,
-            decoder_positions=decoder_positions,
-            enable_dropout=enable_dropout,
-            decode=decode,
-        )
