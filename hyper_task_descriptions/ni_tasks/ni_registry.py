@@ -95,7 +95,7 @@ preprocessors = [
 def postprocessor(output_or_target, example=None, is_target=False):
   """Returns output as answer, or all answers if the full example is provided."""
   if is_target:
-    return example["references"]
+    return [it.decode("utf-8") for it in example["references"]]
   else:
     return output_or_target
 
