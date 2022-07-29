@@ -89,7 +89,7 @@ class NetworkTest(parameterized.TestCase):
         np.testing.assert_allclose(scores["scores"], [-3.5013323, -2.8256376], rtol=1e-3)
 
 
-if __name__ == "__main__":
-    nt = NetworkTest()
-    nt.setUp()
-    nt.test_t5_1_1_regression()
+# if __name__ == "__main__":
+#     nt = NetworkTest()
+#     nt.setUp()
+#     nt.test_t5_1_1_regression()

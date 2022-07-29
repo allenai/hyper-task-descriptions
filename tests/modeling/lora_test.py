@@ -41,8 +41,8 @@ def test_lora_dense_general():
     assert output.shape == (batch_size, out_features)
 
     lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=True)
-    A = jax.random.normal(key, (in_features, rank))
-    B = jax.random.normal(key, (rank, out_features))
+    A = jax.random.normal(key, (batch_size, in_features, rank))
+    B = jax.random.normal(key, (batch_size, rank, out_features))
     key = get_prng_key(23)
     params = lora_dense.init(key, inputs, lora_a=A, lora_b=B)
     assert "lora_a" not in params["params"].keys()
@@ -66,8 +66,8 @@ def test_lora_multihead_dot_product_attention():
     assert output.shape == (batch_size, q_len, q_features)
 
 
-# if __name__ == "__main__":
-#     test_lora_multihead_dot_product_attention()
+if __name__ == "__main__":
+    test_lora_dense_general()
 
 # def test_replace_layer():
 #     class FakeModel(nn.Module):
