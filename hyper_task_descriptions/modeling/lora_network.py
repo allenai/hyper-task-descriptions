@@ -19,16 +19,14 @@ from typing import Callable, Iterable
 
 import jax.numpy as jnp
 from flax import linen as nn
-from flax import struct
 from flax.linen import partitioning as nn_partitioning
+from t5x.examples.t5 import layers
 from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
 from hyper_task_descriptions.modeling.lora import LoraMultiHeadDotProductAttention
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
@@ -88,14 +86,13 @@ class HyperLoraNet(nn.Module):
             name="contrastive_head",
         )
 
-        # TODO: add lora generators here.
         # TODO: combine q, k, v generators?
         self.lora_qa_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.lora_rank,
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_axes=("embed", "joined_kv"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_qa_gen",
         )
@@ -105,7 +102,7 @@ class HyperLoraNet(nn.Module):
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_axes=("embed", "joined_kv"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_qb_gen",
         )
@@ -115,7 +112,7 @@ class HyperLoraNet(nn.Module):
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_axes=("embed", "joined_kv"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_ka_gen",
         )
@@ -125,7 +122,7 @@ class HyperLoraNet(nn.Module):
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_axes=("embed", "joined_kv"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_kb_gen",
         )
@@ -135,7 +132,7 @@ class HyperLoraNet(nn.Module):
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_axes=("embed", "joined_kv"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_va_gen",
         )
@@ -145,7 +142,7 @@ class HyperLoraNet(nn.Module):
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_axes=("embed", "joined_kv"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_vb_gen",
         )
@@ -155,17 +152,17 @@ class HyperLoraNet(nn.Module):
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO: what should this be?
+            kernel_axes=("joined_kv", "embed"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_oa_gen",
         )
 
         self.lora_ob_gen = SimpleLinear(
-            output_dim=cfg.lora_rank * cfg.emb_dim, # TODO: confirm size
+            output_dim=cfg.lora_rank * cfg.emb_dim,
             act_fn="linear",
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),  # TODO
+            kernel_axes=("embed", "joined_kv"),
             kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
             name="lora_ob_gen",
         )
@@ -212,36 +209,33 @@ class HyperLoraNet(nn.Module):
         intermediate_embeddings = self.intermediate_embedder(
             hyper_input, deterministic=deterministic
         )
-        # # generate all our adapters, prefixes, etc.
-        # adapter_down = self.adapter_down_gen(intermediate_embeddings, deterministic=deterministic)
-        # adapter_down = jnp.reshape(adapter_down, (-1, total_layers, cfg.emb_dim, cfg.adapter_size))
-        # adapter_up = self.adapter_up_gen(intermediate_embeddings, deterministic=deterministic)
-        # adapter_up = jnp.reshape(adapter_up, (-1, total_layers, cfg.adapter_size, cfg.emb_dim))
-        # adapter_bias_down = self.adapter_bias_down_gen(
-        #     intermediate_embeddings, deterministic=deterministic
-        # )
-        # adapter_bias_up = self.adapter_bias_up_gen(
-        #     intermediate_embeddings, deterministic=deterministic
-        # )
 
         # Note: total_layers = encoder + decoder
         lora_qa = self.lora_qa_gen(intermediate_embeddings, deterministic=deterministic)
         lora_qa = jnp.reshape(lora_qa, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
         lora_qb = self.lora_qb_gen(intermediate_embeddings, deterministic=deterministic)
-        lora_qb = jnp.reshape(lora_qb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
+        lora_qb = jnp.reshape(
+            lora_qb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim)
+        )
 
         lora_ka = self.lora_ka_gen(intermediate_embeddings, deterministic=deterministic)
         lora_ka = jnp.reshape(lora_ka, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
         lora_kb = self.lora_kb_gen(intermediate_embeddings, deterministic=deterministic)
-        lora_kb = jnp.reshape(lora_kb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
+        lora_kb = jnp.reshape(
+            lora_kb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim)
+        )
 
         lora_va = self.lora_va_gen(intermediate_embeddings, deterministic=deterministic)
         lora_va = jnp.reshape(lora_va, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
         lora_vb = self.lora_vb_gen(intermediate_embeddings, deterministic=deterministic)
-        lora_vb = jnp.reshape(lora_vb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim))
+        lora_vb = jnp.reshape(
+            lora_vb, (-1, total_layers, cfg.lora_rank, cfg.num_heads, cfg.head_dim)
+        )
 
         lora_oa = self.lora_oa_gen(intermediate_embeddings, deterministic=deterministic)
-        lora_oa = jnp.reshape(lora_oa, (-1, total_layers, cfg.num_heads, cfg.head_dim, cfg.lora_rank))
+        lora_oa = jnp.reshape(
+            lora_oa, (-1, total_layers, cfg.num_heads, cfg.head_dim, cfg.lora_rank)
+        )
         lora_ob = self.lora_ob_gen(intermediate_embeddings, deterministic=deterministic)
         lora_ob = jnp.reshape(lora_ob, (-1, total_layers, cfg.lora_rank, cfg.emb_dim))
 
@@ -254,27 +248,18 @@ class HyperLoraNet(nn.Module):
             prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
         )
 
-        # lora_qa = None
-        # lora_qb = None
-        # lora_ka = None
-        # lora_kb = None
-        # lora_va = None
-        # lora_vb = None
-        # lora_oa = None
-        # lora_ob = None
-
-        return (
-            lora_qa,
-            lora_qb,
-            lora_ka,
-            lora_kb,
-            lora_va,
-            lora_vb,
-            lora_oa,
-            lora_ob,
-            prefix_key,
-            prefix_value,
-        )
+        return {
+            "lora_qa": lora_qa,
+            "lora_qb": lora_qb,
+            "lora_ka": lora_ka,
+            "lora_kb": lora_kb,
+            "lora_va": lora_va,
+            "lora_vb": lora_vb,
+            "lora_oa": lora_oa,
+            "lora_ob": lora_ob,
+            "prefix_key": prefix_key,
+            "prefix_value": prefix_value,
+        }
 
 
 class LoraEncoderLayer(nn.Module):
@@ -348,26 +333,7 @@ class LoraEncoderLayer(nn.Module):
             name="mlp",
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
-        # # adapter block
-        # if cfg.add_adapters:
-        #     adapter_y = (
-        #         lax.batch_matmul(lx, adapter_wd)
-        #         + adapter_bd[
-        #             :,
-        #             None,
-        #         ]
-        #     )
-        #     adapter_y = nn.gelu(adapter_y)
-        #     adapter_y = (
-        #         lax.batch_matmul(adapter_y, adapter_wu)
-        #         + adapter_bu[
-        #             :,
-        #             None,
-        #         ]
-        #     )
-        #     y = y + adapter_y
-        # final residual connection
-        # TODO: scaled add?
+
         y = y + x
         return y
 
@@ -476,26 +442,7 @@ class LoraDecoderLayer(nn.Module):
             name="mlp",
         )(lz, deterministic=deterministic)
         z = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(z, deterministic=deterministic)
-        # adapter block
-        # if cfg.add_adapters:
-        #     adapter_z = (
-        #         lax.batch_matmul(lz, adapter_wd)
-        #         + adapter_bd[
-        #             :,
-        #             None,
-        #         ]
-        #     )
-        #     adapter_z = nn.gelu(adapter_z)
-        #     adapter_z = (
-        #         lax.batch_matmul(adapter_z, adapter_wu)
-        #         + adapter_bu[
-        #             :,
-        #             None,
-        #         ]
-        #     )
-        #     # final residual connection
-        #     # TODO: scaled add?
-        #     z = z + adapter_z
+
         z = z + y
         return z
 
@@ -551,10 +498,6 @@ class LoraEncoder(nn.Module):
                 lora_vb=lora_vb[:, lyr],
                 lora_oa=lora_oa[:, lyr],
                 lora_ob=lora_ob[:, lyr],
-                # adapter_wd[:, lyr],
-                # adapter_wu[:, lyr],
-                # adapter_bd[:, lyr],
-                # adapter_bu[:, lyr],
                 prefix_key=prefix_key[:, lyr],
                 prefix_value=prefix_value[:, lyr],
                 encoder_mask=encoder_mask,
@@ -613,10 +556,6 @@ class LoraDecoder(nn.Module):
                 y,
                 encoded,
                 decoder_mask=decoder_mask,
-                # adapter_wd=adapter_wd[:, cfg.num_encoder_layers + lyr],
-                # adapter_wu=adapter_wu[:, cfg.num_encoder_layers + lyr],
-                # adapter_bd=adapter_bd[:, cfg.num_encoder_layers + lyr],
-                # adapter_bu=adapter_bu[:, cfg.num_encoder_layers + lyr],
                 lora_qa=lora_qa[:, cfg.num_encoder_layers + lyr],
                 lora_qb=lora_qb[:, cfg.num_encoder_layers + lyr],
                 lora_ka=lora_ka[:, cfg.num_encoder_layers + lyr],
@@ -676,10 +615,6 @@ class LoraTransformer(nn.Module):
     def encode(
         self,
         encoder_input_tokens,
-        # awd,
-        # awu,
-        # bd,
-        # bu,
         lora_qa,
         lora_qb,
         lora_ka,
@@ -688,8 +623,8 @@ class LoraTransformer(nn.Module):
         lora_vb,
         lora_oa,
         lora_ob,
-        pk,
-        pv,
+        prefix_key,
+        prefix_value,
         encoder_segment_ids=None,
         enable_dropout=True,
     ):
@@ -720,8 +655,8 @@ class LoraTransformer(nn.Module):
             lora_vb,
             lora_oa,
             lora_ob,
-            pk,
-            pv,
+            prefix_key,
+            prefix_value,
             encoder_mask,
             deterministic=not enable_dropout,
         )
@@ -736,10 +671,6 @@ class LoraTransformer(nn.Module):
         encoder_input_tokens,  # only needed for masks
         decoder_input_tokens,
         decoder_target_tokens,
-        # adapter_wd=None,
-        # adapter_wu=None,
-        # adapter_bd=None,
-        # adapter_bu=None,
         lora_qa=None,
         lora_qb=None,
         lora_ka=None,
@@ -796,10 +727,6 @@ class LoraTransformer(nn.Module):
         logits = self.decoder(
             encoded,
             decoder_input_tokens=decoder_input_tokens,
-            # adapter_wd=adapter_wd,
-            # adapter_wu=adapter_wu,
-            # adapter_bd=adapter_bd,
-            # adapter_bu=adapter_bu,
             lora_qa=lora_qa,
             lora_qb=lora_qb,
             lora_ka=lora_ka,
@@ -858,22 +785,10 @@ class LoraTransformer(nn.Module):
         """
         # generate adapters
 
-        # TODO: different encoder/decoder lora.
-        lora_qa, lora_qb, lora_ka, lora_kb, lora_va, lora_vb, lora_oa, lora_ob, pk, pv = self.hyperencode(
-            hyper_encoder_input_tokens, enable_dropout=enable_dropout
-        )
+        adapters = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         encoded = self.encode(
             encoder_input_tokens,
-            lora_qa,
-            lora_qb,
-            lora_ka,
-            lora_kb,
-            lora_va,
-            lora_vb,
-            lora_oa,
-            lora_ob,
-            pk,
-            pv,
+            **adapters,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
         )
@@ -883,20 +798,7 @@ class LoraTransformer(nn.Module):
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
-            lora_qa=lora_qa,
-            lora_qb=lora_qb,
-            lora_ka=lora_ka,
-            lora_kb=lora_kb,
-            lora_va=lora_va,
-            lora_vb=lora_vb,
-            lora_oa=lora_oa,
-            lora_ob=lora_ob,
-            # adapter_wd=awd,
-            # adapter_wu=awu,
-            # adapter_bd=bd,
-            # adapter_bu=bu,
-            prefix_key=pk,
-            prefix_value=pv,
+            **adapters,
             encoder_segment_ids=encoder_segment_ids,
             decoder_segment_ids=decoder_segment_ids,
             decoder_positions=decoder_positions,

@@ -7,9 +7,6 @@ import numpy as np
 from flax import linen as nn
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
-from typing_extensions import TypeAlias
-
-from hyper_task_descriptions.modeling.layers import Initializer
 from t5x.examples.t5.layers import (
     _canonicalize_tuple,
     _normalize_axes,
@@ -18,6 +15,9 @@ from t5x.examples.t5.layers import (
     dot_product_attention,
     dynamic_vector_slice_in_dim,
 )
+from typing_extensions import TypeAlias
+
+from hyper_task_descriptions.modeling.layers import Initializer
 
 param_with_axes = nn_partitioning.param_with_axes
 with_sharding_constraint = nn_partitioning.with_sharding_constraint
@@ -78,15 +78,17 @@ def batch_lora_linear(
     # output = output + bias
 
     # Lora addition: output += BAx
-    a_axis = _normalize_axes(axis, lora_a.ndim)
-    a_contract_ind = tuple(range(1, 1 + len(a_axis))) #_normalize_axes((-2,), lora_a.ndim)
+    a_axis = _normalize_axes(axis, inputs.ndim)
+    a_contract_ind = tuple(range(1, 1 + len(a_axis)))  # _normalize_axes((-2,), lora_a.ndim)
     a_dimension_numbers = ((a_axis, a_contract_ind), ((0,), (0,)))
 
     x = lax.dot_general(inputs, lora_a, dimension_numbers=a_dimension_numbers)
 
     b_axis = _normalize_axes((-1,), x.ndim)
     # b_contract_ind = tuple(range(0, len(b_axis)))
-    b_contract_ind = tuple(range(1, 1 + len(b_axis))) #_normalize_axes((-3,), lora_b.ndim) #tuple(range(lora_b.ndim-1, len(b_axis)))
+    b_contract_ind = tuple(
+        range(1, 1 + len(b_axis))
+    )  # _normalize_axes((-3,), lora_b.ndim) #tuple(range(lora_b.ndim-1, len(b_axis)))
     b_dimension_numbers = ((b_axis, b_contract_ind), ((0,), (0,)))
     x = lax.dot_general(x, lora_b, dimension_numbers=b_dimension_numbers)
 
@@ -408,37 +410,3 @@ class LoraMultiHeadDotProductAttention(nn.Module):
             hyper_gen=self.hyper_gen,
         )(x, lora_a=lora_oa, lora_b=lora_ob)
         return out
-
-
-# class HyperLoraWeights(nn.Module):
-#
-#     config: HyperT5Config  # TODO: use rank within this.
-#     rank: int = 0
-#
-#     def setup(self):
-#         cfg = self.config
-#
-#         self.lora_a_gen = SimpleLinear(
-#             output_dim=cfg.emb_dim * self.rank,
-#             act_fn="linear",
-#             dropout_rate=cfg.dropout_rate,
-#             dtype=cfg.dtype,
-#             kernel_axes=("mlp", "embed"),  # TODO: what should they be?
-#             kernel_init=nn.initializers.lecun_normal(),  # TODO: needs to be normal gaussian.
-#             name="lora_a",
-#         )
-#
-#         self.lora_b_gen = SimpleLinear(
-#             output_dim=cfg.emb_dim * self.features,
-#             act_fn="linear",
-#             dropout_rate=cfg.dropout_rate,
-#             dtype=cfg.dtype,
-#             kernel_axes=("mlp", "embed"),  # TODO: what should they be?
-#             kernel_init=nn.initializers.lecun_normal(),  # TODO: needs to be normal gaussian.
-#             name="lora_b",
-#         )
-#
-#     def __call__(self, *args, **kwargs):
-#
-#         lora_a = self.lora_a_gen(intermediate_embeddings, deterministic=deterministic)
-#         adapter_down = jnp.reshape(adapter_down, (-1, total_layers, cfg.emb_dim, cfg.adapter_size))

@@ -8,6 +8,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Mapping,
     MutableMapping,
     Optional,
@@ -25,6 +26,11 @@ from flax import linen as nn
 from flax.core import scope as flax_scope
 from flax.core.frozen_dict import freeze, unfreeze
 from seqio import FeatureConverter, non_padding_position, utils
+from t5x import decoding, losses
+from t5x import metrics as metrics_lib
+from t5x import optimizers
+from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
+from t5x.utils import override_params_axes_names
 from transformers import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
@@ -33,11 +39,6 @@ from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
 from hyper_task_descriptions.modeling.roberta_partitioning import (
     roberta_axes_names_override,
 )
-from t5x import decoding, losses
-from t5x import metrics as metrics_lib
-from t5x import optimizers
-from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
-from t5x.utils import override_params_axes_names
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -292,9 +293,9 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         )
 
         override_param_axes = roberta_axes_names_override
-
         # TODO: override this in lora_network
         # TODO: don't do this for every case.
+
         override_param_axes += lora_axes_names_override
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
@@ -347,7 +348,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         flat_cache: Mapping[str, jnp.ndarray],
         params: PyTreeDef,
         encoded_inputs: jnp.ndarray,
-        adaptations: Tuple[jnp.ndarray, ...],
+        adaptations: Dict[str, jnp.ndarray],  # Tuple[jnp.ndarray, ...],
         raw_inputs: jnp.ndarray,
         max_decode_length: int,
     ) -> Tuple[jnp.ndarray, Mapping[str, jnp.ndarray]]:
@@ -362,21 +363,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             raw_inputs,  # only needed for encoder padding mask
             flat_ids,
             flat_ids,
-            # adapter_wd=adaptations[0],
-            # adapter_wu=adaptations[1],
-            # adapter_bd=adaptations[2],
-            # adapter_bu=adaptations[3],
-            # TODO: generalize to use adapters or lora (or have a new transformer). This is tmp for testing.
-            lora_qa=adaptations[0],
-            lora_qb=adaptations[1],
-            lora_ka=adaptations[2],
-            lora_kb=adaptations[3],
-            lora_va=adaptations[4],
-            lora_vb=adaptations[5],
-            lora_oa=adaptations[6],
-            lora_ob=adaptations[7],
-            prefix_key=adaptations[-2], #4
-            prefix_value=adaptations[-1], #5
+            **adaptations,
             enable_dropout=False,
             decode=True,
             max_decode_length=max_decode_length,
@@ -476,7 +463,10 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
 
-        batch_adaptions = [decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None for a in adaptations]
+        batch_adaptions = {
+            a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None
+            for a_name, a in adaptations.items()
+        }
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
         # need to set up our decoder model to handle a batch size equal to
@@ -490,7 +480,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             self.module.apply(
                 {"params": params},
                 inputs,
-                *adaptations,
+                **adaptations,
                 enable_dropout=False,
                 method=self.module.encode,
             ),

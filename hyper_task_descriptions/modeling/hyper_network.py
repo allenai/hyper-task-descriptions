@@ -22,6 +22,8 @@ from flax import linen as nn
 from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
+from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config
 from transformers.models.roberta.modeling_flax_roberta import (
     FlaxRobertaModel,
     create_position_ids_from_input_ids,
@@ -29,8 +31,6 @@ from transformers.models.roberta.modeling_flax_roberta import (
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
@@ -52,7 +52,7 @@ class HyperT5Config(T5Config):
     adapter_size: int = 64
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
-    roberta_model: str = "hamishivi/fixed-roberta-base"  # "hamishivi/fixed-distilroberta-base" #  # fixes some partitioning issues
+    roberta_model: str = "hamishivi/fixed-roberta-base"
     roberta_max_position_embeddings: int = 520
     roberta_type_vocab_size: int = 8
     roberta_vocab_size: int = 50272
@@ -207,14 +207,23 @@ class Hypernet(nn.Module):
         prefix_value = jnp.reshape(
             prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
         )
-        return (
-            adapter_down,
-            adapter_up,
-            adapter_bias_down,
-            adapter_bias_up,
-            prefix_key,
-            prefix_value,
-        )
+
+        return {
+            "adapter_wd": adapter_down,
+            "adapter_wu": adapter_up,
+            "adapter_bd": adapter_bias_down,
+            "adapter_bu": adapter_bias_up,
+            "prefix_key": prefix_key,
+            "prefix_value": prefix_value,
+        }
+        # return (
+        #     adapter_down,
+        #     adapter_up,
+        #     adapter_bias_down,
+        #     adapter_bias_up,
+        #     prefix_key,
+        #     prefix_value,
+        # )
 
 
 class HyperEncoderLayer(nn.Module):
@@ -542,12 +551,12 @@ class HyperTransformer(nn.Module):
     def encode(
         self,
         encoder_input_tokens,
-        awd,
-        awu,
-        bd,
-        bu,
-        pk,
-        pv,
+        adapter_wd,
+        adapter_wu,
+        adapter_bd,
+        adapter_bu,
+        prefix_key,
+        prefix_value,
         encoder_segment_ids=None,
         enable_dropout=True,
     ):
@@ -570,12 +579,12 @@ class HyperTransformer(nn.Module):
 
         return self.encoder(
             encoder_input_tokens,
-            awd,
-            awu,
-            bd,
-            bu,
-            pk,
-            pv,
+            adapter_wd,
+            adapter_wu,
+            adapter_bd,
+            adapter_bu,
+            prefix_key,
+            prefix_value,
             encoder_mask,
             deterministic=not enable_dropout,
         )
@@ -695,17 +704,17 @@ class HyperTransformer(nn.Module):
           logits array from full transformer.
         """
         # generate adapters
-        awd, awu, bd, bu, pk, pv = self.hyperencode(
-            hyper_encoder_input_tokens, enable_dropout=enable_dropout
-        )
+        # awd, awu, bd, bu, pk, pv
+        adapters = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         encoded = self.encode(
             encoder_input_tokens,
-            awd,
-            awu,
-            bd,
-            bu,
-            pk,
-            pv,
+            # awd,
+            # awu,
+            # bd,
+            # bu,
+            # pk,
+            # pv,
+            **adapters,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
         )
@@ -715,12 +724,13 @@ class HyperTransformer(nn.Module):
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
-            adapter_wd=awd,
-            adapter_wu=awu,
-            adapter_bd=bd,
-            adapter_bu=bu,
-            prefix_key=pk,
-            prefix_value=pv,
+            # adapter_wd=awd,
+            # adapter_wu=awu,
+            # adapter_bd=bd,
+            # adapter_bu=bu,
+            # prefix_key=pk,
+            # prefix_value=pv,
+            **adapters,
             encoder_segment_ids=encoder_segment_ids,
             decoder_segment_ids=decoder_segment_ids,
             decoder_positions=decoder_positions,
