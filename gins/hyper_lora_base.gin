@@ -64,6 +64,5 @@ hyper_network.HyperT5Config:
   adapter_size = 64
   num_prefix_tokens = 30
   hbottleneck_size = 64
-  add_lora = False
-  lora_hyper_gen = False
+  lora_hyper_gen = True
   lora_rank = 2

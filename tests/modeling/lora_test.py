@@ -64,4 +64,3 @@ def test_lora_multihead_dot_product_attention():
 
     output = lora_multihead.apply(params, inputs_q, inputs_kv)
     assert output.shape == (batch_size, q_len, q_features)
-
