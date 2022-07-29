@@ -17,4 +17,4 @@ isort==5.8.0
 pytest
 
 # Flaky tests
-flaky
+flaky>=3.7.0
