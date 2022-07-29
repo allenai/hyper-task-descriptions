@@ -363,7 +363,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             raw_inputs,  # only needed for encoder padding mask
             flat_ids,
             flat_ids,
-            **adaptations,
+            adapters=adaptations,
             enable_dropout=False,
             decode=True,
             max_decode_length=max_decode_length,
@@ -480,7 +480,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             self.module.apply(
                 {"params": params},
                 inputs,
-                **adaptations,
+                adapters=adaptations,
                 enable_dropout=False,
                 method=self.module.encode,
             ),
