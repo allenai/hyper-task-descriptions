@@ -79,6 +79,7 @@ jobs:
           test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
           . .venv/bin/activate
           pip install -e .[dev]
+          cd ..
           git clone --branch=main https://github.com/google-research/t5x # TODO: pin to specific commit.
           cd t5x
           python3 -m pip install -e . -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
