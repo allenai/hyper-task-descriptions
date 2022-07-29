@@ -58,6 +58,43 @@ def lora_linear(
     return output
 
 
+def batch_lora_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: NumArray,
+    lora_b: NumArray,
+    alpha: int,
+    rank: int,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+    k_axis = _normalize_axes(axis, inputs.ndim)
+    contract_ind = tuple(range(0, len(k_axis)))
+    dimension_numbers = ((k_axis, contract_ind), ((), ()))
+
+    # Linear computation: output = W0x
+    output = lax.dot_general(inputs, kernel, dimension_numbers)
+    # output = output + bias
+
+    # Lora addition: output += BAx
+    a_axis = _normalize_axes(axis, lora_a.ndim)
+    a_contract_ind = tuple(range(1, 1 + len(a_axis))) #_normalize_axes((-2,), lora_a.ndim)
+    a_dimension_numbers = ((a_axis, a_contract_ind), ((0,), (0,)))
+
+    x = lax.dot_general(inputs, lora_a, dimension_numbers=a_dimension_numbers)
+
+    b_axis = _normalize_axes((-1,), x.ndim)
+    # b_contract_ind = tuple(range(0, len(b_axis)))
+    b_contract_ind = tuple(range(1, 1 + len(b_axis))) #_normalize_axes((-3,), lora_b.ndim) #tuple(range(lora_b.ndim-1, len(b_axis)))
+    b_dimension_numbers = ((b_axis, b_contract_ind), ((0,), (0,)))
+    x = lax.dot_general(x, lora_b, dimension_numbers=b_dimension_numbers)
+
+    output = output + x * (alpha / rank)
+
+    return output
+
+
 # Mostly copied from t5x/examples/t5/layers.py
 # ------------------------------------------------------------------------------
 # DenseGeneral for attention layers.
@@ -125,17 +162,25 @@ class LoraDenseGeneral(nn.Module):
             lora_b = jnp.asarray(lora_b, self.dtype)
             lora_b = jnp.reshape(lora_b, lora_b_shape)
 
-        # contract_ind = tuple(range(0, len(axis)))
-        # lax.dot_general(inputs, kernel, ((axis, contract_ind), ((), ())))
-        return lora_linear(
-            inputs,
-            kernel,
-            lora_a=lora_a,
-            lora_b=lora_b,
-            alpha=self.alpha,
-            rank=self.rank,
-            axis=self.axis,
-        )
+            return lora_linear(
+                inputs,
+                kernel,
+                lora_a=lora_a,
+                lora_b=lora_b,
+                alpha=self.alpha,
+                rank=self.rank,
+                axis=self.axis,
+            )
+        else:
+            return batch_lora_linear(
+                inputs,
+                kernel,
+                lora_a=lora_a,
+                lora_b=lora_b,
+                alpha=self.alpha,
+                rank=self.rank,
+                axis=self.axis,
+            )
 
 
 class LoraMultiHeadDotProductAttention(nn.Module):
@@ -360,6 +405,7 @@ class LoraMultiHeadDotProductAttention(nn.Module):
             kernel_axes=("joined_kv", "embed"),
             dtype=self.dtype,
             name="out",
+            hyper_gen=self.hyper_gen,
         )(x, lora_a=lora_oa, lora_b=lora_ob)
         return out
 
