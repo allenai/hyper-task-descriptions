@@ -65,7 +65,7 @@ class HyperLoraNet(nn.Module):
             param_with_axes(
                 "embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (cfg.num_encoder_layers + cfg.num_decoder_layers, cfg.layer_embed_size),
+                (cfg.num_encoder_layers + 2 * cfg.num_decoder_layers, cfg.layer_embed_size),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -89,7 +89,6 @@ class HyperLoraNet(nn.Module):
             name="contrastive_head",
         )
 
-        # TODO: combine q, k, v generators?
         self.lora_qa_gen = SimpleLinear(
             output_dim=cfg.emb_dim * cfg.lora_rank,
             act_fn="linear",
@@ -198,7 +197,9 @@ class HyperLoraNet(nn.Module):
         contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
         self.sow("intermediates", "features", contrastive_output)
         # add the layer embeddings, and pass through a single mlp layer
-        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
+
+        # decoder has self and cross attention both, hence enc + 2 x dec lora layers.
+        total_layers = cfg.num_encoder_layers + 2 * cfg.num_decoder_layers
         embeds = jnp.arange(total_layers)
         embeds = self.embedder[embeds][
             None,
@@ -213,7 +214,6 @@ class HyperLoraNet(nn.Module):
             hyper_input, deterministic=deterministic
         )
 
-        # Note: total_layers = encoder + decoder
         lora_qa = self.lora_qa_gen(intermediate_embeddings, deterministic=deterministic)
         lora_qa = jnp.reshape(lora_qa, (-1, total_layers, cfg.emb_dim, cfg.lora_rank))
         lora_qb = self.lora_qb_gen(intermediate_embeddings, deterministic=deterministic)
@@ -242,6 +242,9 @@ class HyperLoraNet(nn.Module):
         lora_ob = self.lora_ob_gen(intermediate_embeddings, deterministic=deterministic)
         lora_ob = jnp.reshape(lora_ob, (-1, total_layers, cfg.lora_rank, cfg.emb_dim))
 
+        # TODO: do we need 2 prefix keys and prefix values for self and cross attn respectively?
+        #   If not, need to update embedder.
+        #   Looks like we aren't using it yet?
         prefix_key = self.prefix_key_gen(intermediate_embeddings, deterministic=deterministic)
         prefix_key = jnp.reshape(
             prefix_key, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
@@ -392,14 +395,14 @@ class LoraDecoderLayer(nn.Module):
             x,
             decoder_mask,
             decoder_bias,
-            lora_qa=lora_qa,
-            lora_qb=lora_qb,
-            lora_ka=lora_ka,
-            lora_kb=lora_kb,
-            lora_va=lora_va,
-            lora_vb=lora_vb,
-            lora_oa=lora_oa,
-            lora_ob=lora_ob,
+            lora_qa=lora_qa[:, 0],
+            lora_qb=lora_qb[:, 0],
+            lora_ka=lora_ka[:, 0],
+            lora_kb=lora_kb[:, 0],
+            lora_va=lora_va[:, 0],
+            lora_vb=lora_vb[:, 0],
+            lora_oa=lora_oa[:, 0],
+            lora_ob=lora_ob[:, 0],
             deterministic=deterministic,
             decode=decode,
         )
@@ -409,27 +412,27 @@ class LoraDecoderLayer(nn.Module):
         # Encoder-Decoder block.
         # TODO: different lora weights for self and cross attn.
         y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
-        y = layers.MultiHeadDotProductAttention(
+        y = LoraMultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="encoder_decoder_attention",
-            # hyper_gen=cfg.lora_hyper_gen,
-            # rank=cfg.lora_rank,
+            hyper_gen=cfg.lora_hyper_gen,
+            rank=cfg.lora_rank,
         )(
             y,
             encoded,
             encoder_decoder_mask,
-            # lora_qa=lora_qa,
-            # lora_qb=lora_qb,
-            # lora_ka=lora_ka,
-            # lora_kb=lora_kb,
-            # lora_va=lora_va,
-            # lora_vb=lora_vb,
-            # lora_oa=lora_oa,
-            # lora_ob=lora_ob,
+            lora_qa=lora_qa[:, 1],
+            lora_qb=lora_qb[:, 1],
+            lora_ka=lora_ka[:, 1],
+            lora_kb=lora_kb[:, 1],
+            lora_va=lora_va[:, 1],
+            lora_vb=lora_vb[:, 1],
+            lora_oa=lora_oa[:, 1],
+            lora_ob=lora_ob[:, 1],
             deterministic=deterministic,
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
@@ -553,22 +556,24 @@ class LoraDecoder(nn.Module):
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         y = y.astype(cfg.dtype)
 
-        for lyr in range(cfg.num_decoder_layers):
+        for lyr in range(
+            cfg.num_encoder_layers, cfg.num_encoder_layers + 2 * cfg.num_decoder_layers, 2
+        ):
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             y = LoraDecoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 y,
                 encoded,
                 decoder_mask=decoder_mask,
-                lora_qa=lora_qa[:, cfg.num_encoder_layers + lyr],
-                lora_qb=lora_qb[:, cfg.num_encoder_layers + lyr],
-                lora_ka=lora_ka[:, cfg.num_encoder_layers + lyr],
-                lora_kb=lora_kb[:, cfg.num_encoder_layers + lyr],
-                lora_va=lora_va[:, cfg.num_encoder_layers + lyr],
-                lora_vb=lora_vb[:, cfg.num_encoder_layers + lyr],
-                lora_oa=lora_oa[:, cfg.num_encoder_layers + lyr],
-                lora_ob=lora_ob[:, cfg.num_encoder_layers + lyr],
-                prefix_key=prefix_key[:, cfg.num_encoder_layers + lyr],
-                prefix_value=prefix_value[:, cfg.num_encoder_layers + lyr],
+                lora_qa=lora_qa[:, lyr : lyr + 2],
+                lora_qb=lora_qb[:, lyr : lyr + 2],
+                lora_ka=lora_ka[:, lyr : lyr + 2],
+                lora_kb=lora_kb[:, lyr : lyr + 2],
+                lora_va=lora_va[:, lyr : lyr + 2],
+                lora_vb=lora_vb[:, lyr : lyr + 2],
+                lora_oa=lora_oa[:, lyr : lyr + 2],
+                lora_ob=lora_ob[:, lyr : lyr + 2],
+                prefix_key=prefix_key[:, lyr],
+                prefix_value=prefix_value[:, lyr],
                 encoder_decoder_mask=encoder_decoder_mask,
                 deterministic=deterministic,
                 decode=decode,
