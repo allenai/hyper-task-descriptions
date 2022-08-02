@@ -95,7 +95,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("embed", "joined_kv"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.normal(0.01),
             name="lora_qa_gen",
         )
 
@@ -105,7 +105,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("embed", "joined_kv"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.zeros,
             name="lora_qb_gen",
         )
 
@@ -115,7 +115,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("embed", "joined_kv"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.normal(0.01),
             name="lora_ka_gen",
         )
 
@@ -125,7 +125,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("embed", "joined_kv"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.zeros,
             name="lora_kb_gen",
         )
 
@@ -135,7 +135,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("embed", "joined_kv"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.normal(0.01),
             name="lora_va_gen",
         )
 
@@ -145,7 +145,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("embed", "joined_kv"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.zeros,
             name="lora_vb_gen",
         )
 
@@ -155,7 +155,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("joined_kv", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.normal(0.01),
             name="lora_oa_gen",
         )
 
@@ -165,7 +165,7 @@ class HyperLoraNet(nn.Module):
             dropout_rate=cfg.dropout_rate,
             dtype=cfg.dtype,
             kernel_axes=("embed", "joined_kv"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
+            kernel_init=nn.initializers.zeros,
             name="lora_ob_gen",
         )
 
