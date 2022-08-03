@@ -1,0 +1,38 @@
+from __gin__ import dynamic_registration
+
+import optax
+from t5x import utils
+
+from hyper_task_descriptions import utils as hyper_utils
+
+
+# multi optimizer - we map anything that matches param_labels to adamw, others dont train
+# note we use optaxs way of doing things here - the t5x multoptimizer didnt work for some
+# reason.
+OPTIMIZER = @hyper_utils.multi_transform()
+hyper_utils.multi_transform:
+  transforms = {"train": @optax.adam(), "freeze": @optax.set_to_zero()}
+  param_labels = @hyper_utils.match_any_optax()
+
+# we only train params that match this regex
+hyper_utils.match_any_optax.regexes = [".*hyper.*"]
+
+optax.adam:
+  learning_rate = @utils.create_learning_rate_scheduler() 
+  # adamw params below. See https://optax.readthedocs.io/en/latest/api.html#optax.adamw
+  # weight_decay = 0
+  # mask = @hyper_utils.match_any_optax_inverse()  
+
+# for adamw, a common case is not applying wd to layer norms and biases (but no bias in t5)
+#hyper_utils.match_any_optax_inverse.regexes = [".*/LayerNorm/.*"]
+
+
+# WARNING: t5x will log starting from the pretrained model step,
+# but optax calls this starting from 0. So ignore the tensorboard
+# learning rate logging.
+utils.create_learning_rate_scheduler:
+  factors = 'constant * linear_warmup'
+  base_learning_rate = 1e-5
+  warmup_steps = 1000
+  step_offset = 0 # our steps start at 0 no matter what with optax.
+
