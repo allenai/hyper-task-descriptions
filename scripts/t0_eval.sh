@@ -3,9 +3,9 @@ EXPERIMENT_NAME=$1
 CHECKPOINT_NAME=$2
 
 # model checkpoint location
-MODEL_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/model/${CHECKPOINT_NAME}"
+MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model/${CHECKPOINT_NAME}"
 # where to put eval results
-EVAL_OUTPUT_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/eval"
+EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
