@@ -62,7 +62,7 @@ def get_test_model(
     num_encoder_layers=2,
     num_decoder_layers=2,
     lora_hyper_gen=False,
-    lora_rank=4,
+    lora_ranks=(4, None, 4, None),
     do_lora=False,  # TODO: tmp until both configs are merged.
 ):
     import seqio
@@ -91,7 +91,7 @@ def get_test_model(
             dtype=dtype,
             mlp_activations=("gelu", "linear"),
             lora_hyper_gen=lora_hyper_gen,
-            lora_rank=lora_rank,
+            lora_ranks=lora_ranks,
         )
         # TODO: maybe configure adapter specific things too.
         module = LoraTransformer(config=config)

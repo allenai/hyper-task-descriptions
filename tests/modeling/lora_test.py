@@ -51,16 +51,20 @@ def test_lora_dense_general():
 def test_lora_multihead_dot_product_attention():
     batch_size, q_len, q_features, kv_len, kv_features = 3, 4, 5, 6, 7
     num_heads, head_dim = 8, 16
-    rank = 2
+    lora_ranks = (2, None, 2, None)
 
     inputs_q = jnp.array(np.random.randn(batch_size, q_len, q_features))
     inputs_kv = jnp.array(np.random.randn(batch_size, kv_len, kv_features))
 
     lora_multihead = LoraMultiHeadDotProductAttention(
-        num_heads=num_heads, head_dim=head_dim, rank=rank
+        num_heads=num_heads, head_dim=head_dim, lora_ranks=lora_ranks
     )
     key = get_prng_key(23)
     params = lora_multihead.init(key, inputs_q, inputs_kv)
 
+    assert "lora_a" in params["params"]["query"]
+    assert "lora_a" not in params["params"]["key"]
+    assert "lora_a" in params["params"]["value"]
+    assert "lora_a" not in params["params"]["out"]
     output = lora_multihead.apply(params, inputs_q, inputs_kv)
     assert output.shape == (batch_size, q_len, q_features)

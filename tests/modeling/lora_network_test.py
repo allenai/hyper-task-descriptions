@@ -44,9 +44,15 @@ class NetworkTest(parameterized.TestCase):
             num_encoder_layers=1,
             num_decoder_layers=1,
             do_lora=True,
+            lora_ranks=(4, None, 4, None),
             lora_hyper_gen=False,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
+        assert "lora_a" in params["encoder"]["layers_0"]["attention"]["query"]
+        assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["key"]
+        assert "lora_a" in params["encoder"]["layers_0"]["attention"]["value"]
+        assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["out"]
+
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         self.assertAlmostEqual(loss, 17.351202, delta=0.05)
 
@@ -77,8 +83,15 @@ class NetworkTest(parameterized.TestCase):
             num_decoder_layers=1,
             do_lora=True,
             lora_hyper_gen=True,
+            lora_ranks=(4, None, 4, None),
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
+
+        assert "lora_qa_gen" in params["hyper"]
+        assert "lora_ka_gen" not in params["hyper"]
+        assert "lora_va_gen" in params["hyper"]
+        assert "lora_oa_gen" not in params["hyper"]
+
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         self.assertAlmostEqual(loss, 17.351202, delta=0.05)
 
