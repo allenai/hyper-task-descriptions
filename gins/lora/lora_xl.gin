@@ -1,0 +1,16 @@
+# T5.1.1 XL model.
+
+include 'gins/lora/lora_base.gin'  # imports vocab, optimizer and model.
+
+# ------------------- Network specification overrides --------------------------
+lora_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  emb_dim = 2048
+  num_heads = 32
+  num_encoder_layers = 24
+  num_decoder_layers = 24
+  head_dim = 64
+  mlp_dim = 5120
+  adapter_size = 64
+  num_prefix_tokens = 15
+  hbottleneck_size = 128

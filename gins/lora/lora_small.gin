@@ -1,6 +1,6 @@
 # T5.1.1 small model.
 
-include 'gins/hyper_lora_base.gin'  # imports vocab, optimizer and model.
+include 'gins/lora/lora_base.gin'  # imports vocab, optimizer and model.
 
 # ------------------- Network specification overrides --------------------------
 lora_network.LoraTransformer.config = @hyper_network.HyperT5Config()
@@ -15,3 +15,5 @@ hyper_network.HyperT5Config:
   num_prefix_tokens = 7
   hbottleneck_size = 16
   roberta_model = "hamishivi/fixed-distilroberta-base"
+
+

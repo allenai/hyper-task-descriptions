@@ -13,7 +13,7 @@ import __main__ as train_script
 # include "t5x/examples/t5/t5_1_1/tiny.gin"
 include "t5x/configs/runs/finetune.gin"
 # include "gins/finetune_from_scratch.gin"
-include "gins/hyper_small.gin"
+# include "gins/hyper_small.gin"
 include "gins/t0.gin"
 include "gins/partial_train.gin"
 
