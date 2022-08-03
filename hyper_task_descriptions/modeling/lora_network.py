@@ -91,89 +91,90 @@ class HyperLoraNet(nn.Module):
 
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
 
-        if self.q_rank:
-            self.lora_qa_gen = SimpleLinear(
-                output_dim=cfg.emb_dim * self.q_rank,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("embed", "joined_kv"),
-                kernel_init=nn.initializers.normal(0.01),
-                name="lora_qa_gen",
-            )
+        if cfg.lora_hyper_gen:
+            if self.q_rank:
+                self.lora_qa_gen = SimpleLinear(
+                    output_dim=cfg.emb_dim * self.q_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_qa_gen",
+                )
 
-            self.lora_qb_gen = SimpleLinear(
-                output_dim=self.q_rank * cfg.num_heads * cfg.head_dim,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("embed", "joined_kv"),
-                kernel_init=nn.initializers.zeros,
-                name="lora_qb_gen",
-            )
+                self.lora_qb_gen = SimpleLinear(
+                    output_dim=self.q_rank * cfg.num_heads * cfg.head_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_qb_gen",
+                )
 
-        if self.k_rank:
-            self.lora_ka_gen = SimpleLinear(
-                output_dim=cfg.emb_dim * self.k_rank,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("embed", "joined_kv"),
-                kernel_init=nn.initializers.normal(0.01),
-                name="lora_ka_gen",
-            )
+            if self.k_rank:
+                self.lora_ka_gen = SimpleLinear(
+                    output_dim=cfg.emb_dim * self.k_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_ka_gen",
+                )
 
-            self.lora_kb_gen = SimpleLinear(
-                output_dim=self.k_rank * cfg.num_heads * cfg.head_dim,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("embed", "joined_kv"),
-                kernel_init=nn.initializers.zeros,
-                name="lora_kb_gen",
-            )
+                self.lora_kb_gen = SimpleLinear(
+                    output_dim=self.k_rank * cfg.num_heads * cfg.head_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_kb_gen",
+                )
 
-        if self.v_rank:
-            self.lora_va_gen = SimpleLinear(
-                output_dim=cfg.emb_dim * self.v_rank,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("embed", "joined_kv"),
-                kernel_init=nn.initializers.normal(0.01),
-                name="lora_va_gen",
-            )
+            if self.v_rank:
+                self.lora_va_gen = SimpleLinear(
+                    output_dim=cfg.emb_dim * self.v_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_va_gen",
+                )
 
-            self.lora_vb_gen = SimpleLinear(
-                output_dim=self.v_rank * cfg.num_heads * cfg.head_dim,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("embed", "joined_kv"),
-                kernel_init=nn.initializers.zeros,
-                name="lora_vb_gen",
-            )
+                self.lora_vb_gen = SimpleLinear(
+                    output_dim=self.v_rank * cfg.num_heads * cfg.head_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_vb_gen",
+                )
 
-        if self.o_rank:
-            self.lora_oa_gen = SimpleLinear(
-                output_dim=cfg.num_heads * cfg.head_dim * self.o_rank,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("joined_kv", "embed"),
-                kernel_init=nn.initializers.normal(0.01),
-                name="lora_oa_gen",
-            )
+            if self.o_rank:
+                self.lora_oa_gen = SimpleLinear(
+                    output_dim=cfg.num_heads * cfg.head_dim * self.o_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("joined_kv", "embed"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_oa_gen",
+                )
 
-            self.lora_ob_gen = SimpleLinear(
-                output_dim=self.o_rank * cfg.emb_dim,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("embed", "joined_kv"),
-                kernel_init=nn.initializers.zeros,
-                name="lora_ob_gen",
-            )
+                self.lora_ob_gen = SimpleLinear(
+                    output_dim=self.o_rank * cfg.emb_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_ob_gen",
+                )
 
         self.prefix_key_gen = SimpleLinear(
             output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
@@ -220,45 +221,57 @@ class HyperLoraNet(nn.Module):
             hyper_input, deterministic=deterministic
         )
 
-        if self.q_rank:
-            lora_qa = self.lora_qa_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_qa = jnp.reshape(lora_qa, (-1, total_layers, cfg.emb_dim, self.q_rank))
-            lora_qb = self.lora_qb_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_qb = jnp.reshape(
-                lora_qb, (-1, total_layers, self.q_rank, cfg.num_heads, cfg.head_dim)
-            )
-        else:
-            lora_qa, lora_qb = None, None
+        if cfg.lora_hyper_gen:
+            if self.q_rank:
+                lora_qa = self.lora_qa_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_qa = jnp.reshape(lora_qa, (-1, total_layers, cfg.emb_dim, self.q_rank))
+                lora_qb = self.lora_qb_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_qb = jnp.reshape(
+                    lora_qb, (-1, total_layers, self.q_rank, cfg.num_heads, cfg.head_dim)
+                )
+            else:
+                lora_qa, lora_qb = None, None
 
-        if self.k_rank:
-            lora_ka = self.lora_ka_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_ka = jnp.reshape(lora_ka, (-1, total_layers, cfg.emb_dim, self.k_rank))
-            lora_kb = self.lora_kb_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_kb = jnp.reshape(
-                lora_kb, (-1, total_layers, self.k_rank, cfg.num_heads, cfg.head_dim)
-            )
-        else:
-            lora_ka, lora_kb = None, None
+            if self.k_rank:
+                lora_ka = self.lora_ka_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_ka = jnp.reshape(lora_ka, (-1, total_layers, cfg.emb_dim, self.k_rank))
+                lora_kb = self.lora_kb_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_kb = jnp.reshape(
+                    lora_kb, (-1, total_layers, self.k_rank, cfg.num_heads, cfg.head_dim)
+                )
+            else:
+                lora_ka, lora_kb = None, None
 
-        if self.v_rank:
-            lora_va = self.lora_va_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_va = jnp.reshape(lora_va, (-1, total_layers, cfg.emb_dim, self.v_rank))
-            lora_vb = self.lora_vb_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_vb = jnp.reshape(
-                lora_vb, (-1, total_layers, self.v_rank, cfg.num_heads, cfg.head_dim)
-            )
-        else:
-            lora_va, lora_vb = None, None
+            if self.v_rank:
+                lora_va = self.lora_va_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_va = jnp.reshape(lora_va, (-1, total_layers, cfg.emb_dim, self.v_rank))
+                lora_vb = self.lora_vb_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_vb = jnp.reshape(
+                    lora_vb, (-1, total_layers, self.v_rank, cfg.num_heads, cfg.head_dim)
+                )
+            else:
+                lora_va, lora_vb = None, None
 
-        if self.o_rank:
-            lora_oa = self.lora_oa_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_oa = jnp.reshape(
-                lora_oa, (-1, total_layers, cfg.num_heads, cfg.head_dim, self.o_rank)
-            )
-            lora_ob = self.lora_ob_gen(intermediate_embeddings, deterministic=deterministic)
-            lora_ob = jnp.reshape(lora_ob, (-1, total_layers, self.o_rank, cfg.emb_dim))
+            if self.o_rank:
+                lora_oa = self.lora_oa_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_oa = jnp.reshape(
+                    lora_oa, (-1, total_layers, cfg.num_heads, cfg.head_dim, self.o_rank)
+                )
+                lora_ob = self.lora_ob_gen(intermediate_embeddings, deterministic=deterministic)
+                lora_ob = jnp.reshape(lora_ob, (-1, total_layers, self.o_rank, cfg.emb_dim))
+            else:
+                lora_oa, lora_ob = None, None
         else:
-            lora_oa, lora_ob = None, None
+            lora_qa, lora_qb, lora_ka, lora_kb, lora_va, lora_vb, lora_oa, lora_ob = (
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
 
         # TODO: do we need 2 prefix keys and prefix values for self and cross attn respectively?
         #   If not, need to update embedder.
@@ -390,7 +403,7 @@ class LoraDecoderLayer(nn.Module):
         max_decode_length=None,
     ):
         cfg = self.config
-        q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
+        q_rank, k_rank, v_rank, o_rank = (x and cfg.lora_hyper_gen for x in cfg.lora_ranks)
 
         # Relative position embedding as attention biases.
         l = max_decode_length if decode and max_decode_length else inputs.shape[-2]  # noqa: E741
@@ -495,7 +508,7 @@ class LoraEncoder(nn.Module):
         deterministic=False,
     ):
         cfg = self.config
-        q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
+        q_rank, k_rank, v_rank, o_rank = (x and cfg.lora_hyper_gen for x in cfg.lora_ranks)
         assert encoder_input_tokens.ndim == 2  # [batch, length]
         rel_emb = layers.RelativePositionBiases(
             num_buckets=32,
@@ -560,7 +573,7 @@ class LoraDecoder(nn.Module):
         max_decode_length=None,
     ):
         cfg = self.config
-        q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
+        q_rank, k_rank, v_rank, o_rank = (x and cfg.lora_hyper_gen for x in cfg.lora_ranks)
         assert decoder_input_tokens.ndim == 2  # [batch, len]
         rel_emb = layers.RelativePositionBiases(
             num_buckets=32,

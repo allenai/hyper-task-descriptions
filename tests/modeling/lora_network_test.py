@@ -48,6 +48,8 @@ class NetworkTest(parameterized.TestCase):
             lora_hyper_gen=False,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
+
+        assert "lora_qa_gen" not in params["hyper"]
         assert "lora_a" in params["encoder"]["layers_0"]["attention"]["query"]
         assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["key"]
         assert "lora_a" in params["encoder"]["layers_0"]["attention"]["value"]
@@ -87,6 +89,7 @@ class NetworkTest(parameterized.TestCase):
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
 
+        assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["query"]
         assert "lora_qa_gen" in params["hyper"]
         assert "lora_ka_gen" not in params["hyper"]
         assert "lora_va_gen" in params["hyper"]
