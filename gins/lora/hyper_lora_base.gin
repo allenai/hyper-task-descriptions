@@ -1,0 +1,9 @@
+# T5.1.1 small model.
+
+include 'gins/lora/lora_base.gin'  # imports vocab, optimizer and model.
+
+# ------------------- Network specification overrides --------------------------
+lora_network.LoraTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  lora_hyper_gen = True
+
