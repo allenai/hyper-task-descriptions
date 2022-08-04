@@ -1,26 +1,8 @@
 # T5.1.1 Base model.
 from __gin__ import dynamic_registration
 
-from flax import optim
-from t5x import adafactor
-from t5x import optimizers
 from t5x import utils
-from hyper_task_descriptions import utils as hyper_utils
 
-# gin that allows partial training based on regex matching.
-
-# ------------------- Partial loading ------------------------------------------------
-# OPTIMIZER = @optimizers.MultiOptimizer()
-# optimizers.MultiOptimizer:
-#   traversals_and_optimizers = ((@optim.ModelParamTraversal(),
-#                                 @adafactor.Adafactor()),)
-# optim.ModelParamTraversal:
-#   filter_fn = @hyper_utils.match_any()
-# # MultiOptimizer will match any parameter with a flattened name that
-# # matches any of these regular expressions.
-# PROMPT_REGEX = [".*/hyper/.*"]
-# # PROMPT_REGEX = ["^((?!roberta).)*$"]
-# hyper_utils.match_any.regexes = %PROMPT_REGEX
 
 # These setting allow us to partially reload a checkpoint, that is, we can load
 # most of the model weights from the checkpoint, without it complaining that we
@@ -39,6 +21,8 @@ utils.RestoreCheckpointConfig:
   # the checkpoint.
 
   # We skip hypernetwork parameters
+  # any matching regex will not be restored from the checkpoint.
+  # anything not matching not in the checkpoint will cause an error.
   assignment_map = (
       (r"^.*hyper.*$", None),
       #(r"^.*lora_a.*$", None),
