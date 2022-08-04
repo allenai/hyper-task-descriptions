@@ -19,7 +19,10 @@ https://github.com/google-research/prompt-tuning/blob/a7d507fbb01c0a5d24c9726bd6
 import re
 from typing import Any, Callable, Optional, Sequence, Tuple
 
-from t5x import partitioning
+import flax
+import optax
+from flax.core import frozen_dict
+from t5x import optimizers, partitioning
 
 PartitionRule = Tuple[str, Optional[partitioning.PartitionSpec]]
 
@@ -43,3 +46,48 @@ def match_any(regexes: Sequence[str]) -> Callable[[str, Any], bool]:
         return any(regex.fullmatch(path) for regex in regexes)
 
     return _match_any
+
+
+def inverse_match_any(regexes: Sequence[str]) -> Callable[[str, Any], bool]:
+    """Inverse of the above"""
+    regexes = tuple(re.compile(regex) for regex in regexes)
+
+    def _match_any(path, _):
+        """False if path matches any regex in regexs, true otherwise."""
+        return not any(regex.fullmatch(path) for regex in regexes)
+
+    return _match_any
+
+
+def flattened_traversal(fn):
+    """Returns function that is called with `(path, param)` instead of pytree."""
+
+    def mask(tree):
+        flat = flax.traverse_util.flatten_dict(tree, sep="/")
+        masked_tree = flax.traverse_util.unflatten_dict(
+            {k: fn(k, v) for k, v in flat.items()}, sep="/"
+        )
+        return frozen_dict.freeze(masked_tree)
+
+    return mask
+
+
+def match_any_optax(regexes: Sequence[str]) -> Callable[[str, Any], bool]:
+    regexes = tuple(re.compile(regex) for regex in regexes)
+    label_fn = flattened_traversal(
+        lambda path, _: "train" if any(regex.fullmatch(path) for regex in regexes) else "freeze"
+    )
+    return label_fn
+
+
+# inverse match, mainly for adamw weight decay - see partial_adamw.gin for an example of how this is applied
+def match_any_optax_inverse(regexes: Sequence[str]) -> Callable[[str, Any], bool]:
+    regexes = tuple(re.compile(regex) for regex in regexes)
+    label_fn = flattened_traversal(
+        lambda path, _: "freeze" if any(regex.fullmatch(path) for regex in regexes) else "train"
+    )
+    return label_fn
+
+
+# t5x doesnt wrap this but i need it
+multi_transform = optimizers.wrap_optax_optimizer(optax.multi_transform)
