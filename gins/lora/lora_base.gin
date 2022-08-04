@@ -4,12 +4,12 @@ from __gin__ import dynamic_registration
 import seqio
 from t5x import adafactor
 from t5x import models
-from t5x import utils
 from t5x.examples.t5 import network
 from hyper_task_descriptions.modeling import hyper_network
 from hyper_task_descriptions.modeling import lora_network
 from hyper_task_descriptions import hf_vocab
 from hyper_task_descriptions.modeling import hyper_transformer
+from hyper_task_descriptions import utils as hyper_utils
 
 # ------------------- Loss HParam ----------------------------------------------
 Z_LOSS = 0.0001
@@ -68,9 +68,4 @@ hyper_network.HyperT5Config:
   lora_hyper_gen = False
   lora_ranks = (2, None, 2, None)
 
-
-utils.RestoreCheckpointConfig:
-  assignment_map = (
-      #(r"^.*hyper.*$", None),
-      (r"^.*lora*.*$", None),
-      )
+hyper_utils.match_any_optax.regexes = [".*lora*.*"]

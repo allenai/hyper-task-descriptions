@@ -1,0 +1,4 @@
+
+from hyper_task_descriptions import utils as hyper_utils
+
+hyper_utils.match_any_optax.regexes = [".*hyper.*", ".*lora*.*"]
