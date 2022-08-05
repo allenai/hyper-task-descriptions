@@ -3,7 +3,7 @@
 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 python -m t5x.train \
     --gin_search_paths=./gins \
     --gin_file="t0_train_local.gin" \
-    --gin_file="lora/hyper_lora_small.gin" \
+    --gin_file="lora/lora_small.gin" \
     --gin.DROPOUT_RATE=0.1 \
     --gin.MODEL_DIR=\"lora_test\" \
     --gin.USE_CACHED_TASKS=False \
