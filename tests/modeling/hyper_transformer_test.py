@@ -646,7 +646,9 @@ class TestHyperEncoderDecoderModel(parameterized.TestCase):
         self.assertLen(tokens_to_logits_mock.call_args_list, max_decode_len)
         for tokens_call in tokens_to_logits_mock.call_args_list:
             # Inputs: [B * Be, 1]
-            inputs, cache = tokens_call[0]
+            decoding_state = tokens_call[0][0]
+            inputs = decoding_state.cur_token
+            cache = decoding_state.cache
             cache = flax.core.unfreeze(cache)
             # Cache: [B * Be, 1] * #Layers
             cache_keys = [

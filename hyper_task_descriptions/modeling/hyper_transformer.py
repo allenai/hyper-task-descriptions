@@ -339,8 +339,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
 
     def _compute_logits_from_slice(
         self,
-        flat_ids: jnp.ndarray,
-        flat_cache: Mapping[str, jnp.ndarray],
+        decoding_state: decoding.DecodingState,
         params: PyTreeDef,
         encoded_inputs: jnp.ndarray,
         adaptations: Tuple[jnp.ndarray, ...],
@@ -348,6 +347,8 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         max_decode_length: int,
     ) -> Tuple[jnp.ndarray, Mapping[str, jnp.ndarray]]:
         """Token slice to logits from decoder model."""
+        flat_ids = decoding_state.cur_token
+        flat_cache = decoding_state.cache
         # flat_ids: [batch * beam, seq_len=1]
         # cache is expanded inside beam_search to become flat_cache
         # flat_cache: [batch * beam, num_heads, depth_per_head, max_decode_len]
@@ -710,7 +711,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             z_loss=self._z_loss,
             loss_normalizing_factor=loss_normalizing_factor,
         )
-        loss += cos_loss * cosine_loss_multiplier  # upweight since otherwise ce loss dominates
+        # loss += cos_loss * cosine_loss_multiplier  # upweight since otherwise ce loss dominates
         metrics = self._compute_metrics(
             logits=logits,
             targets=batch["decoder_target_tokens"],
