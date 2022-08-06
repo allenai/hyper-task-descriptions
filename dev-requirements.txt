@@ -3,18 +3,18 @@
 ####################################
 
 # Checks style, syntax, and other useful errors.
-flake8
+flake8==4.0.1
 
 # Static type checking
-mypy==0.961
+mypy==0.971
 
 # Automatic code formatting
 # promptsource specifies these, so we have to match
-black<22.7
+black==21.12b0
 isort==5.8.0
 
 # Running tests
 pytest
 
 # Flaky tests
-flaky
+flaky>=3.7.0
