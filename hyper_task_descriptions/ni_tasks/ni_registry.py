@@ -118,12 +118,12 @@ dataset_fn = functools.partial(
     seed=None,
     max_num_instances_per_task=100,
     max_num_instances_per_eval_task=100,
+    raw_input=False,
 )
 
 data_source = seqio.FunctionDataSource(
     dataset_fn,
     splits=["train", "test"],
-    raw_input=False,
 )
 
 seqio.TaskRegistry.add(
