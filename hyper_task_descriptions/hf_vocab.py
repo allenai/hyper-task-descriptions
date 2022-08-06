@@ -3,7 +3,7 @@ from typing import Iterable, Optional, Sequence
 import tensorflow.compat.v2 as tf
 from seqio import Vocabulary
 from transformers import AutoTokenizer
-from t5.data import get_default_vocabulary
+
 
 class HuggingfaceVocabulary(Vocabulary):
     """Really simple wrapper around huggingface tokenizer."""
