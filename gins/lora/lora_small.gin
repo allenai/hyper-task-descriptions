@@ -15,5 +15,6 @@ hyper_network.HyperT5Config:
   num_prefix_tokens = 7
   hbottleneck_size = 16
   roberta_model = "hamishivi/fixed-distilroberta-base"
+  lora_ranks = (2, None, 2, None)
 
 
