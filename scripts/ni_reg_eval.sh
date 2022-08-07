@@ -16,7 +16,7 @@ python3 -m t5x.eval \
     --gin_file="ni_eval.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
     --gin.USE_CACHED_TASKS=False \
-    --gin_file=hyper_network.HyperT5Config.add_adapters=False \
+    --gin.hyper_network.HyperT5Config.add_adapters=False \
     --gin.utils.DatasetConfig.batch_size=1024 \
     --gin.utils.DatasetConfig.split=\"train\" \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
