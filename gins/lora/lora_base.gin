@@ -66,6 +66,6 @@ hyper_network.HyperT5Config:
   num_prefix_tokens = 30
   hbottleneck_size = 64
   lora_hyper_gen = False
-  lora_ranks = (8, None, 8, None)
+  lora_ranks = (2, None, 2, None)
 
 hyper_utils.match_any_optax.regexes = [".*lora*.*"]
