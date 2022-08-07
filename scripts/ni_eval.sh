@@ -15,8 +15,9 @@ python3 -m t5x.eval \
     --gin_file="hyper_xl.gin" \
     --gin_file="ni_eval.gin" \
     --gin.USE_CACHED_TASKS=False \
-    --gin.utils.DatasetConfig.batch_size=256 \
+    --gin.utils.DatasetConfig.batch_size=1024 \
     --gin.utils.DatasetConfig.split=\"test\" \
+    --gin.partitioning.PjitPartitioner.num_partitions=8 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
     --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
     --gin.EVAL_OUTPUT_DIR=\"$EVAL_OUTPUT_DIR\"
