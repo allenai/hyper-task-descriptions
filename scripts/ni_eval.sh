@@ -18,4 +18,5 @@ python3 -m t5x.eval \
     --gin.utils.DatasetConfig.batch_size=1024 \
     --gin.utils.DatasetConfig.split=\"test\" \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
+    --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
     --gin.EVAL_OUTPUT_DIR=\"$EVAL_OUTPUT_DIR\"
