@@ -91,27 +91,27 @@ def ni_metrics_wrapper(targets, predictions):
   return compute_metrics(predictions=predictions, references=targets, xlingual=False)
 
 
-# dataset_fn = functools.partial(
-#     get_ni_data,
-#     seed=None,
-#     max_num_instances_per_task=100,
-#     max_num_instances_per_eval_task=100,
-# )
+dataset_fn = functools.partial(
+    get_ni_data,
+    seed=None,
+    max_num_instances_per_task=100,
+    max_num_instances_per_eval_task=100,
+)
 
-# data_source = seqio.FunctionDataSource(
-#     dataset_fn,
-#     splits=["train", "test"],
-# )
+data_source = seqio.FunctionDataSource(
+    dataset_fn,
+    splits=["train", "test"],
+)
 
-# seqio.TaskRegistry.add(
-#     "natural_instructions",
-#     data_source,
-#     preprocessors=preprocessors,
-#     output_features=output_features,
-#     postprocess_fn=postprocessor,
-#     metric_fns=[ni_metrics_wrapper],
-#     shuffle_buffer_size=50000,  # default of 1000 is too small
-# )
+seqio.TaskRegistry.add(
+    "natural_instructions",
+    data_source,
+    preprocessors=preprocessors,
+    output_features=output_features,
+    postprocess_fn=postprocessor,
+    metric_fns=[ni_metrics_wrapper],
+    shuffle_buffer_size=50000,  # default of 1000 is too small
+)
 
 dataset_fn = functools.partial(
     get_ni_data,
