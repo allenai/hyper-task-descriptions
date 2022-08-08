@@ -1,5 +1,5 @@
 # Checkpoint to eval on
-MODEL_DIR=$1
+EXPERIMENT_NAME=$1
 CHECKPOINT_NAME=$2
 
 # model checkpoint location
