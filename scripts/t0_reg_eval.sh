@@ -1,9 +1,11 @@
 # Checkpoint to eval on
 MODEL_DIR=$1
-SAVE_DIR=$2
+CHECKPOINT_NAME=$2
 
+# model checkpoint location
+MODEL_DIR="gs://yizhongw-tpu-bucket/${EXPERIMENT_NAME}/model/${CHECKPOINT_NAME}"
 # where to put eval results
-EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${SAVE_DIR}"
+EVAL_OUTPUT_DIR="gs://yizhongw-tpu-bucket/${EXPERIMENT_NAME}/eval/"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
