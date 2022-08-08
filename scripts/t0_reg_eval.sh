@@ -12,6 +12,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_search_paths="gins" \
     --gin_file="hyper_xl.gin" \
     --gin_file="t0_eval.gin" \
+    --gin_file="restore_pretrained.gin" \
     --gin.hyper_network.HyperT5Config.add_adapters=False \
     --gin.USE_CACHED_TASKS=True \
     --gin.partitioning.PjitPartitioner.num_partitions=8 \
