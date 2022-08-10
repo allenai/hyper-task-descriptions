@@ -10,7 +10,7 @@ MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="lora/lora_small.gin" \
-  --gin_file="t0_train.gin" \
+  --gin_file="t0_train_local.gin" \
   --gin_file="partial_train_adam.gin" \
   --gin_file="lora/lora.gin" \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
