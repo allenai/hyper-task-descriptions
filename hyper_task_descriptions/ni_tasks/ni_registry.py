@@ -116,8 +116,8 @@ seqio.TaskRegistry.add(
 dataset_fn = functools.partial(
     get_ni_data,
     seed=None,
-    max_num_instances_per_task=100,
-    max_num_instances_per_eval_task=100,
+    max_num_instances_per_task=1,
+    max_num_instances_per_eval_task=1,
     raw_input=False,
 )
 
