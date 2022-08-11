@@ -20,5 +20,5 @@ python3 -m t5x.eval \
     --gin.utils.DatasetConfig.split=\"test\" \
     --gin.partitioning.PjitPartitioner.num_partitions=1 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
-    --gin.utils.RestoreCheckpointConfig.mode=\"specific\" \
+    --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
     --gin.EVAL_OUTPUT_DIR=\"$EVAL_OUTPUT_DIR\"
