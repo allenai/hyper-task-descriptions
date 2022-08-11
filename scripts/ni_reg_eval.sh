@@ -12,13 +12,13 @@ EVAL_OUTPUT_DIR="gs://yizhongw-tpu-bucket/${EXPERIMENT_NAME}/eval/"
 # note you pass in a model file and the eval file.
 python3 -m t5x.eval \
     --gin_search_paths="gins" \
-    --gin_file="hyper_xl.gin" \
+    --gin_file="hyper_small.gin" \
     --gin_file="ni_eval.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
     --gin.USE_CACHED_TASKS=False \
     --gin.utils.DatasetConfig.batch_size=1024 \
     --gin.utils.DatasetConfig.split=\"test\" \
-    --gin.partitioning.PjitPartitioner.num_partitions=8 \
+    --gin.partitioning.PjitPartitioner.num_partitions=1 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
     --gin.utils.RestoreCheckpointConfig.mode=\"specific\" \
     --gin.EVAL_OUTPUT_DIR=\"$EVAL_OUTPUT_DIR\"
