@@ -365,6 +365,8 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             adapter_bu=adaptations[3],
             prefix_key=adaptations[4],
             prefix_value=adaptations[5],
+            prefix_key_cc=adaptations[6],
+            prefix_value_cc=adaptations[7],
             enable_dropout=False,
             decode=True,
             max_decode_length=max_decode_length,
@@ -478,7 +480,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             self.module.apply(
                 {"params": params},
                 inputs,
-                *adaptations,
+                *adaptations[:-2],  # no *cc adaptations
                 enable_dropout=False,
                 method=self.module.encode,
             ),
