@@ -6,12 +6,12 @@ MODEL_DIR="gs://yizhongw-tpu-bucket/${EXPERIMENT_NAME}/model"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
-python3 -m t5x.train \
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="hyper_xl.gin" \
   --gin_file="partial_train_adam.gin" \
   --gin_file="ni_train.gin" \
-  --gin.USE_CACHED_TASKS=False \
+  --gin.USE_CACHED_TASKS=True \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1112200 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \

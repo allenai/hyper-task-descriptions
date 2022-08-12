@@ -11,7 +11,7 @@ python3 -m t5x.train \
   --gin_file="hyper_xl.gin" \
   --gin_file="ni_train.gin" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
-  --gin.USE_CACHED_TASKS=False \
+  --gin.USE_CACHED_TASKS=True \
   --gin.hyper_network.HyperT5Config.add_adapters=False \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1102000 \
@@ -27,7 +27,7 @@ python3 -m t5x.eval \
     --gin_file="hyper_xl.gin" \
     --gin_file="ni_eval.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
-    --gin.USE_CACHED_TASKS=False \
+    --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=1024 \
     --gin.utils.DatasetConfig.split=\"test\" \
     --gin.partitioning.PjitPartitioner.num_partitions=8 \
