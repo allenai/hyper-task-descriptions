@@ -17,7 +17,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=1024 \
-    --gin.utils.DatasetConfig.split=\"test\" \
+    --gin.utils.DatasetConfig.split=\"train\" \
     --gin.partitioning.PjitPartitioner.num_partitions=1 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
     --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
