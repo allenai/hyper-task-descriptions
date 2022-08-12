@@ -15,7 +15,7 @@ import __main__ as train_script
 include "gins/finetune_from_scratch.gin"
 include "gins/hyper_tiny.gin"
 include "gins/t0.gin"
-include "gins/partial_train.gin"
+include "gins/partial_train_adam.gin"
 
 # 'task_names' is a string, so no length.
 TASK_FEATURE_LENGTHS = {"inputs": 8, "hyper_inputs": 128, "task_names": 1, "targets": 7}
