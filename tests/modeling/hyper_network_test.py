@@ -46,7 +46,7 @@ class NetworkTest(parameterized.TestCase):
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
-        self.assertAlmostEqual(loss, 15.268721, delta=0.05)
+        self.assertAlmostEqual(loss, 16.475815, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
