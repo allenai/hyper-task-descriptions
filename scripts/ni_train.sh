@@ -9,8 +9,8 @@ MODEL_DIR="gs://yizhongw-tpu-bucket/${EXPERIMENT_NAME}/model"
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="hyper_xl.gin" \
-  --gin_file="partial_train_adam.gin" \
   --gin_file="ni_train.gin" \
+  --gin_file="partial_train_adam.gin" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.utils.DatasetConfig.batch_size=1024 \
