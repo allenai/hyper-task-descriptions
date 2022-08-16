@@ -168,6 +168,7 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
     dropout_rate: float = 0.0
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
     float32_logits: bool = False  # computes logits in float32 for stability.
+    use_prefix: bool = True  # use prefix or not
 
     @nn.compact
     def __call__(
@@ -316,8 +317,9 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
         # CHANGE from t5x
         # ADD PREFIXES ###
         # key has dim [batch, len, num_heads, head_dim], and we add prefixes
-        key = jnp.concatenate([key_prefix, key], axis=1)
-        value = jnp.concatenate([value_prefix, value], axis=1)
+        if self.use_prefix:
+            key = jnp.concatenate([key_prefix, key], axis=1)
+            value = jnp.concatenate([value_prefix, value], axis=1)
         ####################
 
         # Convert the boolean attention mask to an attention bias.
@@ -339,7 +341,7 @@ class MultiHeadDotProductAttentionWithPrefix(nn.Module):
         # PREFIX CHANGE
         # Avoid attention bias affecting the prefixes by prepending 0s
         # attention_bias has shape [batch, num_heads, q_length, kv_length]
-        if attention_bias is not None:
+        if attention_bias is not None and self.use_prefix:
             num_prefix_toks = key_prefix.shape[1]
             batch, num_heads, q_length, _ = attention_bias.shape
             attention_bias = jnp.concatenate(

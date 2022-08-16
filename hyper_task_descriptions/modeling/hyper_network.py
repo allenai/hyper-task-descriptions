@@ -52,6 +52,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 @struct.dataclass
 class HyperT5Config(T5Config):
     add_adapters: bool = True
+    use_prefix: bool = True
     layer_embed_size: int = 10
     adapter_size: int = 64
     hbottleneck_size: int = 128
@@ -299,14 +300,6 @@ class Hypernet(nn.Module):
             prefix_key_cc,
             prefix_value_cc,
         )
-        return (
-            adapter_down,
-            adapter_up,
-            adapter_bias_down,
-            adapter_bias_up,
-            prefix_key,
-            prefix_value,
-        )
 
 
 class HyperEncoderLayer(nn.Module):
@@ -345,6 +338,7 @@ class HyperEncoderLayer(nn.Module):
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="attention",
+            use_prefix=cfg.use_prefix,
         )(x, x, prefix_key, prefix_value, encoder_mask, encoder_bias, deterministic=deterministic)
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
@@ -426,6 +420,7 @@ class HyperDecoderLayer(nn.Module):
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="self_attention",
+            use_prefix=cfg.use_prefix,
         )(
             x,
             x,
@@ -448,6 +443,7 @@ class HyperDecoderLayer(nn.Module):
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="encoder_decoder_attention",
+            use_prefix=cfg.use_prefix,
         )(
             y,
             encoded,
