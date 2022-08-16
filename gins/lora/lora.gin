@@ -1,4 +1,13 @@
-
+from t5x import utils
 from hyper_task_descriptions import utils as hyper_utils
 
 hyper_utils.match_any_optax.regexes = [".*lora*.*"]
+
+utils.RestoreCheckpointConfig:
+  assignment_map = (
+      #(r"^.*hyper.*$", None),
+      #(r"^.*lora_a.*$", None),
+      #(r"^.*lora_b.*$", None),
+      )
+
+# , ".*hyper.*"]

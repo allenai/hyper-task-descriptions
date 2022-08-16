@@ -4,6 +4,7 @@ from __gin__ import dynamic_registration
 import seqio
 from t5x import adafactor
 from t5x import models
+from t5x import utils
 from t5x.examples.t5 import network
 from hyper_task_descriptions.modeling import hyper_network
 from hyper_task_descriptions.modeling import lora_network
@@ -66,3 +67,10 @@ lora_network.LoraT5Config:
   lora_ranks = (2, None, 2, None)
 
 hyper_utils.match_any_optax.regexes = [".*lora*.*"]
+
+utils.RestoreCheckpointConfig:
+  assignment_map = (
+      #(r"^.*hyper.*$", None),
+      #(r"^.*lora_a.*$", None),
+      #(r"^.*lora_b.*$", None),
+      )
