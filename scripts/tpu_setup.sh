@@ -23,6 +23,7 @@ echo "----- ALL DEPENDENCIES INSTALLED -----"
 # This can take ~15 minutes.
 python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('t5-base')"
 python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('roberta-base')"
+python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('gpt')"
 python3 -c "from transformers import FlaxRobertaModel; FlaxRobertaModel.from_pretrained('hamishivi/fixed-roberta-base')"
 TRANSFORMERS_OFFLINE=1 python3 -c "import hyper_task_descriptions.seqio_tasks.all_t0_tasks"
 echo "----- CACHED TOKENIZERS AND SPLITS -----"
