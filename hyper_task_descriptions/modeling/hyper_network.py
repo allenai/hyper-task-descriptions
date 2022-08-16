@@ -58,6 +58,7 @@ class HyperT5Config(T5Config):
     roberta_vocab_size: int = 50272
     lora_hyper_gen: bool = False
     lora_ranks: tuple = (2, None, 2, None)
+    add_prefix: bool = False  # TODO: only being used in lora_network right now
 
 
 class Hypernet(nn.Module):

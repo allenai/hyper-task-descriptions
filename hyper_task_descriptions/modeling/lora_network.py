@@ -19,8 +19,10 @@ from typing import Callable, Iterable
 
 import jax.numpy as jnp
 from flax import linen as nn
+from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config, Transformer
 from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
@@ -176,22 +178,25 @@ class HyperLoraNet(nn.Module):
                     name="lora_ob_gen",
                 )
 
-        self.prefix_key_gen = SimpleLinear(
-            output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            name="prefix_key_mlp",
-        )
-        self.prefix_value_gen = SimpleLinear(
-            output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            name="prefix_value_mlp",
-        )
+        self.add_prefix = cfg.add_prefix
+
+        if self.add_prefix:
+            self.prefix_key_gen = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_key_mlp",
+            )
+            self.prefix_value_gen = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_value_mlp",
+            )
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -273,17 +278,23 @@ class HyperLoraNet(nn.Module):
                 None,
             )
 
-        # TODO: do we need 2 prefix keys and prefix values for self and cross attn respectively?
-        #   If not, need to update embedder.
-        #   Looks like we aren't using it yet?
-        prefix_key = self.prefix_key_gen(intermediate_embeddings, deterministic=deterministic)
-        prefix_key = jnp.reshape(
-            prefix_key, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
-        )
-        prefix_value = self.prefix_value_gen(intermediate_embeddings, deterministic=deterministic)
-        prefix_value = jnp.reshape(
-            prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
-        )
+        if self.add_prefix:
+            # TODO: do we need 2 prefix keys and prefix values for self and cross attn respectively?
+            #   If not, need to update embedder.
+            #   Looks like we aren't using it yet?
+            prefix_key = self.prefix_key_gen(intermediate_embeddings, deterministic=deterministic)
+            prefix_key = jnp.reshape(
+                prefix_key, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
+            )
+            prefix_value = self.prefix_value_gen(
+                intermediate_embeddings, deterministic=deterministic
+            )
+            prefix_value = jnp.reshape(
+                prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
+            )
+        else:
+            prefix_key = None
+            prefix_value = None
 
         return {
             "lora_qa": lora_qa,
@@ -509,6 +520,7 @@ class LoraEncoder(nn.Module):
     ):
         cfg = self.config
         q_rank, k_rank, v_rank, o_rank = (x and cfg.lora_hyper_gen for x in cfg.lora_ranks)
+
         assert encoder_input_tokens.ndim == 2  # [batch, length]
         rel_emb = layers.RelativePositionBiases(
             num_buckets=32,
@@ -536,8 +548,8 @@ class LoraEncoder(nn.Module):
                 lora_vb=lora_vb[:, lyr] if v_rank else None,
                 lora_oa=lora_oa[:, lyr] if o_rank else None,
                 lora_ob=lora_ob[:, lyr] if o_rank else None,
-                prefix_key=prefix_key[:, lyr],
-                prefix_value=prefix_value[:, lyr],
+                prefix_key=prefix_key[:, lyr] if cfg.add_prefix else None,
+                prefix_value=prefix_value[:, lyr] if cfg.add_prefix else None,
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
@@ -605,8 +617,8 @@ class LoraDecoder(nn.Module):
                 lora_vb=lora_vb[:, lyr : lyr + 2] if v_rank else None,
                 lora_oa=lora_oa[:, lyr : lyr + 2] if o_rank else None,
                 lora_ob=lora_ob[:, lyr : lyr + 2] if o_rank else None,
-                prefix_key=prefix_key[:, lyr],
-                prefix_value=prefix_value[:, lyr],
+                prefix_key=prefix_key[:, lyr] if cfg.add_prefix else None,
+                prefix_value=prefix_value[:, lyr] if cfg.add_prefix else None,
                 encoder_decoder_mask=encoder_decoder_mask,
                 deterministic=deterministic,
                 decode=decode,
@@ -632,7 +644,7 @@ class LoraDecoder(nn.Module):
         return logits
 
 
-class LoraTransformer(HyperTransformer):
+class HyperLoraTransformer(HyperTransformer):
     """An encoder-decoder Transformer model, with hypernets."""
 
     config: HyperT5Config
@@ -650,5 +662,33 @@ class LoraTransformer(HyperTransformer):
         )
 
         self.hyper = HyperLoraNet(config=cfg, shared_embedding=self.shared_embedding)
+        self.encoder = LoraEncoder(config=cfg, shared_embedding=self.shared_embedding)
+        self.decoder = LoraDecoder(config=cfg, shared_embedding=self.shared_embedding)
+
+
+@struct.dataclass
+class LoraT5Config(T5Config):
+    lora_hyper_gen: bool = False
+    lora_ranks: tuple = (2, None, 2, None)
+    add_prefix: bool = False
+
+
+class LoraTransformer(Transformer):
+    """An encoder-decoder Transformer model with LoRA"""
+
+    config: HyperT5Config
+
+    def setup(self):
+        cfg = self.config
+        self.shared_embedding = layers.Embed(
+            num_embeddings=cfg.vocab_size,
+            features=cfg.emb_dim,
+            dtype=cfg.dtype,
+            attend_dtype=jnp.float32,  # for logit training stability
+            embedding_init=nn.initializers.normal(stddev=1.0),
+            one_hot=True,
+            name="token_embedder",
+        )
+
         self.encoder = LoraEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = LoraDecoder(config=cfg, shared_embedding=self.shared_embedding)

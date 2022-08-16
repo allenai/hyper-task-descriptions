@@ -74,30 +74,54 @@ def get_test_model(
     )
     from hyper_task_descriptions.modeling.hyper_transformer import (
         HyperEncoderDecoderModel,
+        LoraEncoderDecoderModel,
     )
 
     if do_lora:
-        from hyper_task_descriptions.modeling.lora_network import LoraTransformer
-
-        config = HyperT5Config(
-            num_encoder_layers=num_encoder_layers,
-            num_decoder_layers=num_decoder_layers,
-            vocab_size=vocab_size,
-            dropout_rate=0,
-            emb_dim=emb_dim,
-            num_heads=num_heads,
-            head_dim=head_dim,
-            mlp_dim=mlp_dim,
-            dtype=dtype,
-            mlp_activations=("gelu", "linear"),
-            lora_hyper_gen=lora_hyper_gen,
-            lora_ranks=lora_ranks,
+        from hyper_task_descriptions.modeling.lora_network import (
+            HyperLoraTransformer,
+            LoraT5Config,
+            LoraTransformer,
         )
-        # TODO: maybe configure adapter specific things too.
-        module = LoraTransformer(config=config)
-        vocab = seqio.test_utils.sentencepiece_vocab()
-        optimizer_def = adafactor.Adafactor()
-        return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+
+        if lora_hyper_gen:
+            config = HyperT5Config(
+                num_encoder_layers=num_encoder_layers,
+                num_decoder_layers=num_decoder_layers,
+                vocab_size=vocab_size,
+                dropout_rate=0,
+                emb_dim=emb_dim,
+                num_heads=num_heads,
+                head_dim=head_dim,
+                mlp_dim=mlp_dim,
+                dtype=dtype,
+                mlp_activations=("gelu", "linear"),
+                lora_hyper_gen=lora_hyper_gen,
+                lora_ranks=lora_ranks,
+            )
+            module = HyperLoraTransformer(config=config)
+            vocab = seqio.test_utils.sentencepiece_vocab()
+            optimizer_def = adafactor.Adafactor()
+            return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+        else:
+            config = LoraT5Config(
+                num_encoder_layers=num_encoder_layers,
+                num_decoder_layers=num_decoder_layers,
+                vocab_size=vocab_size,
+                dropout_rate=0,
+                emb_dim=emb_dim,
+                num_heads=num_heads,
+                head_dim=head_dim,
+                mlp_dim=mlp_dim,
+                dtype=dtype,
+                mlp_activations=("gelu", "linear"),
+                lora_hyper_gen=lora_hyper_gen,
+                lora_ranks=lora_ranks,
+            )
+            module = LoraTransformer(config=config)
+            vocab = seqio.test_utils.sentencepiece_vocab()
+            optimizer_def = adafactor.Adafactor()
+            return LoraEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
     else:
         config = HyperT5Config(
             num_encoder_layers=num_encoder_layers,

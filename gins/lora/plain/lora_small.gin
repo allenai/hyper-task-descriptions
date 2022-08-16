@@ -1,0 +1,16 @@
+# T5.1.1 small model.
+
+include 'gins/lora/plain/lora_base.gin'  # imports vocab, optimizer and model.
+
+# ------------------- Network specification overrides --------------------------
+lora_network.LoraTransformer.config = @lora_network.LoraT5Config()
+lora_network.LoraT5Config:
+  emb_dim = 512
+  num_heads = 6
+  num_encoder_layers = 8
+  num_decoder_layers = 8
+  head_dim = 64
+  mlp_dim = 1024
+  lora_ranks = (None, None, None, None)
+
+
