@@ -11,6 +11,6 @@ lora_network.LoraT5Config:
   num_decoder_layers = 8
   head_dim = 64
   mlp_dim = 1024
-  lora_ranks = (None, None, None, None)
+  lora_ranks = (4, None, 4, None)
 
 
