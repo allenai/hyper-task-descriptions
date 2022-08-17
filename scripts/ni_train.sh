@@ -13,7 +13,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_file="partial_train_adam.gin" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.utils.DatasetConfig.batch_size=1024 \
+  --gin.BATCH_SIZE=1024 \
   --gin.trainer.Trainer.num_microbatches=32 \
   --gin.utils.DatasetConfig.split=\"train\" \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
