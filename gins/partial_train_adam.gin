@@ -15,7 +15,7 @@ hyper_utils.multi_transform:
   param_labels = @hyper_utils.match_any_optax()
 
 # we only train params that match this regex
-hyper_utils.match_any_optax.regexes = [".*hyper.*"]
+hyper_utils.match_any_optax.regexes = [".*"]
 
 optax.adam:
   learning_rate = @utils.create_learning_rate_scheduler() 
