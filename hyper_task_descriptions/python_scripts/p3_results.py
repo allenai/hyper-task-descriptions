@@ -12,7 +12,7 @@ from google.cloud import storage
 from tqdm import tqdm
 
 client = storage.Client(project="ai2-tpu")
-bucket = client.bucket("hamishi-tpu-bucket")
+bucket = client.bucket("hamishi-us-bucket")
 
 
 # function from:
