@@ -46,6 +46,13 @@ Shape = Iterable[int]
 Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 
+@struct.dataclass
+class LoraT5Config(T5Config):
+    lora_hyper_gen: bool = False
+    lora_ranks: tuple = (2, None, 2, None)
+    add_prefix: bool = False
+
+
 class HyperLoraNet(nn.Module):
     config: HyperT5Config
     shared_embedding: nn.Module
@@ -601,11 +608,12 @@ class LoraDecoder(nn.Module):
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         y = y.astype(cfg.dtype)
 
+        lyr_name = 0
         for lyr in range(
             cfg.num_encoder_layers, cfg.num_encoder_layers + 2 * cfg.num_decoder_layers, 2
         ):
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
-            y = LoraDecoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
+            y = LoraDecoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr_name}")(
                 y,
                 encoded,
                 decoder_mask=decoder_mask,
@@ -624,6 +632,8 @@ class LoraDecoder(nn.Module):
                 decode=decode,
                 max_decode_length=max_decode_length,
             )
+
+            lyr_name += 1
 
         y = layers.LayerNorm(dtype=cfg.dtype, name="decoder_norm")(y)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
@@ -664,13 +674,6 @@ class HyperLoraTransformer(HyperTransformer):
         self.hyper = HyperLoraNet(config=cfg, shared_embedding=self.shared_embedding)
         self.encoder = LoraEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = LoraDecoder(config=cfg, shared_embedding=self.shared_embedding)
-
-
-@struct.dataclass
-class LoraT5Config(T5Config):
-    lora_hyper_gen: bool = False
-    lora_ranks: tuple = (2, None, 2, None)
-    add_prefix: bool = False
 
 
 class LoraTransformer(Transformer):

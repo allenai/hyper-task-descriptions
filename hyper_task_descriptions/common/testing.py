@@ -142,6 +142,39 @@ def get_test_model(
         return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
 
 
+def get_vanilla_test_model(
+    emb_dim,
+    head_dim,
+    num_heads,
+    mlp_dim,
+    dtype="float32",
+    vocab_size=32128,
+    num_encoder_layers=2,
+    num_decoder_layers=2,
+):
+    import seqio
+    from t5x import adafactor
+    from t5x.examples.t5.network import T5Config, Transformer
+    from t5x.models import EncoderDecoderModel
+
+    config = T5Config(
+        num_encoder_layers=num_encoder_layers,
+        num_decoder_layers=num_decoder_layers,
+        vocab_size=vocab_size,
+        dropout_rate=0,
+        emb_dim=emb_dim,
+        num_heads=num_heads,
+        head_dim=head_dim,
+        mlp_dim=mlp_dim,
+        dtype=dtype,
+        mlp_activations=("gelu", "linear"),
+    )
+    module = Transformer(config=config)
+    vocab = seqio.test_utils.sentencepiece_vocab()
+    optimizer_def = adafactor.Adafactor()
+    return EncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+
+
 def get_prng_key(seed: int = 23) -> jax.random.PRNGKeyArray:
     return jax.random.PRNGKey(seed)
 
