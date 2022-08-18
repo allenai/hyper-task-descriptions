@@ -17,6 +17,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
     --gin.utils.DatasetConfig.split=\"test\" \
+    --gin.hyper_network.HyperT5Config.hbottleneck_size=160 \
     --gin.partitioning.PjitPartitioner.num_partitions=8 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
     --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
