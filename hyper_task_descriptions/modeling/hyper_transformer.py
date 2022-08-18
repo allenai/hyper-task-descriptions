@@ -755,6 +755,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
 
 class LoraEncoderDecoderModel(EncoderDecoderModel):
     FEATURE_CONVERTER_CLS = HyperEncDecContFeatureConverter
+
     def get_initial_variables(
         self,
         rng: jax.random.KeyArray,
