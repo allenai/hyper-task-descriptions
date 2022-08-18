@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+from t5x.examples.t5.layers import DenseGeneral, MultiHeadDotProductAttention
 
 from hyper_task_descriptions.common.testing import get_prng_key
 from hyper_task_descriptions.modeling.lora import (
@@ -40,6 +41,14 @@ def test_lora_dense_general():
     output = lora_dense.apply(params, inputs)
     assert output.shape == (batch_size, out_features)
 
+    # Sanity check: lora's init B is zeros. So, the output should
+    # be the same as DenseGeneral.
+    dense = DenseGeneral(out_features)
+    key = get_prng_key(23)
+    dparams = dense.init(key, inputs)
+    doutput = dense.apply(dparams, inputs)
+    assert (output == doutput).all()
+
     lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=True)
     A = jax.random.normal(key, (batch_size, in_features, rank))
     B = jax.random.normal(key, (batch_size, rank, out_features))
@@ -68,3 +77,11 @@ def test_lora_multihead_dot_product_attention():
     assert "lora_a" not in params["params"]["out"]
     output = lora_multihead.apply(params, inputs_q, inputs_kv)
     assert output.shape == (batch_size, q_len, q_features)
+
+    # Sanity check
+    multihead = MultiHeadDotProductAttention(num_heads=num_heads, head_dim=head_dim)
+    key = get_prng_key(23)
+    params = multihead.init(key, inputs_q, inputs_kv)
+
+    moutput = multihead.apply(params, inputs_q, inputs_kv)
+    assert (output == moutput).all()

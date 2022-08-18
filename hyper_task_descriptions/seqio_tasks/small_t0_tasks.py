@@ -15,8 +15,8 @@ t0_train, t0_eval, gsheet = load_t0_csv()
 t0_train["GPT_EVAL"] = []
 t0_train["SGLUE"] = []
 t0_eval["BIAS_FAIRNESS"] = []
-t0_train["BASE"] = t0_train["BASE"][:1] #[("super_glue", "rte"), ("super_glue", "cb")]
-t0_eval["BASE"] = t0_eval["BASE"][:1] #[("super_glue", "rte"), ("super_glue", "cb")]
+t0_train["BASE"] = t0_train["BASE"][:1]  # [("super_glue", "rte"), ("super_glue", "cb")]
+t0_eval["BASE"] = t0_eval["BASE"][:1]  # [("super_glue", "rte"), ("super_glue", "cb")]
 
 # download the dataset infos
 mixtures = create_mixture_lists(t0_train, t0_eval, gsheet)
