@@ -82,9 +82,13 @@ def summarise_ps_results(accuracies: Dict[str, Dict[str, float]]) -> None:
 
 
 def print_all_results(accuracies: Dict[str, Dict[str, float]]) -> None:
+    all_accuracies = []
     for task in accuracies:
         for prompt, score in accuracies[task].items():
             print(f"{task} {prompt} {score:.2f}")
+            all_accuracies.append(score)
+    print()
+    print(f"Average overall accuracy: {sum(all_accuracies) / len(all_accuracies)}")
 
 
 if __name__ == "__main__":
