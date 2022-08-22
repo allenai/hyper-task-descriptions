@@ -14,7 +14,9 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_file="partial_train_adam.gin" \
   --gin_file="lora/lora.gin" \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1114000 \
+  --gin.TRAIN_STEPS=1107000 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
+  --gin.lora_network.LoraT5Config.lora_ranks="(32,None,32,None)" \
+  --gin.utils.create_learning_rate_scheduler.base_learning_rate=1e-5 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000\" \
   --tfds_data_dir="gs://hamishi-us-bucket/t0_data/data"
