@@ -9,12 +9,9 @@ from hyper_task_descriptions.seqio_tasks import small_t0_tasks
 
 import __main__ as train_script
 
-# include "t5x/examples/t5/t5_1_1/tiny.gin"
-# include "t5x/configs/runs/finetune.gin"
-include "gins/finetune_from_scratch.gin"
-include "gins/hyper_tiny.gin"
-include "gins/t0.gin"
-include "gins/partial_train_adam.gin"
+include "t5x/configs/runs/finetune.gin"
+include "gins/t0.gin" # This overrides some default config in `t5x/configs/runs/finetune.gin`
+include "gins/restore_pretrained.gin" # for loading from checkpoints
 
 TASK_FEATURE_LENGTHS = {"inputs": 64, "hyper_inputs": 128, "task_names": 1, "targets": 32}
 MIXTURE_OR_TASK_NAME = "t0_small_train"
