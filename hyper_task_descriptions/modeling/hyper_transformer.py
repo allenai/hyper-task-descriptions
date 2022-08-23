@@ -344,8 +344,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
 
     def _compute_logits_from_slice(
         self,
-        flat_ids: jnp.ndarray,
-        flat_cache: Mapping[str, jnp.ndarray],
+        decoding_state: decoding.DecodingState,
         params: PyTreeDef,
         encoded_inputs: jnp.ndarray,
         adaptations: Dict[str, jnp.ndarray],  # Tuple[jnp.ndarray, ...],
@@ -353,6 +352,8 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         max_decode_length: int,
     ) -> Tuple[jnp.ndarray, Mapping[str, jnp.ndarray]]:
         """Token slice to logits from decoder model."""
+        flat_ids = decoding_state.cur_token
+        flat_cache = decoding_state.cache
         # flat_ids: [batch * beam, seq_len=1]
         # cache is expanded inside beam_search to become flat_cache
         # flat_cache: [batch * beam, num_heads, depth_per_head, max_decode_len]
@@ -480,7 +481,10 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             self.module.apply(
                 {"params": params},
                 inputs,
-                adapters=adaptations,
+                adapters={
+                    key: val for key, val in adaptations.items() if not key.endswith("_cc")
+                },  # TODO: make this cleaner
+                # *adaptations[:-2],  # no *cc adaptations
                 enable_dropout=False,
                 method=self.module.encode,
             ),

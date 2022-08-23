@@ -30,7 +30,11 @@ from transformers.models.roberta.modeling_flax_roberta import (
 )
 from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
+from hyper_task_descriptions.modeling.layers import (
+    MlpBlock,
+    MultiHeadDotProductAttentionWithPrefix,
+    SimpleLinear,
+)
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
@@ -48,6 +52,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 @struct.dataclass
 class HyperT5Config(T5Config):
     add_adapters: bool = True
+    use_prefix: bool = True
     layer_embed_size: int = 10
     adapter_size: int = 64
     hbottleneck_size: int = 128
@@ -105,58 +110,103 @@ class Hypernet(nn.Module):
             dtype=cfg.dtype,
             name="contrastive_head",
         )
-        self.adapter_down_gen = SimpleLinear(
-            output_dim=cfg.emb_dim * cfg.adapter_size,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
-            name="adapter_down_mlp",
-        )
-        self.adapter_up_gen = SimpleLinear(
-            output_dim=cfg.emb_dim * cfg.adapter_size,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
-            name="adapter_up_mlp",
-        )
-        self.adapter_bias_down_gen = SimpleLinear(
-            output_dim=cfg.adapter_size,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
-            name="adapter_bias_down_mlp",
-        )
-        self.adapter_bias_up_gen = SimpleLinear(
-            output_dim=cfg.emb_dim,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            kernel_init=nn.initializers.variance_scaling(1e-18, "fan_avg", "uniform"),
-            name="adapter_bias_up_mlp",
-        )
-        self.prefix_key_gen = SimpleLinear(
-            output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            name="prefix_key_mlp",
-        )
-        self.prefix_value_gen = SimpleLinear(
-            output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            act_fn="linear",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("mlp", "embed"),
-            name="prefix_value_mlp",
-        )
+        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
+        self.adapter_down_gen = [
+            SimpleLinear(
+                output_dim=cfg.emb_dim * cfg.adapter_size,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"adapter_down_mlp_{i}",
+            )
+            for i in range(total_layers)
+        ]
+        self.adapter_up_gen = [
+            SimpleLinear(
+                output_dim=cfg.emb_dim * cfg.adapter_size,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"adapter_up_mlp_{i}",
+            )
+            for i in range(total_layers)
+        ]
+        self.adapter_bias_down_gen = [
+            SimpleLinear(
+                output_dim=cfg.adapter_size,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"adapter_bias_down_mlp_{i}",
+                dropout_rate=cfg.dropout_rate,
+            )
+            for i in range(total_layers)
+        ]
+        self.adapter_bias_up_gen = [
+            SimpleLinear(
+                output_dim=cfg.emb_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"adapter_bias_up_mlp_{i}",
+                dropout_rate=cfg.dropout_rate,
+            )
+            for i in range(total_layers)
+        ]
+        self.prefix_key_gen = [
+            SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"prefix_key_mlp_{i}",
+                dropout_rate=cfg.dropout_rate,
+            )
+            for i in range(total_layers)
+        ]
+        self.prefix_value_gen = [
+            SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"prefix_value_mlp_{i}",
+                dropout_rate=cfg.dropout_rate,
+            )
+            for i in range(total_layers)
+        ]
+        self.prefix_key_gen_cc = [
+            SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"prefix_key_cc_mlp_{i}",
+                dropout_rate=cfg.dropout_rate,
+            )
+            for i in range(total_layers)
+        ]
+        self.prefix_value_gen_cc = [
+            SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                kernel_init=nn.initializers.normal(0.02),
+                name=f"prefix_value_cc_mlp_{i}",
+                dropout_rate=cfg.dropout_rate,
+            )
+            for i in range(total_layers)
+        ]
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -173,41 +223,77 @@ class Hypernet(nn.Module):
         # save pooled output for later (eg contrastive training)
         contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
         self.sow("intermediates", "features", contrastive_output)
-        # add the layer embeddings, and pass through a single mlp layer
-        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
-        embeds = jnp.arange(total_layers)
-        embeds = self.embedder[embeds][
-            None,
-        ]
-        embeddings = jnp.repeat(embeds, sum_embeds.shape[0], axis=0)
+        # no layer embeddings for now.
+        # # add the layer embeddings, and pass through a single mlp layer
+        # total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
+        # embeds = jnp.arange(total_layers)
+        # embeds = self.embedder[embeds][
+        #     None,
+        # ]
+        # embeddings = jnp.repeat(embeds, sum_embeds.shape[0], axis=0)
 
-        hyper_input = jnp.concatenate(
-            [embeddings, jnp.repeat(sum_embeds[:, None], embeddings.shape[1], axis=1)], axis=-1
-        )
+        # hyper_input = jnp.concatenate(
+        #     [embeddings, jnp.repeat(sum_embeds[:, None], embeddings.shape[1], axis=1)], axis=-1
+        # )
 
         intermediate_embeddings = self.intermediate_embedder(
-            hyper_input, deterministic=deterministic
+            sum_embeds, deterministic=deterministic
         )
-        # generate all our adapters, prefixes, etc.
-        adapter_down = self.adapter_down_gen(intermediate_embeddings, deterministic=deterministic)
-        adapter_down = jnp.reshape(adapter_down, (-1, total_layers, cfg.emb_dim, cfg.adapter_size))
-        adapter_up = self.adapter_up_gen(intermediate_embeddings, deterministic=deterministic)
-        adapter_up = jnp.reshape(adapter_up, (-1, total_layers, cfg.adapter_size, cfg.emb_dim))
-        adapter_bias_down = self.adapter_bias_down_gen(
-            intermediate_embeddings, deterministic=deterministic
-        )
-        adapter_bias_up = self.adapter_bias_up_gen(
-            intermediate_embeddings, deterministic=deterministic
-        )
-        prefix_key = self.prefix_key_gen(intermediate_embeddings, deterministic=deterministic)
-        prefix_key = jnp.reshape(
-            prefix_key, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
-        )
-        prefix_value = self.prefix_value_gen(intermediate_embeddings, deterministic=deterministic)
-        prefix_value = jnp.reshape(
-            prefix_value, (-1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim)
-        )
+        # add the layer embeddings, and pass through a single mlp layer
+        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
 
+        # generate all our adapters, prefixes, etc.
+
+        adapter_downs, adapter_ups, adapter_bias_downs, adapter_bias_ups = [], [], [], []
+        prefix_keys, prefix_values = [], []
+        prefix_keys_cc, prefix_values_cc = [], []
+        for i in range(total_layers):
+            adapter_downs.append(
+                self.adapter_down_gen[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            adapter_downs[-1] = adapter_downs[-1].reshape(-1, cfg.emb_dim, cfg.adapter_size)
+            adapter_ups.append(
+                self.adapter_up_gen[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            adapter_ups[-1] = adapter_ups[-1].reshape(-1, cfg.adapter_size, cfg.emb_dim)
+            adapter_bias_downs.append(
+                self.adapter_bias_down_gen[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            adapter_bias_ups.append(
+                self.adapter_bias_up_gen[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            prefix_keys.append(
+                self.prefix_key_gen[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            prefix_keys[-1] = prefix_keys[-1].reshape(
+                -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+            prefix_values.append(
+                self.prefix_value_gen[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            prefix_values[-1] = prefix_values[-1].reshape(
+                -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+            prefix_keys_cc.append(
+                self.prefix_key_gen_cc[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            prefix_keys_cc[-1] = prefix_keys_cc[-1].reshape(
+                -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+            prefix_values_cc.append(
+                self.prefix_value_gen_cc[i](intermediate_embeddings, deterministic=deterministic)
+            )
+            prefix_values_cc[-1] = prefix_values_cc[-1].reshape(
+                -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+        adapter_down = jnp.stack(adapter_downs, axis=1)
+        adapter_up = jnp.stack(adapter_ups, axis=1)
+        adapter_bias_down = jnp.stack(adapter_bias_downs, axis=1)
+        adapter_bias_up = jnp.stack(adapter_bias_ups, axis=1)
+        prefix_key = jnp.stack(prefix_keys, axis=1)
+        prefix_value = jnp.stack(prefix_values, axis=1)
+        prefix_key_cc = jnp.stack(prefix_keys_cc, axis=1)
+        prefix_value_cc = jnp.stack(prefix_values_cc, axis=1)
         return {
             "adapter_wd": adapter_down,
             "adapter_wu": adapter_up,
@@ -215,6 +301,8 @@ class Hypernet(nn.Module):
             "adapter_bu": adapter_bias_up,
             "prefix_key": prefix_key,
             "prefix_value": prefix_value,
+            "prefix_key_cc": prefix_key_cc,
+            "prefix_value_cc": prefix_value_cc,
         }
 
 
@@ -247,14 +335,15 @@ class HyperEncoderLayer(nn.Module):
         assert inputs.ndim == 3
         x = layers.LayerNorm(dtype=cfg.dtype, name="pre_attention_layer_norm")(inputs)
         # [batch, length, emb_dim] -> [batch, length, emb_dim]
-        x = layers.MultiHeadDotProductAttention(
+        x = MultiHeadDotProductAttentionWithPrefix(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="attention",
-        )(x, x, encoder_mask, encoder_bias, deterministic=deterministic)
+            use_prefix=cfg.use_prefix,
+        )(x, x, prefix_key, prefix_value, encoder_mask, encoder_bias, deterministic=deterministic)
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
 
@@ -310,6 +399,8 @@ class HyperDecoderLayer(nn.Module):
         adapter_bu=None,
         prefix_key=None,
         prefix_value=None,
+        prefix_key_cc=None,
+        prefix_value_cc=None,
         decoder_mask=None,
         encoder_decoder_mask=None,
         deterministic=False,
@@ -326,16 +417,19 @@ class HyperDecoderLayer(nn.Module):
         x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
 
         # Self-attention block
-        x = layers.MultiHeadDotProductAttention(
+        x = MultiHeadDotProductAttentionWithPrefix(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="self_attention",
+            use_prefix=cfg.use_prefix,
         )(
             x,
             x,
+            prefix_key,
+            prefix_value,
             decoder_mask,
             decoder_bias,
             deterministic=deterministic,
@@ -346,14 +440,22 @@ class HyperDecoderLayer(nn.Module):
 
         # Encoder-Decoder block.
         y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
-        y = layers.MultiHeadDotProductAttention(
+        y = MultiHeadDotProductAttentionWithPrefix(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="encoder_decoder_attention",
-        )(y, encoded, encoder_decoder_mask, deterministic=deterministic)
+            use_prefix=cfg.use_prefix,
+        )(
+            y,
+            encoded,
+            prefix_key_cc,
+            prefix_value_cc,
+            encoder_decoder_mask,
+            deterministic=deterministic,
+        )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         y = y + x
 
@@ -459,6 +561,8 @@ class HyperDecoder(nn.Module):
         adapter_bu=None,
         prefix_key=None,
         prefix_value=None,
+        prefix_key_cc=None,
+        prefix_value_cc=None,
         decoder_positions=None,
         decoder_mask=None,
         encoder_decoder_mask=None,
@@ -494,6 +598,8 @@ class HyperDecoder(nn.Module):
                 adapter_bu=adapter_bu[:, cfg.num_encoder_layers + lyr],
                 prefix_key=prefix_key[:, cfg.num_encoder_layers + lyr],
                 prefix_value=prefix_value[:, cfg.num_encoder_layers + lyr],
+                prefix_key_cc=prefix_key_cc[:, cfg.num_encoder_layers + lyr],
+                prefix_value_cc=prefix_value_cc[:, cfg.num_encoder_layers + lyr],
                 encoder_decoder_mask=encoder_decoder_mask,
                 deterministic=deterministic,
                 decode=decode,
@@ -564,9 +670,10 @@ class HyperTransformer(nn.Module):
                 ),
             )
 
+        adapters_ = {key: val for key, val in adapters.items() if not key.endswith("_cc")}
         return self.encoder(
             encoder_input_tokens,
-            **adapters,
+            **adapters_,
             encoder_mask=encoder_mask,
             deterministic=not enable_dropout,
         )
