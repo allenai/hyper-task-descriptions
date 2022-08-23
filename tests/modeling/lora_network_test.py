@@ -9,12 +9,12 @@ from hyper_task_descriptions.common.testing import (
     get_test_model,
     get_vanilla_test_model,
 )
+from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
 from hyper_task_descriptions.modeling.lora_network import (
     LoraDecoder,
     LoraDecoderLayer,
     LoraEncoder,
     LoraEncoderLayer,
-    LoraT5Config,
     LoraTransformer,
 )
 
@@ -38,7 +38,7 @@ class NetworkTest(parameterized.TestCase):
             "decoder_target_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
         }
 
-        self.lora_config = LoraT5Config(
+        self.lora_config = HyperT5Config(
             emb_dim=13,
             head_dim=16,
             num_heads=8,
@@ -51,6 +51,7 @@ class NetworkTest(parameterized.TestCase):
             mlp_activations=("gelu", "linear"),
             lora_ranks=(4, None, 4, None),
             lora_hyper_gen=False,
+            use_prefix=False,
         )
 
         self.vanilla_config = T5Config(
@@ -207,7 +208,7 @@ class NetworkTest(parameterized.TestCase):
             "decoder_target_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
         }
 
-        config = LoraT5Config(
+        config = HyperT5Config(
             emb_dim=13,
             head_dim=16,
             num_heads=8,
@@ -220,6 +221,7 @@ class NetworkTest(parameterized.TestCase):
             mlp_activations=("gelu", "linear"),
             lora_ranks=(4, None, 4, None),
             lora_hyper_gen=False,
+            use_prefix=False,
         )
 
         encoder_shape = self.input_shapes["encoder_input_tokens"]

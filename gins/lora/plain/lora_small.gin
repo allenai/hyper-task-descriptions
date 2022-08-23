@@ -3,8 +3,8 @@
 include 'gins/lora/plain/lora_base.gin'  # imports vocab, optimizer and model.
 
 # ------------------- Network specification overrides --------------------------
-lora_network.LoraTransformer.config = @lora_network.LoraT5Config()
-lora_network.LoraT5Config:
+lora_network.LoraTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
   emb_dim = 512
   num_heads = 6
   num_encoder_layers = 8

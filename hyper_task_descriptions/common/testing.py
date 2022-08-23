@@ -63,6 +63,7 @@ def get_test_model(
     num_decoder_layers=2,
     lora_hyper_gen=False,
     lora_ranks=(4, None, 4, None),
+    use_prefix=False,
     do_lora=False,  # TODO: tmp until both configs are merged.
 ):
     import seqio
@@ -80,7 +81,6 @@ def get_test_model(
     if do_lora:
         from hyper_task_descriptions.modeling.lora_network import (
             HyperLoraTransformer,
-            LoraT5Config,
             LoraTransformer,
         )
 
@@ -104,7 +104,7 @@ def get_test_model(
             optimizer_def = adafactor.Adafactor()
             return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
         else:
-            config = LoraT5Config(
+            config = HyperT5Config(
                 num_encoder_layers=num_encoder_layers,
                 num_decoder_layers=num_decoder_layers,
                 vocab_size=vocab_size,
@@ -117,6 +117,7 @@ def get_test_model(
                 mlp_activations=("gelu", "linear"),
                 lora_hyper_gen=lora_hyper_gen,
                 lora_ranks=lora_ranks,
+                use_prefix=use_prefix,
             )
             module = LoraTransformer(config=config)
             vocab = seqio.test_utils.sentencepiece_vocab()
