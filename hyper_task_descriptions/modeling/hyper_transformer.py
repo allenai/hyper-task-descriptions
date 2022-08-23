@@ -8,6 +8,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Mapping,
     MutableMapping,
     Optional,
@@ -33,6 +34,7 @@ from t5x.utils import override_params_axes_names
 from transformers import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
+from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
 from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
 from hyper_task_descriptions.modeling.roberta_partitioning import (
     roberta_axes_names_override,
@@ -290,10 +292,13 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
         )
 
+        override_param_axes = roberta_axes_names_override
+        # TODO: override this in lora_network
+        # TODO: don't do this for every case.
+
+        override_param_axes += lora_axes_names_override
         #  roberta has no partitions, so we add that here.
-        initial_variables = override_params_axes_names(
-            initial_variables, roberta_axes_names_override
-        )
+        initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model
         initial_variables = unfreeze(initial_variables)
         roberta_params = FlaxRobertaModel.from_pretrained(
@@ -342,7 +347,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         decoding_state: decoding.DecodingState,
         params: PyTreeDef,
         encoded_inputs: jnp.ndarray,
-        adaptations: Tuple[jnp.ndarray, ...],
+        adaptations: Dict[str, jnp.ndarray],  # Tuple[jnp.ndarray, ...],
         raw_inputs: jnp.ndarray,
         max_decode_length: int,
     ) -> Tuple[jnp.ndarray, Mapping[str, jnp.ndarray]]:
@@ -359,14 +364,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             raw_inputs,  # only needed for encoder padding mask
             flat_ids,
             flat_ids,
-            adapter_wd=adaptations[0],
-            adapter_wu=adaptations[1],
-            adapter_bd=adaptations[2],
-            adapter_bu=adaptations[3],
-            prefix_key=adaptations[4],
-            prefix_value=adaptations[5],
-            prefix_key_cc=adaptations[6],
-            prefix_value_cc=adaptations[7],
+            adapters=adaptations,
             enable_dropout=False,
             decode=True,
             max_decode_length=max_decode_length,
@@ -466,7 +464,10 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
 
-        batch_adaptions = [decoding.flat_batch_beam_expand(a, num_decodes) for a in adaptations]
+        batch_adaptions = {
+            a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None
+            for a_name, a in adaptations.items()
+        }
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
         # need to set up our decoder model to handle a batch size equal to
@@ -480,7 +481,10 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             self.module.apply(
                 {"params": params},
                 inputs,
-                *adaptations[:-2],  # no *cc adaptations
+                adapters={
+                    key: val for key, val in adaptations.items() if not key.endswith("_cc")
+                },  # TODO: make this cleaner
+                # *adaptations[:-2],  # no *cc adaptations
                 enable_dropout=False,
                 method=self.module.encode,
             ),
@@ -751,3 +755,20 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
                 }
             )
         return metrics
+
+
+class LoraEncoderDecoderModel(EncoderDecoderModel):
+    FEATURE_CONVERTER_CLS = HyperEncDecContFeatureConverter
+
+    def get_initial_variables(
+        self,
+        rng: jax.random.KeyArray,
+        input_shapes: Mapping[str, Array],
+        input_types: Optional[Mapping[str, jnp.dtype]] = None,
+    ) -> flax_scope.FrozenVariableDict:
+        initial_variables = super().get_initial_variables(rng, input_shapes, input_types)
+
+        # Add lora partitions
+        override_param_axes = lora_axes_names_override
+        initial_variables = override_params_axes_names(initial_variables, override_param_axes)
+        return initial_variables
