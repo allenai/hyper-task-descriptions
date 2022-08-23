@@ -330,7 +330,11 @@ class NetworkTest(parameterized.TestCase):
         vloss, _ = vmodel.loss_fn(vparams, batch, jax.random.PRNGKey(1))
         self.assertAlmostEqual(vloss, 12.66808, delta=0.05)
 
-    def test_t5_1_1_hyper_lora(self):
+    @parameterized.named_parameters(
+        dict(testcase_name="no_use_prefix", use_prefix=False),
+        dict(testcase_name="use_prefix", use_prefix=True),
+    )
+    def test_t5_1_1_hyper_lora(self, use_prefix: bool):
         np.random.seed(0)
         batch_size, max_decode_len, input_len, hyper_input_len = 2, 3, 4, 5
         batch = {
@@ -352,15 +356,15 @@ class NetworkTest(parameterized.TestCase):
             do_lora=True,
             lora_hyper_gen=True,
             lora_ranks=(4, None, 4, None),
-            use_prefix=False,
+            use_prefix=use_prefix,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
 
         assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["query"]
-        assert "lora_qa_gen" in params["hyper"]
-        assert "lora_ka_gen" not in params["hyper"]
-        assert "lora_va_gen" in params["hyper"]
-        assert "lora_oa_gen" not in params["hyper"]
+        assert "lora_qa_gen_0" in params["hyper"]
+        assert "lora_ka_gen_0" not in params["hyper"]
+        assert "lora_va_gen_0" in params["hyper"]
+        assert "lora_oa_gen_1" not in params["hyper"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         self.assertAlmostEqual(loss, 15.268721, delta=0.05)
