@@ -352,6 +352,7 @@ class NetworkTest(parameterized.TestCase):
             do_lora=True,
             lora_hyper_gen=True,
             lora_ranks=(4, None, 4, None),
+            use_prefix=False,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
 

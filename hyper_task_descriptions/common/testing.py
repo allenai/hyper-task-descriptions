@@ -98,6 +98,7 @@ def get_test_model(
                 mlp_activations=("gelu", "linear"),
                 lora_hyper_gen=lora_hyper_gen,
                 lora_ranks=lora_ranks,
+                use_prefix=use_prefix,
             )
             module = HyperLoraTransformer(config=config)
             vocab = seqio.test_utils.sentencepiece_vocab()

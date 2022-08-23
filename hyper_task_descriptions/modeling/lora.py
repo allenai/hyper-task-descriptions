@@ -188,7 +188,7 @@ class LoraDenseGeneral(nn.Module):
             )
 
 
-class LoraMultiHeadDotProductAttention(nn.Module):
+class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
     """Multi-head dot-product attention.
 
     Attributes:
@@ -210,6 +210,7 @@ class LoraMultiHeadDotProductAttention(nn.Module):
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
     float32_logits: bool = False  # computes logits in float32 for stability.
     lora_ranks: tuple = (4, None, 4, None)
+    use_prefix: bool = False
 
     @nn.compact
     def __call__(
@@ -226,6 +227,8 @@ class LoraMultiHeadDotProductAttention(nn.Module):
         lora_vb: Optional[NumArray] = None,
         lora_oa: Optional[NumArray] = None,
         lora_ob: Optional[NumArray] = None,
+        prefix_key: Optional[NumArray] = None,
+        prefix_value: Optional[NumArray] = None,
         *,
         decode: bool = False,
         deterministic: bool = False
@@ -390,6 +393,14 @@ class LoraMultiHeadDotProductAttention(nn.Module):
                         jnp.squeeze(bias, axis=0), jnp.reshape(cur_index, (-1)), 1, -2
                     )
 
+        # CHANGE from t5x
+        # ADD PREFIXES ###
+        # key has dim [batch, len, num_heads, head_dim], and we add prefixes
+        if self.use_prefix:
+            key = jnp.concatenate([prefix_key, key], axis=1)
+            value = jnp.concatenate([prefix_value, value], axis=1)
+        ####################
+
         # Convert the boolean attention mask to an attention bias.
         if mask is not None:
             # attention mask in the form of attention bias
@@ -404,6 +415,19 @@ class LoraMultiHeadDotProductAttention(nn.Module):
         # Add provided bias term (e.g. relative position embedding).
         if bias is not None:
             attention_bias = combine_biases(attention_bias, bias)
+
+        # CHANGE from t5x
+        # PREFIX CHANGE
+        # Avoid attention bias affecting the prefixes by prepending 0s
+        # attention_bias has shape [batch, num_heads, q_length, kv_length]
+        if attention_bias is not None and self.use_prefix:
+            num_prefix_toks = prefix_key.shape[1]  # type: ignore
+            batch, num_heads, q_length, _ = attention_bias.shape
+            attention_bias = jnp.concatenate(
+                [jnp.empty((batch, num_heads, q_length, num_prefix_toks)), attention_bias],
+                axis=-1,
+            )
+        ###
 
         dropout_rng = None
         if not deterministic and self.dropout_rate > 0.0:
