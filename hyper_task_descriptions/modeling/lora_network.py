@@ -19,8 +19,6 @@ from typing import Callable, Iterable
 
 import jax.numpy as jnp
 from flax import linen as nn
-
-# from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from t5x.examples.t5 import layers
 from t5x.examples.t5.network import Transformer
@@ -32,7 +30,9 @@ from hyper_task_descriptions.modeling.hyper_network import (
     HyperTransformer,
 )
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
-from hyper_task_descriptions.modeling.lora import LoraMultiHeadDotProductAttention
+from hyper_task_descriptions.modeling.lora import (
+    LoraMultiHeadDotProductAttentionWithPrefix,
+)
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
@@ -45,13 +45,6 @@ PRNGKey: TypeAlias = jnp.ndarray
 Shape = Iterable[int]
 # Parameter initializers.
 Initializer = Callable[[PRNGKey, Shape, DType], Array]
-
-
-# @struct.dataclass
-# class LoraT5Config(T5Config):
-#     lora_hyper_gen: bool = False
-#     lora_ranks: tuple = (2, None, 2, None)
-#     use_prefix: bool = False
 
 
 class HyperLoraNet(nn.Module):
@@ -315,6 +308,8 @@ class HyperLoraNet(nn.Module):
             "lora_ob": lora_ob,
             "prefix_key": prefix_key,
             "prefix_value": prefix_value,
+            "prefix_key_cc": None,
+            "prefix_value_cc": None,
         }
 
 
@@ -351,7 +346,7 @@ class LoraEncoderLayer(nn.Module):
         assert inputs.ndim == 3
         x = layers.LayerNorm(dtype=cfg.dtype, name="pre_attention_layer_norm")(inputs)
         # [batch, length, emb_dim] -> [batch, length, emb_dim]
-        x = LoraMultiHeadDotProductAttention(
+        x = LoraMultiHeadDotProductAttentionWithPrefix(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
@@ -373,6 +368,8 @@ class LoraEncoderLayer(nn.Module):
             lora_vb=lora_vb,
             lora_oa=lora_oa,
             lora_ob=lora_ob,
+            prefix_key=prefix_key,
+            prefix_value=prefix_value,
             deterministic=deterministic,
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
@@ -415,6 +412,8 @@ class LoraDecoderLayer(nn.Module):
         lora_ob=None,
         prefix_key=None,
         prefix_value=None,
+        prefix_key_cc=None,
+        prefix_value_cc=None,
         decoder_mask=None,
         encoder_decoder_mask=None,
         deterministic=False,
@@ -432,7 +431,7 @@ class LoraDecoderLayer(nn.Module):
         x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
 
         # Self-attention block
-        x = LoraMultiHeadDotProductAttention(
+        x = LoraMultiHeadDotProductAttentionWithPrefix(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
@@ -454,6 +453,8 @@ class LoraDecoderLayer(nn.Module):
             lora_vb=lora_vb[:, 0] if v_rank else None,
             lora_oa=lora_oa[:, 0] if o_rank else None,
             lora_ob=lora_ob[:, 0] if o_rank else None,
+            prefix_key=prefix_key if cfg.use_prefix else None,
+            prefix_value=prefix_value if cfg.use_prefix else None,
             deterministic=deterministic,
             decode=decode,
         )
@@ -462,7 +463,7 @@ class LoraDecoderLayer(nn.Module):
 
         # Encoder-Decoder block.
         y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
-        y = LoraMultiHeadDotProductAttention(
+        y = LoraMultiHeadDotProductAttentionWithPrefix(
             num_heads=cfg.num_heads,
             dtype=cfg.dtype,
             head_dim=cfg.head_dim,
@@ -483,6 +484,8 @@ class LoraDecoderLayer(nn.Module):
             lora_vb=lora_vb[:, 1] if v_rank else None,
             lora_oa=lora_oa[:, 1] if o_rank else None,
             lora_ob=lora_ob[:, 1] if o_rank else None,
+            prefix_key=prefix_key_cc if cfg.use_prefix else None,
+            prefix_value=prefix_value_cc if cfg.use_prefix else None,
             deterministic=deterministic,
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
@@ -585,6 +588,8 @@ class LoraDecoder(nn.Module):
         lora_ob=None,
         prefix_key=None,
         prefix_value=None,
+        prefix_key_cc=None,
+        prefix_value_cc=None,
         decoder_positions=None,
         decoder_mask=None,
         encoder_decoder_mask=None,
@@ -628,6 +633,8 @@ class LoraDecoder(nn.Module):
                 lora_ob=lora_ob[:, lyr : lyr + 2] if o_rank else None,
                 prefix_key=prefix_key[:, lyr] if cfg.use_prefix else None,
                 prefix_value=prefix_value[:, lyr] if cfg.use_prefix else None,
+                prefix_key_cc=prefix_key_cc[:, lyr] if cfg.use_prefix else None,
+                prefix_value_cc=prefix_value_cc[:, lyr] if cfg.use_prefix else None,
                 encoder_decoder_mask=encoder_decoder_mask,
                 deterministic=deterministic,
                 decode=decode,
