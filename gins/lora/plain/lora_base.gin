@@ -50,8 +50,8 @@ hyper_transformer.LoraEncoderDecoderModel:
   loss_normalizing_factor = %LOSS_NORMALIZING_FACTOR
 
 # ------------------- Network specification ------------------------------------
-lora_network.LoraTransformer.config = @lora_network.LoraT5Config()
-lora_network.LoraT5Config:
+lora_network.LoraTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
   vocab_size = 32128  # vocab size rounded to a multiple of 128 for TPU efficiency
   dtype = 'bfloat16'
   emb_dim = 768
@@ -65,6 +65,7 @@ lora_network.LoraT5Config:
   logits_via_embedding = False
   lora_hyper_gen = False
   lora_ranks = (2, None, 2, None)
+  use_prefix = False
 
 hyper_utils.match_any_optax.regexes = [".*lora*.*"]
 

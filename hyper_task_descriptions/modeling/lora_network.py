@@ -19,10 +19,11 @@ from typing import Callable, Iterable
 
 import jax.numpy as jnp
 from flax import linen as nn
-from flax import struct
+
+# from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config, Transformer
+from t5x.examples.t5.network import Transformer
 from transformers.models.roberta.modeling_flax_roberta import FlaxRobertaModel
 from typing_extensions import TypeAlias
 
@@ -46,11 +47,11 @@ Shape = Iterable[int]
 Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 
-@struct.dataclass
-class LoraT5Config(T5Config):
-    lora_hyper_gen: bool = False
-    lora_ranks: tuple = (2, None, 2, None)
-    add_prefix: bool = False
+# @struct.dataclass
+# class LoraT5Config(T5Config):
+#     lora_hyper_gen: bool = False
+#     lora_ranks: tuple = (2, None, 2, None)
+#     use_prefix: bool = False
 
 
 class HyperLoraNet(nn.Module):
@@ -185,9 +186,9 @@ class HyperLoraNet(nn.Module):
                     name="lora_ob_gen",
                 )
 
-        self.add_prefix = cfg.add_prefix
+        self.use_prefix = cfg.use_prefix
 
-        if self.add_prefix:
+        if self.use_prefix:
             self.prefix_key_gen = SimpleLinear(
                 output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
                 act_fn="linear",
@@ -285,7 +286,7 @@ class HyperLoraNet(nn.Module):
                 None,
             )
 
-        if self.add_prefix:
+        if self.use_prefix:
             # TODO: do we need 2 prefix keys and prefix values for self and cross attn respectively?
             #   If not, need to update embedder.
             #   Looks like we aren't using it yet?
@@ -555,8 +556,8 @@ class LoraEncoder(nn.Module):
                 lora_vb=lora_vb[:, lyr] if v_rank else None,
                 lora_oa=lora_oa[:, lyr] if o_rank else None,
                 lora_ob=lora_ob[:, lyr] if o_rank else None,
-                prefix_key=prefix_key[:, lyr] if cfg.add_prefix else None,
-                prefix_value=prefix_value[:, lyr] if cfg.add_prefix else None,
+                prefix_key=prefix_key[:, lyr] if cfg.use_prefix else None,
+                prefix_value=prefix_value[:, lyr] if cfg.use_prefix else None,
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
@@ -625,8 +626,8 @@ class LoraDecoder(nn.Module):
                 lora_vb=lora_vb[:, lyr : lyr + 2] if v_rank else None,
                 lora_oa=lora_oa[:, lyr : lyr + 2] if o_rank else None,
                 lora_ob=lora_ob[:, lyr : lyr + 2] if o_rank else None,
-                prefix_key=prefix_key[:, lyr] if cfg.add_prefix else None,
-                prefix_value=prefix_value[:, lyr] if cfg.add_prefix else None,
+                prefix_key=prefix_key[:, lyr] if cfg.use_prefix else None,
+                prefix_value=prefix_value[:, lyr] if cfg.use_prefix else None,
                 encoder_decoder_mask=encoder_decoder_mask,
                 deterministic=deterministic,
                 decode=decode,
