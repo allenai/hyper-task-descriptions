@@ -61,6 +61,8 @@ class HyperT5Config(T5Config):
     roberta_max_position_embeddings: int = 520
     roberta_type_vocab_size: int = 8
     roberta_vocab_size: int = 50272
+    lora_hyper_gen: bool = False
+    lora_ranks: tuple = (2, None, 2, None)
 
 
 class Hypernet(nn.Module):
@@ -240,6 +242,7 @@ class Hypernet(nn.Module):
         total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
 
         # generate all our adapters, prefixes, etc.
+
         adapter_downs, adapter_ups, adapter_bias_downs, adapter_bias_ups = [], [], [], []
         prefix_keys, prefix_values = [], []
         prefix_keys_cc, prefix_values_cc = [], []
@@ -290,16 +293,16 @@ class Hypernet(nn.Module):
         prefix_value = jnp.stack(prefix_values, axis=1)
         prefix_key_cc = jnp.stack(prefix_keys_cc, axis=1)
         prefix_value_cc = jnp.stack(prefix_values_cc, axis=1)
-        return (
-            adapter_down,
-            adapter_up,
-            adapter_bias_down,
-            adapter_bias_up,
-            prefix_key,
-            prefix_value,
-            prefix_key_cc,
-            prefix_value_cc,
-        )
+        return {
+            "adapter_wd": adapter_down,
+            "adapter_wu": adapter_up,
+            "adapter_bd": adapter_bias_down,
+            "adapter_bu": adapter_bias_up,
+            "prefix_key": prefix_key,
+            "prefix_value": prefix_value,
+            "prefix_key_cc": prefix_key_cc,
+            "prefix_value_cc": prefix_value_cc,
+        }
 
 
 class HyperEncoderLayer(nn.Module):
@@ -645,12 +648,7 @@ class HyperTransformer(nn.Module):
     def encode(
         self,
         encoder_input_tokens,
-        awd,
-        awu,
-        bd,
-        bu,
-        pk,
-        pv,
+        adapters,
         encoder_segment_ids=None,
         enable_dropout=True,
     ):
@@ -671,15 +669,11 @@ class HyperTransformer(nn.Module):
                 ),
             )
 
+        adapters_ = {key: val for key, val in adapters.items() if not key.endswith("_cc")}
         return self.encoder(
             encoder_input_tokens,
-            awd,
-            awu,
-            bd,
-            bu,
-            pk,
-            pv,
-            encoder_mask,
+            **adapters_,
+            encoder_mask=encoder_mask,
             deterministic=not enable_dropout,
         )
 
@@ -693,14 +687,7 @@ class HyperTransformer(nn.Module):
         encoder_input_tokens,  # only needed for masks
         decoder_input_tokens,
         decoder_target_tokens,
-        adapter_wd=None,
-        adapter_wu=None,
-        adapter_bd=None,
-        adapter_bu=None,
-        prefix_key=None,
-        prefix_value=None,
-        prefix_key_cc=None,
-        prefix_value_cc=None,
+        adapters=None,
         encoder_segment_ids=None,
         decoder_segment_ids=None,
         decoder_positions=None,
@@ -710,6 +697,8 @@ class HyperTransformer(nn.Module):
     ):
         """Applies Transformer decoder-branch on encoded-input and target."""
         cfg = self.config
+
+        adapters = adapters or {}
 
         # Make padding attention masks.
         if decode:
@@ -747,14 +736,7 @@ class HyperTransformer(nn.Module):
         logits = self.decoder(
             encoded,
             decoder_input_tokens=decoder_input_tokens,
-            adapter_wd=adapter_wd,
-            adapter_wu=adapter_wu,
-            adapter_bd=adapter_bd,
-            adapter_bu=adapter_bu,
-            prefix_key=prefix_key,
-            prefix_value=prefix_value,
-            prefix_key_cc=prefix_key_cc,
-            prefix_value_cc=prefix_value_cc,
+            **adapters,
             decoder_positions=decoder_positions,
             decoder_mask=decoder_mask,
             encoder_decoder_mask=encoder_decoder_mask,
@@ -795,24 +777,17 @@ class HyperTransformer(nn.Module):
           decoder_segment_ids: decoder segmentation info for packed examples.
           encoder_positions: encoder subsequence positions for packed examples.
           decoder_positions: decoder subsequence positions for packed examples.
-          enable_dropout: Ensables dropout if set to True.
+          enable_dropout: Enables dropout if set to True.
           decode: Whether to prepare and use an autoregressive cache.
 
         Returns:
           logits array from full transformer.
         """
         # generate adapters
-        awd, awu, bd, bu, pk, pv, pkcc, pvcc = self.hyperencode(
-            hyper_encoder_input_tokens, enable_dropout=enable_dropout
-        )
+        adapters = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         encoded = self.encode(
             encoder_input_tokens,
-            awd,
-            awu,
-            bd,
-            bu,
-            pk,
-            pv,
+            adapters=adapters,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
         )
@@ -822,14 +797,7 @@ class HyperTransformer(nn.Module):
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
-            adapter_wd=awd,
-            adapter_wu=awu,
-            adapter_bd=bd,
-            adapter_bu=bu,
-            prefix_key=pk,
-            prefix_value=pv,
-            prefix_key_cc=pkcc,
-            prefix_value_cc=pvcc,
+            adapters=adapters,
             encoder_segment_ids=encoder_segment_ids,
             decoder_segment_ids=decoder_segment_ids,
             decoder_positions=decoder_positions,

@@ -536,7 +536,16 @@ class TestHyperEncoderDecoderModel(parameterized.TestCase):
 
             def hyperencode(self):
                 # TODO: confirm
-                return jnp.zeros((batch_size, hyper_encoder_len))
+                return {
+                    "adapter_wd": jnp.zeros((batch_size, hyper_encoder_len)),
+                    "adapter_wu": jnp.zeros((batch_size, hyper_encoder_len)),
+                    "adapter_bd": jnp.zeros((batch_size, hyper_encoder_len)),
+                    "adapter_bu": jnp.zeros((batch_size, hyper_encoder_len)),
+                    "prefix_key": jnp.zeros((batch_size, hyper_encoder_len)),
+                    "prefix_value": jnp.zeros((batch_size, hyper_encoder_len)),
+                    "prefix_key_cc": jnp.zeros((batch_size, hyper_encoder_len)),
+                    "prefix_value_cc": jnp.zeros((batch_size, hyper_encoder_len)),
+                }
 
         def mock_init(self):
             self.module = MockModule()
