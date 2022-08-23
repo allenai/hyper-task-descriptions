@@ -10,7 +10,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="hyper_xl.gin" \
   --gin_file="t0_train.gin" \
-  --gin_file=hyper_network.HyperT5Config.add_adapters=False \
+  --gin.hyper_network.HyperT5Config.add_adapters=False \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1212200 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
