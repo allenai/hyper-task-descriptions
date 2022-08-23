@@ -489,11 +489,11 @@ class TestHyperEncoderDecoderModel(parameterized.TestCase):
         self.assertFalse(called_with[1]["decode"])
         self.assertFalse(called_with[1]["enable_dropout"])
 
-    # @parameterized.named_parameters(
-    #     dict(testcase_name="no_force_decoding", prompt_with_targets=False),
-    #     dict(testcase_name="force_decoding", prompt_with_targets=True),
-    # )
-    def test_prompt_with_targets(self, prompt_with_targets=False):
+    @parameterized.named_parameters(
+        dict(testcase_name="no_force_decoding", prompt_with_targets=False),
+        dict(testcase_name="force_decoding", prompt_with_targets=True),
+    )
+    def test_prompt_with_targets(self, prompt_with_targets):
         batch_size, encoder_len, max_decode_len, emb_dim, hyper_encoder_len = 2, 3, 4, 5, 2
         batch = {
             "encoder_input_tokens": np.zeros((batch_size, encoder_len), dtype=np.int32),
