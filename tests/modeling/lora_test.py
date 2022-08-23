@@ -6,7 +6,7 @@ from t5x.examples.t5.layers import DenseGeneral, MultiHeadDotProductAttention
 from hyper_task_descriptions.common.testing import get_prng_key
 from hyper_task_descriptions.modeling.lora import (
     LoraDenseGeneral,
-    LoraMultiHeadDotProductAttention,
+    LoraMultiHeadDotProductAttentionWithPrefix,
     lora_linear,
 )
 
@@ -57,7 +57,7 @@ def test_lora_dense_general():
     assert "lora_a" not in params["params"].keys()
 
 
-def test_lora_multihead_dot_product_attention():
+def test_lora_multihead_dot_product_attention_with_prefix():
     batch_size, q_len, q_features, kv_len, kv_features = 3, 4, 5, 6, 7
     num_heads, head_dim = 8, 16
     lora_ranks = (2, None, 2, None)
@@ -65,8 +65,8 @@ def test_lora_multihead_dot_product_attention():
     inputs_q = jnp.array(np.random.randn(batch_size, q_len, q_features))
     inputs_kv = jnp.array(np.random.randn(batch_size, kv_len, kv_features))
 
-    lora_multihead = LoraMultiHeadDotProductAttention(
-        num_heads=num_heads, head_dim=head_dim, lora_ranks=lora_ranks
+    lora_multihead = LoraMultiHeadDotProductAttentionWithPrefix(
+        num_heads=num_heads, head_dim=head_dim, lora_ranks=lora_ranks, use_prefix=False
     )
     key = get_prng_key(23)
     params = lora_multihead.init(key, inputs_q, inputs_kv)
