@@ -18,7 +18,9 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin.utils.DatasetConfig.split=\"train\" \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1106000 \
-  --gin.hyper_network.HyperT5Config.hbottleneck_size=200 \
+  --gin.hyper_network.HyperT5Config.add_adapters=False \
+    --gin.hyper_network.HyperT5Config.use_prefix=True \
+  --gin.hyper_network.HyperT5Config.hbottleneck_size=128 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\" \
   --tfds_data_dir=\"gs://yizhongw-tpu-bucket/t0_data/data\"
@@ -33,7 +35,9 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
     --gin.utils.DatasetConfig.split=\"test\" \
-    --gin.hyper_network.HyperT5Config.hbottleneck_size=200 \
+    --gin.hyper_network.HyperT5Config.add_adapters=False \
+    --gin.hyper_network.HyperT5Config.use_prefix=True \
+    --gin.hyper_network.HyperT5Config.hbottleneck_size=128 \
     --gin.partitioning.PjitPartitioner.num_partitions=8 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
     --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
