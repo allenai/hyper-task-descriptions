@@ -9,7 +9,8 @@ from hyper_task_descriptions.seqio_tasks import small_t0_tasks
 
 import __main__ as train_script
 
-include "t5x/configs/runs/finetune.gin"
+#include "t5x/configs/runs/finetune.gin"
+include "gins/finetune_from_scratch.gin"
 include "gins/t0.gin" # This overrides some default config in `t5x/configs/runs/finetune.gin`
 include "gins/restore_pretrained.gin" # for loading from checkpoints
 
