@@ -52,7 +52,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 
 @struct.dataclass
 class HyperT5Config(T5Config):
-    add_adapters: bool = True
+    use_adapter: bool = True
     use_prefix: bool = True
     layer_embed_size: int = 10
     adapter_size: int = 64
@@ -111,7 +111,7 @@ class Hypernet(nn.Module):
             name="contrastive_head",
         )
         total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
-        if cfg.add_adapters:
+        if cfg.use_adapter:
             self.adapter_down_gen = [
                 SimpleLinear(
                     output_dim=cfg.emb_dim * cfg.adapter_size,
@@ -279,7 +279,7 @@ class Hypernet(nn.Module):
                     intermediate_embeddings, deterministic=deterministic
                 )
                 prefix_key = prefix_key.reshape(
-                    -1, cfg.num_heads, cfg.num_prefix_tokens, cfg.head_dim
+                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
                 )
                 generated_parameter_dict["prefix_key"].append(prefix_key)
                 # prefix value
@@ -287,7 +287,7 @@ class Hypernet(nn.Module):
                     intermediate_embeddings, deterministic=deterministic
                 )
                 prefix_value = prefix_value.reshape(
-                    -1, cfg.num_heads, cfg.num_prefix_tokens, cfg.head_dim
+                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
                 )
                 generated_parameter_dict["prefix_value"].append(prefix_value)
                 # prefix key cc
@@ -295,7 +295,7 @@ class Hypernet(nn.Module):
                     intermediate_embeddings, deterministic=deterministic
                 )
                 prefix_key_cc = prefix_key_cc.reshape(
-                    -1, cfg.num_heads, cfg.num_prefix_tokens, cfg.head_dim
+                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
                 )
                 generated_parameter_dict["prefix_key_cc"].append(prefix_key_cc)
                 # prefix value cc
@@ -303,13 +303,16 @@ class Hypernet(nn.Module):
                     intermediate_embeddings, deterministic=deterministic
                 )
                 prefix_value_cc = prefix_value_cc.reshape(
-                    -1, cfg.num_heads, cfg.num_prefix_tokens, cfg.head_dim
+                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
                 )
                 generated_parameter_dict["prefix_value_cc"].append(prefix_value_cc)
 
         # stack all generated params by layer
         for k, v in generated_parameter_dict.items():
             generated_parameter_dict[k] = jnp.stack(v, axis=1)
+        import pdb
+
+        pdb.set_trace()
         return generated_parameter_dict
 
 
@@ -366,7 +369,7 @@ class HyperEncoderLayer(nn.Module):
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         # adapter block
-        if cfg.add_adapters:
+        if cfg.use_adapter:
             adapter_y = (
                 lax.batch_matmul(lx, adapter_wd)
                 + adapter_bd[
@@ -477,7 +480,7 @@ class HyperDecoderLayer(nn.Module):
         )(lz, deterministic=deterministic)
         z = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(z, deterministic=deterministic)
         # adapter block
-        if cfg.add_adapters:
+        if cfg.use_adapter:
             adapter_z = (
                 lax.batch_matmul(lz, adapter_wd)
                 + adapter_bd[
