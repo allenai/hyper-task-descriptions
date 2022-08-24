@@ -310,9 +310,6 @@ class Hypernet(nn.Module):
         # stack all generated params by layer
         for k, v in generated_parameter_dict.items():
             generated_parameter_dict[k] = jnp.stack(v, axis=1)
-        import pdb
-
-        pdb.set_trace()
         return generated_parameter_dict
 
 
