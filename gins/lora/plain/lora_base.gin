@@ -1,0 +1,77 @@
+# T5.1.1 Base model.
+from __gin__ import dynamic_registration
+
+import seqio
+from t5x import adafactor
+from t5x import models
+from t5x import utils
+from t5x.examples.t5 import network
+from hyper_task_descriptions.modeling import hyper_network
+from hyper_task_descriptions.modeling import lora_network
+from hyper_task_descriptions import hf_vocab
+from hyper_task_descriptions.modeling import hyper_transformer
+from hyper_task_descriptions import utils as hyper_utils
+
+# ------------------- Loss HParam ----------------------------------------------
+Z_LOSS = 0.0001
+LABEL_SMOOTHING = 0.0
+# NOTE: When fine-tuning the public T5 checkpoints (trained in T5 MeshTF)
+# the loss normalizing factor should be set to pretraining batch_size *
+# target_token_length.
+LOSS_NORMALIZING_FACTOR = None
+# Dropout should be specified in the "run" files
+DROPOUT_RATE = %gin.REQUIRED
+
+# Vocabulary (shared by encoder and decoder)
+VOCABULARY = @hf_vocab.HuggingfaceVocabulary()
+hf_vocab.HuggingfaceVocabulary.model_name = "t5-base"
+#VOCABULARY = @seqio.SentencePieceVocabulary()
+#seqio.SentencePieceVocabulary.sentencepiece_model_file = "gs://t5-data/vocabs/cc_all.32000.100extra/sentencepiece.model"
+
+
+# ------------------- Optimizer ------------------------------------------------
+# `learning_rate` is set by `Trainer.learning_rate_fn`.
+OPTIMIZER = @adafactor.Adafactor()
+adafactor.Adafactor:
+  decay_rate = 0.8
+  step_offset = 0
+  logical_factor_rules = @adafactor.standard_logical_factor_rules()
+#  clipping_threshold = None  # the hypernet updates get *consistently* clipped
+
+# ------------------- Model ----------------------------------------------------
+MODEL = @hyper_transformer.LoraEncoderDecoderModel()
+hyper_transformer.LoraEncoderDecoderModel:
+  module = @lora_network.LoraTransformer()
+  input_vocabulary = %VOCABULARY
+  output_vocabulary = %VOCABULARY
+  optimizer_def = %OPTIMIZER
+  z_loss = %Z_LOSS
+  label_smoothing = %LABEL_SMOOTHING
+  loss_normalizing_factor = %LOSS_NORMALIZING_FACTOR
+
+# ------------------- Network specification ------------------------------------
+lora_network.LoraTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  vocab_size = 32128  # vocab size rounded to a multiple of 128 for TPU efficiency
+  dtype = 'bfloat16'
+  emb_dim = 768
+  num_heads = 12
+  num_encoder_layers = 12
+  num_decoder_layers = 12
+  head_dim = 64
+  mlp_dim = 2048
+  mlp_activations = ('gelu', 'linear')
+  dropout_rate = %DROPOUT_RATE
+  logits_via_embedding = False
+  lora_hyper_gen = False
+  lora_ranks = (2, None, 2, None)
+  use_prefix = False
+
+hyper_utils.match_any_optax.regexes = [".*lora*.*"]
+
+utils.RestoreCheckpointConfig:
+  assignment_map = (
+      #(r"^.*hyper.*$", None),
+      #(r"^.*lora_a.*$", None),
+      #(r"^.*lora_b.*$", None),
+      )

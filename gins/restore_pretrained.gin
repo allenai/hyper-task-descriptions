@@ -25,4 +25,6 @@ utils.RestoreCheckpointConfig:
   # anything not matching not in the checkpoint will cause an error.
   assignment_map = (
       (r"^.*hyper.*$", None),
+      #(r"^.*lora_a.*$", None),
+      #(r"^.*lora_b.*$", None),
       )
