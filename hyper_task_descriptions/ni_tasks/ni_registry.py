@@ -11,10 +11,10 @@ from hyper_task_descriptions.ni_tasks.evaluation import compute_metrics
 from hyper_task_descriptions.ni_tasks.ni_collator import DataCollatorForNI
 
 
-seqio.add_global_cache_dirs(["gs://yizhongw-tpu-bucket/ni_data"])
+seqio.add_global_cache_dirs(["gs://yizhongw-tpu-bucket/ni_data_new/"])
 
 
-def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_instances_per_eval_task, raw_input=True):
+def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_instances_per_eval_task, raw_input, **ni_collator_args):
     # HF datasets does not support file-level shuffling
     del shuffle_files, seed
     dataset = load_dataset(
@@ -28,15 +28,7 @@ def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_
     # if not raw_input, we will use the following collator to add definition and examples to the input, as we did for Tk-Instruct.
     if not raw_input:           
         data_collator = DataCollatorForNI(
-            tokenizer=transformers.AutoTokenizer.from_pretrained("t5-base"),
-            model=None,
-            max_source_length=1024,
-            max_target_length=512,
-            add_task_definition=True,
-            num_pos_examples=2,
-            num_neg_examples=0,
-            add_explanation=False,
-            text_only=True
+            **ni_collator_args
         )
 
     def convert_format(example):
@@ -97,6 +89,7 @@ dataset_fn = functools.partial(
     seed=None,
     max_num_instances_per_task=100,
     max_num_instances_per_eval_task=100,
+    raw_input=True
 )
 
 data_source = seqio.FunctionDataSource(
@@ -120,6 +113,15 @@ dataset_fn = functools.partial(
     max_num_instances_per_task=100,
     max_num_instances_per_eval_task=100,
     raw_input=False,
+    tokenizer=transformers.AutoTokenizer.from_pretrained("t5-base"),
+    model=None,
+    max_source_length=1024,
+    max_target_length=512,
+    add_task_definition=True,
+    num_pos_examples=2,
+    num_neg_examples=0,
+    add_explanation=False,
+    text_only=True
 )
 
 data_source = seqio.FunctionDataSource(
@@ -129,6 +131,38 @@ data_source = seqio.FunctionDataSource(
 
 seqio.TaskRegistry.add(
     "natural_instructions_def_pos_2",
+    data_source,
+    preprocessors=preprocessors,
+    output_features=output_features,
+    postprocess_fn=postprocessor,
+    metric_fns=[ni_metrics_wrapper],
+    shuffle_buffer_size=50000,  # default of 1000 is too small
+)
+
+dataset_fn = functools.partial(
+    get_ni_data,
+    seed=None,
+    max_num_instances_per_task=100,
+    max_num_instances_per_eval_task=100,
+    raw_input=False,
+    tokenizer=transformers.AutoTokenizer.from_pretrained("t5-base"),
+    model=None,
+    max_source_length=1024,
+    max_target_length=512,
+    add_task_definition=True,
+    num_pos_examples=0,
+    num_neg_examples=0,
+    add_explanation=False,
+    text_only=True
+)
+
+data_source = seqio.FunctionDataSource(
+    dataset_fn,
+    splits=["train", "test"],
+)
+
+seqio.TaskRegistry.add(
+    "natural_instructions_def_only",
     data_source,
     preprocessors=preprocessors,
     output_features=output_features,
