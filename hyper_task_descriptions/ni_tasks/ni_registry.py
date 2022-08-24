@@ -44,6 +44,7 @@ def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_
         assert len(task_idx) == 1
         task_idx = int(task_idx[0])
         return {
+            "id": example["id"],
             "inputs": example["Instance"]["input"] if raw_input else data_collator([example])["inputs"][0].strip(),
             "hyper_inputs": example["Definition"][0],
             "targets": random.choice(example["Instance"]["output"]),
@@ -56,7 +57,7 @@ def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_
     # map keeps original columns, remove them
     dataset = dataset.remove_columns(
         set(original_columns)
-        - {"inputs", "hyper_inputs", "targets", "references", "task_names"}
+        - {"id", "inputs", "hyper_inputs", "targets", "references", "task_names"}
     )
     return hf_dataset_to_tf_dataset(dataset)
 
