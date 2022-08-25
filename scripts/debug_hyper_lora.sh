@@ -9,13 +9,14 @@ MODEL_DIR="${EXPERIMENT_NAME}"
 # for your first run, you will probably need to run all these calls :(
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
-  --gin_file="lora/lora_small.gin" \
+  --gin_file="lora/hyper/hyper_lora_small.gin" \
   --gin_file="t0_train_local.gin" \
   --gin_file="partial_train_adam.gin" \
-  --gin_file="lora/lora.gin" \
+  --gin_file="lora/hyper_lora.gin" \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1100010 \
+  --gin.TRAIN_STEPS=1101000 \
   --gin.partitioning.PjitPartitioner.num_partitions=1 \
+  --gin.lora_network.LoraT5Config.lora_ranks="(4,None,4,None)" \
+  --gin.utils.create_learning_rate_scheduler.base_learning_rate=1e-4 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_small/checkpoint_1100000\" \
-  --gin.USE_CACHED_TASKS=False
-  #--tfds_data_dir="gs://hamishi-us-bucket/t0_data/data"
+  --tfds_data_dir="gs://hamishi-us-bucket/t0_data/data"

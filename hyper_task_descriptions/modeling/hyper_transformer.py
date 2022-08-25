@@ -296,7 +296,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         # TODO: override this in lora_network
         # TODO: don't do this for every case.
 
-        override_param_axes += lora_axes_names_override
+        # override_param_axes += lora_axes_names_override
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model
@@ -758,6 +758,23 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
 
 
 class LoraEncoderDecoderModel(EncoderDecoderModel):
+    FEATURE_CONVERTER_CLS = HyperEncDecContFeatureConverter
+
+    def get_initial_variables(
+        self,
+        rng: jax.random.KeyArray,
+        input_shapes: Mapping[str, Array],
+        input_types: Optional[Mapping[str, jnp.dtype]] = None,
+    ) -> flax_scope.FrozenVariableDict:
+        initial_variables = super().get_initial_variables(rng, input_shapes, input_types)
+
+        # Add lora partitions
+        override_param_axes = lora_axes_names_override
+        initial_variables = override_params_axes_names(initial_variables, override_param_axes)
+        return initial_variables
+
+
+class LoraHyperEncoderDecoderContrastiveModel(HyperEncoderDecoderContrastiveModel):
     FEATURE_CONVERTER_CLS = HyperEncDecContFeatureConverter
 
     def get_initial_variables(

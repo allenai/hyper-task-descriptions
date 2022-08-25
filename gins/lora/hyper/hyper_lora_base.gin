@@ -4,6 +4,7 @@ from __gin__ import dynamic_registration
 import seqio
 from t5x import adafactor
 from t5x import models
+from t5x import utils
 from t5x.examples.t5 import network
 from hyper_task_descriptions.modeling import hyper_network
 from hyper_task_descriptions.modeling import lora_network
@@ -38,9 +39,9 @@ adafactor.Adafactor:
 #  clipping_threshold = None  # the hypernet updates get *consistently* clipped
 
 # ------------------- Model ----------------------------------------------------
-MODEL = @hyper_transformer.HyperEncoderDecoderContrastiveModel()
-hyper_transformer.HyperEncoderDecoderContrastiveModel:
-  module = @lora_network.LoraTransformer()
+MODEL = @hyper_transformer.LoraHyperEncoderDecoderContrastiveModel()
+hyper_transformer.LoraHyperEncoderDecoderContrastiveModel:
+  module = @lora_network.HyperLoraTransformer()
   input_vocabulary = %VOCABULARY
   output_vocabulary = %VOCABULARY
   optimizer_def = %OPTIMIZER
@@ -62,10 +63,15 @@ hyper_network.HyperT5Config:
   mlp_activations = ('gelu', 'linear')
   dropout_rate = %DROPOUT_RATE
   logits_via_embedding = False
-  adapter_size = 64
-  num_prefix_tokens = 30
-  hbottleneck_size = 64
-  lora_hyper_gen = False
+  lora_hyper_gen = True
   lora_ranks = (2, None, 2, None)
+  use_prefix = False
 
-hyper_utils.match_any_optax.regexes = [".*lora*.*"]
+hyper_utils.match_any_optax.regexes = [".*lora*.*", ".*hyper.*"]
+
+utils.RestoreCheckpointConfig:
+  assignment_map = (
+      #(r"^.*hyper.*$", None),
+      #(r"^.*lora_a.*$", None),
+      #(r"^.*lora_b.*$", None),
+      )

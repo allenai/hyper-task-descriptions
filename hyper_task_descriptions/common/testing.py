@@ -76,6 +76,7 @@ def get_test_model(
     from hyper_task_descriptions.modeling.hyper_transformer import (
         HyperEncoderDecoderModel,
         LoraEncoderDecoderModel,
+        LoraHyperEncoderDecoderContrastiveModel,
     )
 
     if do_lora:
@@ -103,7 +104,9 @@ def get_test_model(
             module = HyperLoraTransformer(config=config)
             vocab = seqio.test_utils.sentencepiece_vocab()
             optimizer_def = adafactor.Adafactor()
-            return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+            return LoraHyperEncoderDecoderContrastiveModel(
+                module, vocab, vocab, optimizer_def=optimizer_def
+            )
         else:
             config = HyperT5Config(
                 num_encoder_layers=num_encoder_layers,

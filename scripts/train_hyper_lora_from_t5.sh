@@ -7,14 +7,16 @@ MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
-HF_DATASETS_OFFLINE=0 TRANSFORMERS_OFFLINE=0 python3 -m t5x.train \
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
-  --gin_file="lora/lora_small.gin" \
-  --gin_file="t0_train_local.gin" \
+  --gin_file="lora/hyper/hyper_lora_xl.gin" \
+  --gin_file="t0_train.gin" \
   --gin_file="partial_train_adam.gin" \
-  --gin_file="lora/lora.gin" \
+  --gin_file="lora/hyper_lora.gin" \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1107000 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_small/checkpoint_1100000\" \
+  --gin.lora_network.LoraT5Config.lora_ranks="(8,None,8,None)" \
+  --gin.utils.create_learning_rate_scheduler.base_learning_rate=1e-5 \
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000\" \
   --tfds_data_dir="gs://hamishi-us-bucket/t0_data/data"

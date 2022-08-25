@@ -1,6 +1,6 @@
 # T5.1.1 small model.
 
-include 'gins/lora/lora_base.gin'  # imports vocab, optimizer and model.
+include 'gins/lora/hyper/hyper_lora_base.gin'  # imports vocab, optimizer and model.
 
 # ------------------- Network specification overrides --------------------------
 lora_network.LoraTransformer.config = @hyper_network.HyperT5Config()
@@ -11,9 +11,4 @@ hyper_network.HyperT5Config:
   num_decoder_layers = 8
   head_dim = 64
   mlp_dim = 1024
-  adapter_size = 8
-  num_prefix_tokens = 7
-  hbottleneck_size = 16
-  lora_ranks = (8, None, 8, None)
-
-
+  lora_ranks = (4, None, 4, None)
