@@ -334,7 +334,7 @@ class NetworkTest(parameterized.TestCase):
         dict(testcase_name="no_use_prefix", use_prefix=False),
         dict(testcase_name="use_prefix", use_prefix=True),
     )
-    def test_t5_1_1_hyper_lora_contrastive(self, use_prefix: bool = False):
+    def test_t5_1_1_hyper_lora_contrastive(self, use_prefix: bool = True):
         np.random.seed(0)
         batch_size, max_decode_len, input_len, hyper_input_len = 2, 3, 4, 5
         task_name_length = 1
@@ -366,10 +366,11 @@ class NetworkTest(parameterized.TestCase):
         assert "lora_qa_gen_0" in params["hyper"]
         assert "lora_ka_gen_0" not in params["hyper"]
         assert "lora_va_gen_0" in params["hyper"]
-        assert "lora_oa_gen_1" not in params["hyper"]
+        assert "lora_oa_gen_0" not in params["hyper"]
 
         if use_prefix:
-            assert "prefix_key_gen_0" in params["hyper"]
+            assert "prefix_key_mlp_0" in params["hyper"]
+            assert "prefix_value_mlp_0" in params["hyper"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         self.assertAlmostEqual(loss, 15.268721, delta=0.05)
