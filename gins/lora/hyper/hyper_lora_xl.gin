@@ -11,4 +11,4 @@ hyper_network.HyperT5Config:
   num_decoder_layers = 24
   head_dim = 64
   mlp_dim = 5120
-  lora_ranks = (8, None, 8, None)
+  lora_ranks = (32, None, 32, None)
