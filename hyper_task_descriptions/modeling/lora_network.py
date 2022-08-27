@@ -22,10 +22,7 @@ from flax import linen as nn
 from flax.linen import partitioning as nn_partitioning
 from t5x.examples.t5 import layers
 from t5x.examples.t5.network import Transformer
-from transformers.models.roberta.modeling_flax_roberta import (
-    FlaxRobertaModel,
-    create_position_ids_from_input_ids,
-)
+from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.hyper_network import (
@@ -57,244 +54,216 @@ class HyperLoraNet(nn.Module):
     # we setup here as loading huggingface weights
     def setup(self):
         cfg = self.config
-        roberta = FlaxRobertaModel.from_pretrained(
-            cfg.roberta_model,
-            max_position_embeddings=cfg.roberta_max_position_embeddings,
-            type_vocab_size=cfg.roberta_type_vocab_size,
-            vocab_size=cfg.roberta_vocab_size,
-        )
+        encoder = FlaxT5EncoderModel.from_pretrained(cfg.hyperencoder_model, from_pt=True)
 
         # encodes the task description
-        self.encoder = roberta.module  # module = the 'actual' flax module
+        self.encoder = encoder.module  # module = the 'actual' flax module
+
+        # setup embeddings
+        layer_embed_components = cfg.num_encoder_layers + cfg.num_decoder_layers
+        num_components = 0
+        if cfg.use_adapter:
+            num_components += 4  # adapter up, down, bias up, bias down
+        if cfg.use_prefix:
+            num_components += 4  # prefix key, value, prefix key cc, prefix value cc
+        if cfg.lora_hyper_gen:
+            num_components += sum(
+                [1 if i is not None else 0 for i in cfg.lora_ranks]
+            )  # lora components
+        if cfg.layer_embedding_method == "component":
+            layer_embed_components *= num_components
+        self.num_components = num_components
 
         self.embedder = jnp.asarray(
             param_with_axes(
                 "embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (cfg.num_encoder_layers + 2 * cfg.num_decoder_layers, cfg.layer_embed_size),
+                (layer_embed_components, encoder.config.d_model),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
             jnp.float32,
         )
-        self.intermediate_embedder = SimpleLinear(
-            output_dim=cfg.hbottleneck_size,
-            act_fn="gelu",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("embed", "mlp"),
-            name="intermediate_hypernet",
-        )
-        # contrastive head is two-layer mlp following simCLR
-        # they use a sigmoid activation tho but using gelu for consistency
-        self.contrastive_head = MlpBlock(
-            intermediate_dim=roberta.config.hidden_size,
-            activations=("gelu",),
-            intermediate_dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            name="contrastive_head",
-        )
 
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
         # decoder has self and cross attention both, hence enc + 2 x dec lora layers.
-        total_layers = cfg.num_encoder_layers + 2 * cfg.num_decoder_layers
+        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
 
         if cfg.lora_hyper_gen:
             if self.q_rank:
-                self.lora_qa_gen = [
-                    SimpleLinear(
-                        output_dim=cfg.emb_dim * self.q_rank,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("embed", "joined_kv"),
-                        kernel_init=nn.initializers.normal(0.01),
-                        name=f"lora_qa_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_qa_gen = SimpleLinear(
+                    output_dim=cfg.emb_dim * self.q_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_qa_gen",
+                )
 
-                self.lora_qb_gen = [
-                    SimpleLinear(
-                        output_dim=self.q_rank * cfg.num_heads * cfg.head_dim,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("embed", "joined_kv"),
-                        kernel_init=nn.initializers.zeros,
-                        name=f"lora_qb_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_qb_gen = SimpleLinear(
+                    output_dim=self.q_rank * cfg.num_heads * cfg.head_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_qb_gen",
+                )
 
             if self.k_rank:
-                self.lora_ka_gen = [
-                    SimpleLinear(
-                        output_dim=cfg.emb_dim * self.k_rank,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("embed", "joined_kv"),
-                        kernel_init=nn.initializers.normal(0.01),
-                        name=f"lora_ka_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_ka_gen = SimpleLinear(
+                    output_dim=cfg.emb_dim * self.k_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_ka_gen",
+                )
 
-                self.lora_kb_gen = [
-                    SimpleLinear(
-                        output_dim=self.k_rank * cfg.num_heads * cfg.head_dim,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("embed", "joined_kv"),
-                        kernel_init=nn.initializers.zeros,
-                        name=f"lora_kb_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_kb_gen = SimpleLinear(
+                    output_dim=self.k_rank * cfg.num_heads * cfg.head_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_kb_gen",
+                )
 
             if self.v_rank:
-                self.lora_va_gen = [
-                    SimpleLinear(
-                        output_dim=cfg.emb_dim * self.v_rank,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("embed", "joined_kv"),
-                        kernel_init=nn.initializers.normal(0.01),
-                        name=f"lora_va_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_va_gen = SimpleLinear(
+                    output_dim=cfg.emb_dim * self.v_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_va_gen",
+                )
 
-                self.lora_vb_gen = [
-                    SimpleLinear(
-                        output_dim=self.v_rank * cfg.num_heads * cfg.head_dim,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("embed", "joined_kv"),
-                        kernel_init=nn.initializers.zeros,
-                        name=f"lora_vb_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_vb_gen = SimpleLinear(
+                    output_dim=self.v_rank * cfg.num_heads * cfg.head_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_vb_gen",
+                )
 
             if self.o_rank:
-                self.lora_oa_gen = [
-                    SimpleLinear(
-                        output_dim=cfg.num_heads * cfg.head_dim * self.o_rank,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("joined_kv", "embed"),
-                        kernel_init=nn.initializers.normal(0.01),
-                        name=f"lora_oa_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_oa_gen = SimpleLinear(
+                    output_dim=cfg.num_heads * cfg.head_dim * self.o_rank,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("joined_kv", "embed"),
+                    kernel_init=nn.initializers.normal(0.01),
+                    name="lora_oa_gen",
+                )
 
-                self.lora_ob_gen = [
-                    SimpleLinear(
-                        output_dim=self.o_rank * cfg.emb_dim,
-                        act_fn="linear",
-                        dropout_rate=cfg.dropout_rate,
-                        dtype=cfg.dtype,
-                        kernel_axes=("embed", "joined_kv"),
-                        kernel_init=nn.initializers.zeros,
-                        name=f"lora_ob_gen_{i}",
-                    )
-                    for i in range(total_layers)
-                ]
+                self.lora_ob_gen = SimpleLinear(
+                    output_dim=self.o_rank * cfg.emb_dim,
+                    act_fn="linear",
+                    dropout_rate=cfg.dropout_rate,
+                    dtype=cfg.dtype,
+                    kernel_axes=("embed", "joined_kv"),
+                    kernel_init=nn.initializers.zeros,
+                    name="lora_ob_gen",
+                )
 
         self.use_prefix = cfg.use_prefix
 
         if self.use_prefix:
-            # TODO: prefix_gen_cc is only for cross attn: no need for extra layers.
-            self.prefix_key_gen = [
-                SimpleLinear(
-                    output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"prefix_key_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
-            self.prefix_value_gen = [
-                SimpleLinear(
-                    output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"prefix_value_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
-            # self.prefix_key_gen_cc = [
-            #     SimpleLinear(
-            #         output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            #         act_fn="linear",
-            #         dtype=cfg.dtype,
-            #         kernel_axes=("mlp", "embed"),
-            #         kernel_init=nn.initializers.normal(0.02),
-            #         name=f"prefix_key_cc_mlp_{i}",
-            #         dropout_rate=cfg.dropout_rate,
-            #     )
-            #     for i in range(total_layers)
-            # ]
-            # self.prefix_value_gen_cc = [
-            #     SimpleLinear(
-            #         output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-            #         act_fn="linear",
-            #         dtype=cfg.dtype,
-            #         kernel_axes=("mlp", "embed"),
-            #         kernel_init=nn.initializers.normal(0.02),
-            #         name=f"prefix_value_cc_mlp_{i}",
-            #         dropout_rate=cfg.dropout_rate,
-            #     )
-            #     for i in range(total_layers)
-            # ]
+            self.prefix_key_gen = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_key_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
+            self.prefix_value_gen = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_value_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
+            self.prefix_key_gen_cc = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_key_cc_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
+            self.prefix_value_gen_cc = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_value_cc_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
         # TODO: use config to determine padding token id
         # '1' is roberta pad token.
-        attn_mask = encoder_input_tokens != 1
-        # the position ids created by the FlaxRobertaModule are wrong, so use correct func.
-        pos_ids = create_position_ids_from_input_ids(encoder_input_tokens, 1)
-        output = self.encoder(encoder_input_tokens, attn_mask, position_ids=pos_ids)
+        attn_mask = encoder_input_tokens != 0
+        output = self.encoder(encoder_input_tokens, attn_mask, deterministic=deterministic)
         # average representation for embeds
-        sum_embeds = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
-            :, None
-        ]
-        # save pooled output for later (eg contrastive training)
-        contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
-        self.sow("intermediates", "features", contrastive_output)
-        # no layer embeddings for now.
-        # # add the layer embeddings, and pass through a single mlp layer
-        # total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
-        # embeds = jnp.arange(total_layers)
-        # embeds = self.embedder[embeds][
-        #     None,
-        # ]
-        # embeddings = jnp.repeat(embeds, sum_embeds.shape[0], axis=0)
+        mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[:, None]
+        self.sow("intermediates", "features", mean_seq)
 
-        # hyper_input = jnp.concatenate(
-        #     [embeddings, jnp.repeat(sum_embeds[:, None], embeddings.shape[1], axis=1)], axis=-1
-        # )
-
-        intermediate_embeddings = self.intermediate_embedder(
-            sum_embeds, deterministic=deterministic
-        )
-
-        # decoder has self and cross attention both, hence enc + 2 x dec lora layers.
-        total_layers = cfg.num_encoder_layers + 2 * cfg.num_decoder_layers
+        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
+        # layer embedding setup
+        if cfg.layer_embedding_method == "layer":
+            seq_output = (output[0] * attn_mask[:, :, None])[
+                :, :, None
+            ]  # to prevent padding annoying us.
+            layer_embeds = self.embedder[None, :, None, :].repeat(
+                encoder_input_tokens.shape[0], axis=0
+            )
+            sum_embeds = layers.dot_product_attention(
+                layer_embeds,
+                seq_output,
+                seq_output,
+                (1 - attn_mask[:, None, None, :]) * -1e9,
+                deterministic=deterministic,
+            )[:, :, 0, :]
+        elif cfg.layer_embedding_method == "component":
+            seq_output = (output[0] * attn_mask[:, :, None])[
+                :, :, None
+            ]  # to prevent padding annoying us.
+            layer_embeds = self.embedder[None, :, None, :].repeat(
+                encoder_input_tokens.shape[0], axis=0
+            )
+            # layer embeds = [batch size, num_layers, 1, hidden size]
+            # seq output = [batch size, instr. length, 1, hidden size]
+            sum_embeds = layers.dot_product_attention(
+                layer_embeds,
+                seq_output,
+                seq_output,
+                (1 - attn_mask[:, None, None, :]) * -1e9,
+                deterministic=deterministic,
+            )[:, :, 0, :]
+            # reshape to [batch, layers, num_comp, feats]
+            sum_embeds = sum_embeds.reshape(
+                seq_output.shape[0], total_layers, self.num_components, -1
+            )
+        else:  # else = use concat
+            # layer embeds - repeat in batch, length dim
+            sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
+            layer_embs = self.embedder[
+                None,
+                :,
+            ].repeat(sum_embeds.shape[0], axis=0)
+            sum_embeds = jnp.concatenate([mean_seq, layer_embs], axis=-1)
 
         if cfg.lora_hyper_gen:
             if self.q_rank:

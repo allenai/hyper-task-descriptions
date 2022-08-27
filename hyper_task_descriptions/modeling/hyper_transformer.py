@@ -31,14 +31,12 @@ from t5x import metrics as metrics_lib
 from t5x import optimizers
 from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
 from t5x.utils import override_params_axes_names
-from transformers import FlaxRobertaModel
+from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
 from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
-from hyper_task_descriptions.modeling.roberta_partitioning import (
-    roberta_axes_names_override,
-)
+from hyper_task_descriptions.modeling.t5_partitioning import t5_axes_names_override
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -89,7 +87,7 @@ class HyperEncDecFeatureConverter(FeatureConverter):
     # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
     TASK_PADDING = {
         "inputs": 0,
-        "hyper_inputs": 1,
+        "hyper_inputs": 0,
         "targets": 0,
     }
     PACKING_FEATURE_DTYPES = {
@@ -292,7 +290,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
         )
 
-        override_param_axes = roberta_axes_names_override
+        override_param_axes = t5_axes_names_override
         # TODO: override this in lora_network
         # TODO: don't do this for every case.
 
@@ -301,11 +299,8 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model
         initial_variables = unfreeze(initial_variables)
-        roberta_params = FlaxRobertaModel.from_pretrained(
-            self.module.config.roberta_model,
-            max_position_embeddings=520,
-            type_vocab_size=8,
-            vocab_size=50272,
+        roberta_params = FlaxT5EncoderModel.from_pretrained(
+            self.module.config.hyperencoder_model, from_pt=True
         ).params
         initial_variables["params"]["hyper"]["encoder"] = roberta_params
         initial_variables = freeze(initial_variables)
@@ -563,7 +558,7 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
     # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
-    TASK_PADDING = {"inputs": 0, "hyper_inputs": 1, "targets": 0, "task_names": 0}
+    TASK_PADDING = {"inputs": 0, "hyper_inputs": 0, "targets": 0, "task_names": 0}
     MODEL_FEATURES = {
         "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "hyper_encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),

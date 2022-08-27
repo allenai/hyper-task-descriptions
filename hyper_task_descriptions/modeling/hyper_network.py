@@ -25,14 +25,10 @@ from flax.linen import partitioning as nn_partitioning
 from jax import lax
 from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
-from transformers.models.roberta.modeling_flax_roberta import (
-    FlaxRobertaModel,
-    create_position_ids_from_input_ids,
-)
+from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import (
-    MlpBlock,
     MultiHeadDotProductAttentionWithPrefix,
     SimpleLinear,
 )
@@ -58,12 +54,10 @@ class HyperT5Config(T5Config):
     adapter_size: int = 64
     hbottleneck_size: int = 128
     num_prefix_tokens: int = 30
-    roberta_model: str = "hamishivi/fixed-roberta-base"  # fixes some partitioning issues
-    roberta_max_position_embeddings: int = 520
-    roberta_type_vocab_size: int = 8
-    roberta_vocab_size: int = 50272
+    hyperencoder_model: str = "google/t5-large-lm-adapt"
     lora_hyper_gen: bool = False
     lora_ranks: tuple = (2, None, 2, None)
+    layer_embedding_method: str = "component"  # concat, layer, component
 
 
 class Hypernet(nn.Module):
@@ -73,243 +67,236 @@ class Hypernet(nn.Module):
     # we setup here as loading huggingface weights
     def setup(self):
         cfg = self.config
-        roberta = FlaxRobertaModel.from_pretrained(
-            cfg.roberta_model,
-            max_position_embeddings=cfg.roberta_max_position_embeddings,
-            type_vocab_size=cfg.roberta_type_vocab_size,
-            vocab_size=cfg.roberta_vocab_size,
-        )
+        assert cfg.layer_embedding_method in [
+            "concat",
+            "layer",
+            "component",
+        ], "Invalid layer embedding method"
+        encoder = FlaxT5EncoderModel.from_pretrained(cfg.hyperencoder_model, from_pt=True)
 
         # encodes the task description
-        self.encoder = roberta.module  # module = the 'actual' flax module
+        self.encoder = encoder.module  # module = the 'actual' flax module
+
+        # setup embeddings
+        layer_embed_components = cfg.num_encoder_layers + cfg.num_decoder_layers
+        num_components = 0
+        if cfg.use_adapter:
+            num_components += 4  # adapter up, down, bias up, bias down
+        if cfg.use_prefix:
+            num_components += 4  # prefix key, value, prefix key cc, prefix value cc
+        if cfg.layer_embedding_method == "component":
+            layer_embed_components *= num_components
 
         self.embedder = jnp.asarray(
             param_with_axes(
                 "embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (cfg.num_encoder_layers + cfg.num_decoder_layers, cfg.layer_embed_size),
+                (layer_embed_components, encoder.config.d_model),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
             jnp.float32,
         )
-        self.intermediate_embedder = SimpleLinear(
-            output_dim=cfg.hbottleneck_size,
-            act_fn="gelu",
-            dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            kernel_axes=("embed", "mlp"),
-            name="intermediate_hypernet",
-        )
-        # contrastive head is two-layer mlp following simCLR
-        # they use a sigmoid activation tho but using gelu for consistency
-        self.contrastive_head = MlpBlock(
-            intermediate_dim=roberta.config.hidden_size,
-            activations=("gelu",),
-            intermediate_dropout_rate=cfg.dropout_rate,
-            dtype=cfg.dtype,
-            name="contrastive_head",
-        )
-        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
         if cfg.use_adapter:
-            self.adapter_down_gen = [
-                SimpleLinear(
-                    output_dim=cfg.emb_dim * cfg.adapter_size,
-                    act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"adapter_down_mlp_{i}",
-                )
-                for i in range(total_layers)
-            ]
-            self.adapter_up_gen = [
-                SimpleLinear(
-                    output_dim=cfg.emb_dim * cfg.adapter_size,
-                    act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"adapter_up_mlp_{i}",
-                )
-                for i in range(total_layers)
-            ]
-            self.adapter_bias_down_gen = [
-                SimpleLinear(
-                    output_dim=cfg.adapter_size,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"adapter_bias_down_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
-            self.adapter_bias_up_gen = [
-                SimpleLinear(
-                    output_dim=cfg.emb_dim,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"adapter_bias_up_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
+            self.adapter_down_gen = SimpleLinear(
+                output_dim=cfg.emb_dim * cfg.adapter_size,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="adapter_down_mlp",
+            )
+            self.adapter_up_gen = SimpleLinear(
+                output_dim=cfg.emb_dim * cfg.adapter_size,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="adapter_up_mlp",
+            )
+            self.adapter_bias_down_gen = SimpleLinear(
+                output_dim=cfg.adapter_size,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="adapter_bias_down_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
+            self.adapter_bias_up_gen = SimpleLinear(
+                output_dim=cfg.emb_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="adapter_bias_up_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
         if cfg.use_prefix:
-            self.prefix_key_gen = [
-                SimpleLinear(
-                    output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"prefix_key_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
-            self.prefix_value_gen = [
-                SimpleLinear(
-                    output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"prefix_value_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
-            self.prefix_key_gen_cc = [
-                SimpleLinear(
-                    output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"prefix_key_cc_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
-            self.prefix_value_gen_cc = [
-                SimpleLinear(
-                    output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dtype=cfg.dtype,
-                    kernel_axes=("mlp", "embed"),
-                    kernel_init=nn.initializers.normal(0.02),
-                    name=f"prefix_value_cc_mlp_{i}",
-                    dropout_rate=cfg.dropout_rate,
-                )
-                for i in range(total_layers)
-            ]
+            self.prefix_key_gen = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_key_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
+            self.prefix_value_gen = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_value_ml",
+                dropout_rate=cfg.dropout_rate,
+            )
+            self.prefix_key_gen_cc = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_key_cc_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
+            self.prefix_value_gen_cc = SimpleLinear(
+                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_value_cc_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
-        # TODO: use config to determine padding token id
-        # '1' is roberta pad token.
-        attn_mask = encoder_input_tokens != 1
-        # the position ids created by the FlaxRobertaModule are wrong, so use correct func.
-        pos_ids = create_position_ids_from_input_ids(encoder_input_tokens, 1)
-        output = self.encoder(encoder_input_tokens, attn_mask, position_ids=pos_ids)
-        # average representation for embeds
-        sum_embeds = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
-            :, None
-        ]
+        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
+        # 0 is t5 padding id.
+        attn_mask = encoder_input_tokens != 0
+        # get type issues otherwuse so make sure tokens are ints.
+        encoder_input_tokens = encoder_input_tokens.astype("i4")
+        output = self.encoder(encoder_input_tokens, attn_mask)
         # save pooled output for later (eg contrastive training)
-        contrastive_output = self.contrastive_head(sum_embeds, deterministic=deterministic)
-        self.sow("intermediates", "features", contrastive_output)
-        # no layer embeddings for now.
-        # # add the layer embeddings, and pass through a single mlp layer
-        # total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
-        # embeds = jnp.arange(total_layers)
-        # embeds = self.embedder[embeds][
-        #     None,
-        # ]
-        # embeddings = jnp.repeat(embeds, sum_embeds.shape[0], axis=0)
+        mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[:, None]
+        self.sow("intermediates", "features", mean_seq)
+        # layer embedding setup
+        if cfg.layer_embedding_method == "layer":
+            seq_output = (output[0] * attn_mask[:, :, None])[
+                :, :, None
+            ]  # to prevent padding annoying us.
+            layer_embeds = self.embedder[None, :, None, :].repeat(
+                encoder_input_tokens.shape[0], axis=0
+            )
+            sum_embeds = layers.dot_product_attention(
+                layer_embeds,
+                seq_output,
+                seq_output,
+                (1 - attn_mask[:, None, None, :]) * -1e9,
+                deterministic=deterministic,
+            )[:, :, 0, :]
+        elif cfg.layer_embedding_method == "component":
+            seq_output = (output[0] * attn_mask[:, :, None])[
+                :, :, None
+            ]  # to prevent padding annoying us.
+            layer_embeds = self.embedder[None, :, None, :].repeat(
+                encoder_input_tokens.shape[0], axis=0
+            )
+            # layer embeds = [batch size, num_layers, 1, hidden size]
+            # seq output = [batch size, instr. length, 1, hidden size]
+            sum_embeds = layers.dot_product_attention(
+                layer_embeds,
+                seq_output,
+                seq_output,
+                (1 - attn_mask[:, None, None, :]) * -1e9,
+                deterministic=deterministic,
+            )[:, :, 0, :]
+            # reshape to [batch, layers, num_comp, feats]
+            sum_embeds = sum_embeds.reshape(seq_output.shape[0], total_layers, 8, -1)
+        else:  # else = use concat
+            # layer embeds - repeat in batch, length dim
+            sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
+            layer_embs = self.embedder[
+                None,
+                :,
+            ].repeat(sum_embeds.shape[0], axis=0)
+            sum_embeds = jnp.concatenate([mean_seq, layer_embs], axis=-1)
 
-        # hyper_input = jnp.concatenate(
-        #     [embeddings, jnp.repeat(sum_embeds[:, None], embeddings.shape[1], axis=1)], axis=-1
-        # )
-
-        intermediate_embeddings = self.intermediate_embedder(
-            sum_embeds, deterministic=deterministic
-        )
         # add the layer embeddings, and pass through a single mlp layer
         total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
 
         # generate all our adapters, prefixes, etc.
 
         generated_parameter_dict = defaultdict(list)
-        for i in range(total_layers):
-            if cfg.use_adapter:
-                # adapter weight down
-                adapter_wd = self.adapter_down_gen[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                adapter_wd = adapter_wd.reshape(-1, cfg.emb_dim, cfg.adapter_size)
-                generated_parameter_dict["adapter_wd"].append(adapter_wd)
-                # adapter weight up
-                adapter_wu = self.adapter_up_gen[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                adapter_wu = adapter_wu.reshape(-1, cfg.adapter_size, cfg.emb_dim)
-                generated_parameter_dict["adapter_wu"].append(adapter_wu)
-                # adapter bias down
-                adapter_bd = self.adapter_bias_down_gen[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                adapter_bd = adapter_bd.reshape(-1, cfg.adapter_size)
-                generated_parameter_dict["adapter_bd"].append(adapter_bd)
-                # adapter bias up
-                adapter_bu = self.adapter_bias_up_gen[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                adapter_bu = adapter_bu.reshape(-1, cfg.emb_dim)
-                generated_parameter_dict["adapter_bu"].append(adapter_bu)
-            if cfg.use_prefix:
-                # prefix key
-                prefix_key = self.prefix_key_gen[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                prefix_key = prefix_key.reshape(
-                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
-                )
-                generated_parameter_dict["prefix_key"].append(prefix_key)
-                # prefix value
-                prefix_value = self.prefix_value_gen[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                prefix_value = prefix_value.reshape(
-                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
-                )
-                generated_parameter_dict["prefix_value"].append(prefix_value)
-                # prefix key cc
-                prefix_key_cc = self.prefix_key_gen_cc[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                prefix_key_cc = prefix_key_cc.reshape(
-                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
-                )
-                generated_parameter_dict["prefix_key_cc"].append(prefix_key_cc)
-                # prefix value cc
-                prefix_value_cc = self.prefix_value_gen_cc[i](
-                    intermediate_embeddings, deterministic=deterministic
-                )
-                prefix_value_cc = prefix_value_cc.reshape(
-                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
-                )
-                generated_parameter_dict["prefix_value_cc"].append(prefix_value_cc)
+        # choose our specific input to the hypernet. feel free to customize.
 
-        # stack all generated params by layer
-        for k, v in generated_parameter_dict.items():
-            generated_parameter_dict[k] = jnp.stack(v, axis=1)
+        def choose_hypernet_input(intermediate_embed, component_id):
+            if not cfg.use_adapter and cfg.use_prefix:
+                component_id -= 4  # prefix only, we only have 4 comps.
+            if cfg.layer_embedding_method == "component":
+                return intermediate_embed[:, :, component_id]
+            return intermediate_embed
+
+        if cfg.use_adapter:
+            # adapter weight down
+            adapter_wd = self.adapter_down_gen(
+                choose_hypernet_input(sum_embeds, 0), deterministic=deterministic
+            )
+            adapter_wd = adapter_wd.reshape(-1, total_layers, cfg.emb_dim, cfg.adapter_size)
+            adapter_wd = adapter_wd / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["adapter_wd"] = adapter_wd
+            # adapter weight up
+            adapter_wu = self.adapter_up_gen(
+                choose_hypernet_input(sum_embeds, 1), deterministic=deterministic
+            )
+            adapter_wu = adapter_wu.reshape(-1, total_layers, cfg.adapter_size, cfg.emb_dim)
+            adapter_wu = adapter_wu / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["adapter_wu"] = adapter_wu
+            # adapter bias down
+            adapter_bd = self.adapter_bias_down_gen(
+                choose_hypernet_input(sum_embeds, 2), deterministic=deterministic
+            )
+            adapter_bd = adapter_bd / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["adapter_bd"] = adapter_bd
+            # adapter bias up
+            adapter_bu = self.adapter_bias_up_gen(
+                choose_hypernet_input(sum_embeds, 3), deterministic=deterministic
+            )
+            adapter_bu = adapter_bu / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["adapter_bu"] = adapter_bu
+        if cfg.use_prefix:
+            # prefix key
+            prefix_key = self.prefix_key_gen(
+                choose_hypernet_input(sum_embeds, 4), deterministic=deterministic
+            )
+            prefix_key = prefix_key.reshape(
+                -1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+            prefix_key = prefix_key / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["prefix_key"] = prefix_key
+            # prefix value
+            prefix_value = self.prefix_value_gen(
+                choose_hypernet_input(sum_embeds, 5), deterministic=deterministic
+            )
+            prefix_value = prefix_value.reshape(
+                -1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+            prefix_value = prefix_value / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["prefix_value"] = prefix_value
+            # prefix key cc
+            prefix_key_cc = self.prefix_key_gen_cc(
+                choose_hypernet_input(sum_embeds, 6), deterministic=deterministic
+            )
+            prefix_key_cc = prefix_key_cc.reshape(
+                -1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+            prefix_key_cc = prefix_key_cc / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["prefix_key_cc"] = prefix_key_cc
+            # prefix value cc
+            prefix_value_cc = self.prefix_value_gen_cc(
+                choose_hypernet_input(sum_embeds, 7), deterministic=deterministic
+            )
+            prefix_value_cc = prefix_value_cc.reshape(
+                -1, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
+            )
+            prefix_value_cc = prefix_value_cc / jnp.sqrt(sum_embeds.shape[-1])
+            generated_parameter_dict["prefix_value_cc"] = prefix_value_cc
+
         return generated_parameter_dict
 
 
