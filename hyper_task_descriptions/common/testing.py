@@ -101,6 +101,7 @@ def get_test_model(
                 lora_hyper_gen=lora_hyper_gen,
                 lora_ranks=lora_ranks,
                 use_prefix=use_prefix,
+                hyperencoder_model='google/t5-small-lm-adapt'
             )
             module = HyperLoraTransformer(config=config)
             vocab = seqio.test_utils.sentencepiece_vocab()
@@ -118,9 +119,11 @@ def get_test_model(
                 mlp_dim=mlp_dim,
                 dtype=dtype,
                 mlp_activations=("gelu", "linear"),
+                num_prefix_tokens=num_prefix_tokens,
                 lora_hyper_gen=lora_hyper_gen,
                 lora_ranks=lora_ranks,
                 use_prefix=use_prefix,
+                hyperencoder_model='google/t5-small-lm-adapt'
             )
             module = LoraTransformer(config=config)
             vocab = seqio.test_utils.sentencepiece_vocab()
