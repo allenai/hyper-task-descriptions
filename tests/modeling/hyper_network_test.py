@@ -52,4 +52,4 @@ class NetworkTest(parameterized.TestCase):
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
         np.testing.assert_array_equal(predicted, [[9, 5, 1], [9, 5, 8]])
         # scores.shape = 2 (batch_size) (best option)
-        np.testing.assert_allclose(scores["scores"], [-3.567883, -3.934911], rtol=1e-3)
+        np.testing.assert_allclose(scores["scores"], [-3.51041, -3.875885], rtol=1e-3)

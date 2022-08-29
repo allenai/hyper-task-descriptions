@@ -361,10 +361,10 @@ class NetworkTest(parameterized.TestCase):
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
 
         assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["query"]
-        assert "lora_qa_gen_0" in params["hyper"]
-        assert "lora_ka_gen_0" not in params["hyper"]
-        assert "lora_va_gen_0" in params["hyper"]
-        assert "lora_oa_gen_1" not in params["hyper"]
+        assert "lora_qa_gen" in params["hyper"]
+        assert "lora_ka_gen" not in params["hyper"]
+        assert "lora_va_gen" in params["hyper"]
+        assert "lora_oa_gen" not in params["hyper"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         self.assertAlmostEqual(loss, 15.268721, delta=0.05)

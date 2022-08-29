@@ -29,7 +29,7 @@ from hyper_task_descriptions.modeling.hyper_network import (
     HyperT5Config,
     HyperTransformer,
 )
-from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
+from hyper_task_descriptions.modeling.layers import SimpleLinear
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
@@ -59,20 +59,36 @@ class HyperLoraNet(nn.Module):
         # encodes the task description
         self.encoder = encoder.module  # module = the 'actual' flax module
 
-        # setup embeddings
-        layer_embed_components = cfg.num_encoder_layers + cfg.num_decoder_layers
+        # setup embeddings - enc attn, dec attn, cross attn
+        layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
         num_components = 0
-        if cfg.use_adapter:
-            num_components += 4  # adapter up, down, bias up, bias down
+        component_2_id = {}
         if cfg.use_prefix:
-            num_components += 4  # prefix key, value, prefix key cc, prefix value cc
+            num_components += 2  # prefix key, value
+            component_2_id["prefix_key"] = 0
+            component_2_id["prefix_value"] = 1
         if cfg.lora_hyper_gen:
-            num_components += sum(
-                [1 if i is not None else 0 for i in cfg.lora_ranks]
-            )  # lora components
+            self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
+            if self.q_rank is not None:
+                num_components += 2  # q, k, v
+                component_2_id["qa"] = num_components - 2
+                component_2_id["qb"] = num_components - 1
+            if self.k_rank is not None:
+                num_components += 2
+                component_2_id["ka"] = num_components - 2
+                component_2_id["kb"] = num_components - 1
+            if self.v_rank is not None:
+                num_components += 2
+                component_2_id["va"] = num_components - 2
+                component_2_id["vb"] = num_components - 1
+            if self.o_rank is not None:
+                num_components += 2
+                component_2_id["oa"] = num_components - 2
+                component_2_id["ob"] = num_components - 1
         if cfg.layer_embedding_method == "component":
             layer_embed_components *= num_components
         self.num_components = num_components
+        self.component_2_id = component_2_id
 
         self.embedder = jnp.asarray(
             param_with_axes(
@@ -86,9 +102,6 @@ class HyperLoraNet(nn.Module):
         )
 
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
-        # decoder has self and cross attention both, hence enc + 2 x dec lora layers.
-        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
-
         if cfg.lora_hyper_gen:
             if self.q_rank:
                 self.lora_qa_gen = SimpleLinear(
@@ -212,15 +225,16 @@ class HyperLoraNet(nn.Module):
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
-        # TODO: use config to determine padding token id
-        # '1' is roberta pad token.
+        # for some reason we have to explicitly cast to ints here
+        encoder_input_tokens = encoder_input_tokens.astype("i4")
         attn_mask = encoder_input_tokens != 0
         output = self.encoder(encoder_input_tokens, attn_mask, deterministic=deterministic)
         # average representation for embeds
         mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[:, None]
         self.sow("intermediates", "features", mean_seq)
 
-        total_layers = cfg.num_encoder_layers + cfg.num_decoder_layers
+        # we have encoder self attn, decoder self attn, decoder cross attn
+        total_layers = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
         # layer embedding setup
         if cfg.layer_embedding_method == "layer":
             seq_output = (output[0] * attn_mask[:, :, None])[
@@ -265,73 +279,74 @@ class HyperLoraNet(nn.Module):
             ].repeat(sum_embeds.shape[0], axis=0)
             sum_embeds = jnp.concatenate([mean_seq, layer_embs], axis=-1)
 
+        def choose_hypernet_input(intermediate_embed, component_name):
+            assert component_name in self.component_2_id, "component name not found"
+            if cfg.layer_embedding_method == "component":
+                return intermediate_embed[:, :, self.component_2_id[component_name]]
+            return intermediate_embed
+
         if cfg.lora_hyper_gen:
             if self.q_rank:
-                lora_qa, lora_qb = [], []
-                for i in range(total_layers):
-                    lora_qa.append(
-                        self.lora_qa_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_qa[-1] = lora_qa[-1].reshape(-1, cfg.emb_dim, self.q_rank)
-                    lora_qb.append(
-                        self.lora_qb_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_qb[-1] = lora_qb[-1].reshape(-1, self.q_rank, cfg.num_heads, cfg.head_dim)
-
-                lora_qa = jnp.stack(lora_qa, axis=1)
-                lora_qb = jnp.stack(lora_qb, axis=1)
-
+                lora_qa = self.lora_qa_gen(
+                    choose_hypernet_input(sum_embeds, "qa"), deterministic=deterministic
+                )
+                lora_qa = lora_qa.reshape(-1, total_layers, cfg.emb_dim, self.q_rank) / jnp.sqrt(
+                    sum_embeds.shape[-1]
+                )
+                lora_qb = self.lora_qb_gen(
+                    choose_hypernet_input(sum_embeds, "qb"), deterministic=deterministic
+                )
+                lora_qb = lora_qb.reshape(
+                    -1, total_layers, self.q_rank, cfg.num_heads, cfg.head_dim
+                ) / jnp.sqrt(sum_embeds.shape[-1])
             else:
                 lora_qa, lora_qb = None, None
 
             if self.k_rank:
-                lora_ka, lora_kb = [], []
-                for i in range(total_layers):
-                    lora_ka.append(
-                        self.lora_ka_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_ka[-1] = lora_ka[-1].reshape(-1, cfg.emb_dim, self.k_rank)
-                    lora_kb.append(
-                        self.lora_kb_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_kb[-1] = lora_kb[-1].reshape(-1, self.k_rank, cfg.num_heads, cfg.head_dim)
-
-                lora_ka = jnp.stack(lora_ka, axis=1)
-                lora_kb = jnp.stack(lora_kb, axis=1)
-
+                lora_ka = self.lora_ka_gen(
+                    choose_hypernet_input(sum_embeds, "ka"), deterministic=deterministic
+                )
+                lora_ka = lora_ka.reshape(-1, total_layers, cfg.emb_dim, self.k_rank) / jnp.sqrt(
+                    sum_embeds.shape[-1]
+                )
+                lora_kb = self.lora_kb_gen(
+                    choose_hypernet_input(sum_embeds, "kb"), deterministic=deterministic
+                )
+                lora_kb = lora_kb.reshape(
+                    -1, total_layers, self.k_rank, cfg.num_heads, cfg.head_dim
+                ) / jnp.sqrt(sum_embeds.shape[-1])
             else:
                 lora_ka, lora_kb = None, None
 
             if self.v_rank:
-                lora_va, lora_vb = [], []
-                for i in range(total_layers):
-                    lora_va.append(
-                        self.lora_va_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_va[-1] = lora_va[-1].reshape(-1, cfg.emb_dim, self.v_rank)
-                    lora_vb.append(
-                        self.lora_vb_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_vb[-1] = lora_vb[-1].reshape(-1, self.v_rank, cfg.num_heads, cfg.head_dim)
-
-                lora_va = jnp.stack(lora_va, axis=1)
-                lora_vb = jnp.stack(lora_vb, axis=1)
+                lora_va = self.lora_va_gen(
+                    choose_hypernet_input(sum_embeds, "va"), deterministic=deterministic
+                )
+                lora_va = lora_va.reshape(-1, total_layers, cfg.emb_dim, self.v_rank) / jnp.sqrt(
+                    sum_embeds.shape[-1]
+                )
+                lora_vb = self.lora_vb_gen(
+                    choose_hypernet_input(sum_embeds, "vb"), deterministic=deterministic
+                )
+                lora_vb = lora_vb.reshape(
+                    -1, total_layers, self.v_rank, cfg.num_heads, cfg.head_dim
+                ) / jnp.sqrt(sum_embeds.shape[-1])
             else:
                 lora_va, lora_vb = None, None
 
             if self.o_rank:
-                lora_oa, lora_ob = [], []
-                for i in range(total_layers):
-                    lora_oa.append(
-                        self.lora_oa_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_oa[-1] = lora_oa[-1].reshape(-1, cfg.num_heads, cfg.head_dim, self.o_rank)
-                    lora_ob.append(
-                        self.lora_ob_gen[i](intermediate_embeddings, deterministic=deterministic)
-                    )
-                    lora_ob[-1] = lora_ob[-1].reshape(-1, self.o_rank, cfg.emb_dim)
-                lora_oa = jnp.stack(lora_oa, axis=1)
-                lora_ob = jnp.stack(lora_ob, axis=1)
+                lora_oa = self.lora_oa_gen(
+                    choose_hypernet_input(sum_embeds, "oa"), deterministic=deterministic
+                )
+                lora_oa = lora_oa.reshape(-1, total_layers, cfg.emb_dim, self.o_rank) / jnp.sqrt(
+                    sum_embeds.shape[-1]
+                )
+                lora_ob = self.lora_ob_gen(
+                    choose_hypernet_input(sum_embeds, "ob"), deterministic=deterministic
+                )
+                lora_ob = lora_ob.reshape(
+                    -1, total_layers, self.o_rank, cfg.num_heads, cfg.head_dim
+                ) / jnp.sqrt(sum_embeds.shape[-1])
             else:
                 lora_oa, lora_ob = None, None
         else:
@@ -347,22 +362,18 @@ class HyperLoraNet(nn.Module):
             )
 
         if self.use_prefix:
-            prefix_key, prefix_value = [], []
-            for i in range(total_layers):
-                prefix_key.append(
-                    self.prefix_key_gen[i](intermediate_embeddings, deterministic=deterministic)
-                )
-                prefix_key[-1] = prefix_key[-1].reshape(
-                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
-                )
-                prefix_value.append(
-                    self.prefix_value_gen[i](intermediate_embeddings, deterministic=deterministic)
-                )
-                prefix_value[-1] = prefix_value[-1].reshape(
-                    -1, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim
-                )
-            prefix_key = jnp.stack(prefix_key, axis=1)
-            prefix_value = jnp.stack(prefix_value, axis=1)
+            prefix_key = self.prefix_key_gen(
+                choose_hypernet_input(sum_embeds, "prefix_key"), deterministic=deterministic
+            )
+            prefix_key = prefix_key.reshape(
+                -1, total_layers, cfg.num_heads, cfg.head_dim
+            ) / jnp.sqrt(sum_embeds.shape[-1])
+            prefix_value = self.prefix_value_gen(
+                choose_hypernet_input(sum_embeds, "prefix_value"), deterministic=deterministic
+            )
+            prefix_value = prefix_value.reshape(
+                -1, total_layers, cfg.num_heads, cfg.head_dim
+            ) / jnp.sqrt(sum_embeds.shape[-1])
         else:
             prefix_key = None
             prefix_value = None
@@ -378,8 +389,6 @@ class HyperLoraNet(nn.Module):
             "lora_ob": lora_ob,
             "prefix_key": prefix_key,
             "prefix_value": prefix_value,
-            # "prefix_key_cc": None,
-            # "prefix_value_cc": None,
         }
 
 
@@ -703,8 +712,6 @@ class LoraDecoder(nn.Module):
                 lora_ob=lora_ob[:, lyr : lyr + 2] if o_rank else None,
                 prefix_key=prefix_key[:, lyr : lyr + 2] if cfg.use_prefix else None,
                 prefix_value=prefix_value[:, lyr : lyr + 2] if cfg.use_prefix else None,
-                # prefix_key_cc=prefix_key_cc[:, lyr] if cfg.use_prefix else None,
-                # prefix_value_cc=prefix_value_cc[:, lyr] if cfg.use_prefix else None,
                 encoder_decoder_mask=encoder_decoder_mask,
                 deterministic=deterministic,
                 decode=decode,
