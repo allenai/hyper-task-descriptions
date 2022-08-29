@@ -353,6 +353,7 @@ class NetworkTest(parameterized.TestCase):
             vocab_size=10,
             num_encoder_layers=1,
             num_decoder_layers=1,
+            num_prefix_tokens=1,
             do_lora=True,
             lora_hyper_gen=True,
             lora_ranks=(4, None, 4, None),
