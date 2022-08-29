@@ -101,7 +101,7 @@ def get_test_model(
                 lora_hyper_gen=lora_hyper_gen,
                 lora_ranks=lora_ranks,
                 use_prefix=use_prefix,
-                hyperencoder_model='google/t5-small-lm-adapt'
+                hyperencoder_model="google/t5-small-lm-adapt",
             )
             module = HyperLoraTransformer(config=config)
             vocab = seqio.test_utils.sentencepiece_vocab()
@@ -123,7 +123,7 @@ def get_test_model(
                 lora_hyper_gen=lora_hyper_gen,
                 lora_ranks=lora_ranks,
                 use_prefix=use_prefix,
-                hyperencoder_model='google/t5-small-lm-adapt'
+                hyperencoder_model="google/t5-small-lm-adapt",
             )
             module = LoraTransformer(config=config)
             vocab = seqio.test_utils.sentencepiece_vocab()
