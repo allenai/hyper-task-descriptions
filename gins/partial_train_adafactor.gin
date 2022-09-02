@@ -4,6 +4,7 @@ from __gin__ import dynamic_registration
 from t5x import adafactor
 from t5x import optimizers
 from hyper_task_descriptions import utils as hyper_utils
+from flax import traverse_util
 
 # gin that allows partial training based on regex matching.
 
@@ -14,11 +15,29 @@ OPTIMIZER = @optimizers.MultiOptimizer()
 # See https://github.com/google-research/t5x/blob/main/docs/usage/gin.md#scoping
 # for how to create multiple specialised instances of the same class.
 optimizers.MultiOptimizer:
-  traversals_and_optimizers = ((@optim.ModelParamTraversal(),
-                                @adafactor.Adafactor()),)
-optim.ModelParamTraversal:
-  filter_fn = @hyper_utils.match_any()
+  traversals_and_optimizers = ((@hyper/traverse_util.ModelParamTraversal(),
+                                @hyper/adafactor.Adafactor()),
+                                (@roberta/traverse_util.ModelParamTraversal(),
+                                @roberta/adafactor.Adafactor()),
+                                (@t5/traverse_util.ModelParamTraversal(),
+                                @t5/adafactor.Adafactor()),)
+
 # MultiOptimizer will match any parameter with a flattened name that
 # matches *any* of the regular expressions in the list.
-PROMPT_REGEX = [".*/hyper/.*"]
-hyper_utils.match_any.regexes = %PROMPT_REGEX
+# hyper - we turn off param scaling, offset the step
+hyper/adafactor.Adafactor:
+  multiply_by_parameter_scale = False
+  step_offset = 1100000
+hyper/traverse_util.ModelParamTraversal:
+  filter_fn = @hyper/hyper_utils.match_any()
+hyper/hyper_utils.match_any.regexes = [".*/hyper/[^e].*"]
+# hyper encoder - state is fresh so reset step
+roberta/adafactor.Adafactor:
+  step_offset = 1100000
+roberta/traverse_util.ModelParamTraversal:
+  filter_fn = @roberta/hyper_utils.match_any()
+roberta/hyper_utils.match_any.regexes = [".*/hyper/e.*"]
+# nothing special for this one
+t5/traverse_util.ModelParamTraversal:
+  filter_fn = @t5/hyper_utils.inverse_match_any()
+t5/hyper_utils.inverse_match_any.regexes = [".*hyper.*"]

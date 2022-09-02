@@ -3,8 +3,9 @@
 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 JAX_DISABLE_JIT=1 python -m t5x.train \
     --gin_search_paths=./gins \
     --gin_file="hyper_small.gin" \
-    --gin_file="t0_train_local.gin" \
+    --gin_file="t0_train_local_copy.gin" \
     --gin.MODEL_DIR=\"test\" \
+    --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-small-lm-adapt\" \
     --gin.USE_CACHED_TASKS=False \
     --gin.TRAIN_STEPS=1100100 \
     --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_small/checkpoint_1100000\"

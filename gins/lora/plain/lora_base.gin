@@ -39,8 +39,8 @@ adafactor.Adafactor:
 #  clipping_threshold = None  # the hypernet updates get *consistently* clipped
 
 # ------------------- Model ----------------------------------------------------
-MODEL = @hyper_transformer.LoraEncoderDecoderModel()
-hyper_transformer.LoraEncoderDecoderModel:
+MODEL = @hyper_transformer.HyperEncoderDecoderModel()
+hyper_transformer.HyperEncoderDecoderModel:
   module = @lora_network.LoraTransformer()
   input_vocabulary = %VOCABULARY
   output_vocabulary = %VOCABULARY
@@ -63,7 +63,7 @@ hyper_network.HyperT5Config:
   mlp_activations = ('gelu', 'linear')
   dropout_rate = %DROPOUT_RATE
   logits_via_embedding = False
-  lora_hyper_gen = False
+  use_lora = False
   lora_ranks = (2, None, 2, None)
   use_prefix = False
 

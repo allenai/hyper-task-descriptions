@@ -74,9 +74,32 @@ def flattened_traversal(fn):
 
 def match_any_optax(regexes: Sequence[str]) -> Callable[[str, Any], bool]:
     regexes = tuple(re.compile(regex) for regex in regexes)
-    label_fn = flattened_traversal(
-        lambda path, _: "train" if any(regex.fullmatch(path) for regex in regexes) else "freeze"
-    )
+
+    def _match_any(path, _):
+        if any(regex.fullmatch(path) for regex in regexes):
+            return "train"
+        else:
+            return "freeze"
+
+    label_fn = flattened_traversal(lambda path, _: _match_any(path, _))
+    return label_fn
+
+
+def match_any_optax_trip(
+    regexes: Sequence[str], hyper_regexes: Sequence[str]
+) -> Callable[[str, Any], bool]:
+    regexes = tuple(re.compile(regex) for regex in regexes)
+    hyper_regexes = tuple(re.compile(regex) for regex in hyper_regexes)
+
+    def _match_any(path, _):
+        if any(regex.fullmatch(path) for regex in regexes):
+            return "roberta"
+        elif any(regex.fullmatch(path) for regex in hyper_regexes):
+            return "hyper"
+        else:
+            return "freeze"
+
+    label_fn = flattened_traversal(lambda path, _: _match_any(path, _))
     return label_fn
 
 
@@ -91,3 +114,9 @@ def match_any_optax_inverse(regexes: Sequence[str]) -> Callable[[str, Any], bool
 
 # t5x doesnt wrap this but i need it
 multi_transform = optimizers.wrap_optax_optimizer(optax.multi_transform)
+
+# non-wrapped version for use with the wrapped multi_transform
+
+
+def chain(transformations: Sequence[optax.GradientTransformation]) -> optax.GradientTransformation:
+    return optax.chain(*transformations)
