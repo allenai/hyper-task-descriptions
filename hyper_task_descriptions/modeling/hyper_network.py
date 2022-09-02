@@ -517,7 +517,7 @@ class HyperEncoderLayer(nn.Module):
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         # adapter block
-        if cfg.use_adapter and adapter_wd is not None:
+        if cfg.use_adapter:
             adapter_y = (
                 lax.batch_matmul(lx, adapter_wd)
                 + adapter_bd[
@@ -653,7 +653,7 @@ class HyperDecoderLayer(nn.Module):
         )(lz, deterministic=deterministic)
         z = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(z, deterministic=deterministic)
         # adapter block
-        if cfg.use_adapter and adapter_wd is not None:
+        if cfg.use_adapter:
             adapter_z = (
                 lax.batch_matmul(lz, adapter_wd)
                 + adapter_bd[
