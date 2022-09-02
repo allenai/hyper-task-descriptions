@@ -122,7 +122,7 @@ class LoraDenseGeneral(nn.Module):
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "truncated_normal")
     kernel_axes: Tuple[str, ...] = ()
     lora_a_init: Initializer = nn.initializers.normal(0.01)
-    hyper_gen: bool = False  # TODO: handle this better?
+    manual_lora: bool = False
 
     @nn.compact
     def __call__(
@@ -151,7 +151,7 @@ class LoraDenseGeneral(nn.Module):
         # CHANGE from t5x
         assert self.rank > 0
 
-        if not self.hyper_gen:
+        if self.manual_lora:
             lora_a_shape = tuple([inputs.shape[ax] for ax in axis]) + tuple([self.rank])
             lora_a_param_shape = (np.prod([inputs.shape[ax] for ax in axis]), self.rank)
             lora_a = param_with_axes(
@@ -204,7 +204,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
 
     num_heads: int
     head_dim: int
-    hyper_gen: bool = False
+    manual_lora: bool = False
     dtype: jnp.dtype = jnp.float32
     dropout_rate: float = 0.0
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
@@ -268,7 +268,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
             features=(self.num_heads, self.head_dim),
             kernel_axes=("embed", "joined_kv"),
             dtype=self.dtype,
-            hyper_gen=self.hyper_gen,
+            manual_lora=self.manual_lora,
         )
 
         regular_projection = functools.partial(
@@ -458,7 +458,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
                 kernel_axes=("joined_kv", "embed"),
                 dtype=self.dtype,
                 name="out",
-                hyper_gen=self.hyper_gen,
+                manual_lora=self.manual_lora,
             )(x, lora_a=lora_oa, lora_b=lora_ob)
         else:
             out = DenseGeneral(

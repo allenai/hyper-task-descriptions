@@ -9,13 +9,13 @@ from hyper_task_descriptions.common.testing import (
     get_test_model,
     get_vanilla_test_model,
 )
-from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
-from hyper_task_descriptions.modeling.lora_network import (
-    LoraDecoder,
-    LoraDecoderLayer,
-    LoraEncoder,
-    LoraEncoderLayer,
-    LoraTransformer,
+from hyper_task_descriptions.modeling.hyper_network import (
+    HyperDecoder,
+    HyperDecoderLayer,
+    HyperEncoder,
+    HyperEncoderLayer,
+    HyperT5Config,
+    HyperTransformer,
 )
 
 
@@ -49,9 +49,10 @@ class NetworkTest(parameterized.TestCase):
             dropout_rate=0,
             dtype="float32",
             mlp_activations=("gelu", "linear"),
-            lora_ranks=(4, None, 4, None),
-            lora_hyper_gen=False,
+            lora_ranks=(None, None, None, None),
+            use_lora=False,
             use_prefix=False,
+            use_adapter=False,
         )
 
         self.vanilla_config = T5Config(
@@ -83,7 +84,7 @@ class NetworkTest(parameterized.TestCase):
 
         batch_size, in_features = 3, 4
         inputs = jnp.array(np.random.randn(batch_size, in_features, 13))  # emb_dim = 13
-        lora_encoder_layer = LoraEncoderLayer(config=config, relative_embedding=rel_emb)
+        lora_encoder_layer = HyperEncoderLayer(config=config, relative_embedding=rel_emb)
         params = lora_encoder_layer.init(jax.random.PRNGKey(42), inputs)
         output = lora_encoder_layer.apply(params, inputs)
         assert output.shape == (batch_size, in_features, 13)
@@ -112,7 +113,7 @@ class NetworkTest(parameterized.TestCase):
         )
         batch_size, input_len = 2, 4
         inputs = np.random.randint(3, 10, size=(batch_size, input_len))
-        lora_encoder = LoraEncoder(config=config, shared_embedding=shared_embedding)
+        lora_encoder = HyperEncoder(config=config, shared_embedding=shared_embedding)
         params = lora_encoder.init(jax.random.PRNGKey(42), encoder_input_tokens=inputs)
 
         output = lora_encoder.apply(params, inputs)
@@ -145,7 +146,7 @@ class NetworkTest(parameterized.TestCase):
         batch_size, in_features = 3, 4
         inputs = jnp.array(np.random.randn(batch_size, in_features, 13))  # emb_dim = 13
         encoded = jnp.array(np.random.randn(batch_size, in_features, 13))
-        lora_decoder_layer = LoraDecoderLayer(config=config, relative_embedding=rel_emb)
+        lora_decoder_layer = HyperDecoderLayer(config=config, relative_embedding=rel_emb)
         params = lora_decoder_layer.init(jax.random.PRNGKey(42), inputs, encoded=encoded)
         output = lora_decoder_layer.apply(params, inputs, encoded)
         assert output.shape == (batch_size, in_features, 13)
@@ -176,7 +177,7 @@ class NetworkTest(parameterized.TestCase):
         batch_size, max_decode_len, input_len = 2, 3, 4
         decoder_input_tokens = np.random.randint(3, 10, size=(batch_size, max_decode_len))
         encoded = jnp.array(np.random.randn(batch_size, input_len, config.emb_dim))
-        lora_decoder = LoraDecoder(config=config, shared_embedding=shared_embedding)
+        lora_decoder = HyperDecoder(config=config, shared_embedding=shared_embedding)
         params = lora_decoder.init(
             jax.random.PRNGKey(42), encoded=encoded, decoder_input_tokens=decoder_input_tokens
         )
@@ -201,9 +202,7 @@ class NetworkTest(parameterized.TestCase):
         batch_size, max_decode_len, input_len = 2, 3, 4
         batch = {
             "encoder_input_tokens": np.random.randint(3, 10, size=(batch_size, input_len)),
-            # "hyper_encoder_input_tokens": np.random.randint(
-            #     3, 10, size=(batch_size, hyper_input_len)
-            # ),
+            "hyper_encoder_input_tokens": np.random.randint(3, 10, size=(batch_size, 4)),
             "decoder_input_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
             "decoder_target_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
         }
@@ -219,18 +218,21 @@ class NetworkTest(parameterized.TestCase):
             dropout_rate=0,
             dtype="float32",
             mlp_activations=("gelu", "linear"),
-            lora_ranks=(4, None, 4, None),
-            lora_hyper_gen=False,
+            lora_ranks=(None, None, None, None),
+            use_adapter=False,
+            use_lora=False,
             use_prefix=False,
         )
 
         encoder_shape = self.input_shapes["encoder_input_tokens"]
+        hyper_encoder_shape = self.input_shapes["hyper_encoder_input_tokens"]
         decoder_shape = self.input_shapes["decoder_input_tokens"]
 
-        module = LoraTransformer(config=config)
+        module = HyperTransformer(config=config)
         params = module.init(
             jax.random.PRNGKey(42),
             jnp.ones(encoder_shape, jnp.float32),
+            jnp.ones(hyper_encoder_shape, jnp.float32),
             jnp.ones(decoder_shape, jnp.float32),
             jnp.ones(decoder_shape, jnp.float32),
             encoder_positions=None,
@@ -272,17 +274,18 @@ class NetworkTest(parameterized.TestCase):
             enable_dropout=False,
         )
 
+        batch.pop("hyper_encoder_input_tokens")
         voutput = vmodule.apply(vparams, **batch)
         assert (output == voutput).all()
 
     def test_t5_1_1_lora(self):
         np.random.seed(0)
-        batch_size, max_decode_len, input_len = 2, 3, 4
+        batch_size, max_decode_len, input_len, hyper_input_len = 2, 3, 4, 5
         batch = {
             "encoder_input_tokens": np.random.randint(3, 10, size=(batch_size, input_len)),
-            # "hyper_encoder_input_tokens": np.random.randint(
-            #     3, 10, size=(batch_size, hyper_input_len)
-            # ),
+            "hyper_encoder_input_tokens": np.random.randint(
+                3, 10, size=(batch_size, hyper_input_len)
+            ),
             "decoder_input_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
             "decoder_target_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
         }
@@ -294,27 +297,25 @@ class NetworkTest(parameterized.TestCase):
             vocab_size=10,
             num_encoder_layers=1,
             num_decoder_layers=1,
-            do_lora=True,
-            lora_ranks=(4, None, 4, None),
-            lora_hyper_gen=False,
+            lora_ranks=(None, None, None, None),
+            use_lora=False,
+            use_instructions=False,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
 
         # assert "lora_qa_gen" not in params["hyper"]
-        assert "hyper" not in params
-        assert "lora_a" in params["encoder"]["layers_0"]["attention"]["query"]
+        assert "hyper" in params
         assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["key"]
-        assert "lora_a" in params["encoder"]["layers_0"]["attention"]["value"]
         assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["out"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
-        self.assertAlmostEqual(loss, 12.66808, delta=0.05)
+        self.assertAlmostEqual(loss, 15.268826, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
         np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
-        np.testing.assert_allclose(scores["scores"], [-3.501333, -2.825637], rtol=1e-3)
+        np.testing.assert_allclose(scores["scores"], [-3.501117, -2.826092], rtol=1e-3)
 
         # Sanity check
         vmodel = get_vanilla_test_model(
@@ -326,9 +327,11 @@ class NetworkTest(parameterized.TestCase):
             num_encoder_layers=1,
             num_decoder_layers=1,
         )
-        vparams = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
+        input_shapes = self.input_shapes
+        input_shapes.pop("hyper_encoder_input_tokens")
+        vparams = vmodel.get_initial_variables(jax.random.PRNGKey(42), input_shapes)["params"]
         vloss, _ = vmodel.loss_fn(vparams, batch, jax.random.PRNGKey(1))
-        self.assertAlmostEqual(vloss, 12.66808, delta=0.05)
+        self.assertAlmostEqual(vloss, 15.268721, delta=0.05)
 
     @parameterized.named_parameters(
         dict(testcase_name="no_use_prefix", use_prefix=False),
@@ -353,27 +356,44 @@ class NetworkTest(parameterized.TestCase):
             vocab_size=10,
             num_encoder_layers=1,
             num_decoder_layers=1,
-            do_lora=True,
-            lora_hyper_gen=True,
-            lora_ranks=(4, None, 4, None),
+            num_prefix_tokens=1,
+            use_lora=True,
+            lora_ranks=(
+                4,
+                None,
+                4,
+                None,
+            ),
             use_prefix=use_prefix,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
 
-        assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["query"]
-        assert "lora_qa_gen_0" in params["hyper"]
-        assert "lora_ka_gen_0" not in params["hyper"]
-        assert "lora_va_gen_0" in params["hyper"]
-        assert "lora_oa_gen_1" not in params["hyper"]
+        assert "lora_qa_gen" in params["hyper"]
+        assert "lora_va_gen" in params["hyper"]
+        if use_prefix:
+            assert "prefix_value_mlp" in params["hyper"]
+            assert "prefix_key_mlp" in params["hyper"]
+        else:
+            assert "prefix_value_mlp" not in params["hyper"]
+            assert "prefix_key_mlp" not in params["hyper"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
-        self.assertAlmostEqual(loss, 15.268721, delta=0.05)
+        if use_prefix:
+            self.assertAlmostEqual(loss, 15.368638, delta=0.05)
+        else:
+            self.assertAlmostEqual(loss, 15.260639, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
-        np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
+        if use_prefix:
+            np.testing.assert_array_equal(predicted, [[9, 3, 3], [2, 6, 1]])
+        else:
+            np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
-        np.testing.assert_allclose(scores["scores"], [-3.501333, -2.825637], rtol=1e-3)
+        if use_prefix:
+            np.testing.assert_allclose(scores["scores"], [-3.740182, -3.216981], rtol=1e-3)
+        else:
+            np.testing.assert_allclose(scores["scores"], [-3.504862, -2.826767], rtol=1e-3)
 
 
 # if __name__ == "__main__":

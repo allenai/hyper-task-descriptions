@@ -33,7 +33,7 @@ def test_lora_dense_general():
 
     inputs = jnp.array(np.random.randn(batch_size, in_features))
 
-    lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=False)
+    lora_dense = LoraDenseGeneral(out_features, rank=rank, manual_lora=True)
     key = get_prng_key(23)
     params = lora_dense.init(key, inputs)
     assert "lora_a" in params["params"].keys()
@@ -49,7 +49,7 @@ def test_lora_dense_general():
     doutput = dense.apply(dparams, inputs)
     assert (output == doutput).all()
 
-    lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=True)
+    lora_dense = LoraDenseGeneral(out_features, rank=rank, manual_lora=False)
     A = jax.random.normal(key, (batch_size, in_features, rank))
     B = jax.random.normal(key, (batch_size, rank, out_features))
     key = get_prng_key(23)
@@ -66,7 +66,11 @@ def test_lora_multihead_dot_product_attention_with_prefix():
     inputs_kv = jnp.array(np.random.randn(batch_size, kv_len, kv_features))
 
     lora_multihead = LoraMultiHeadDotProductAttentionWithPrefix(
-        num_heads=num_heads, head_dim=head_dim, lora_ranks=lora_ranks, use_prefix=False
+        num_heads=num_heads,
+        head_dim=head_dim,
+        lora_ranks=lora_ranks,
+        use_prefix=False,
+        manual_lora=True,
     )
     key = get_prng_key(23)
     params = lora_multihead.init(key, inputs_q, inputs_kv)
