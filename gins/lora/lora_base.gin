@@ -64,7 +64,6 @@ hyper_network.HyperT5Config:
   logits_via_embedding = False
   adapter_size = 64
   num_prefix_tokens = 30
-  hbottleneck_size = 64
   use_lora = False
   lora_ranks = (2, None, 2, None)
 

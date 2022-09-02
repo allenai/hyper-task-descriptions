@@ -18,7 +18,7 @@ roberta_vocab = HuggingfaceVocabulary("roberta-base", add_special_tokens=True)
 
 # copied from the linux words dict
 words = [
-    line.strip() for line in open("hyper-task-descriptions/numeric_task/words.txt", "r").readlines()
+    line.strip() for line in open("hyper_task_descriptions/numeric_task/words.txt", "r").readlines()
 ]
 
 

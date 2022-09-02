@@ -297,13 +297,14 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         override_param_axes += lora_axes_names_override
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
-        # add pretrained model
-        initial_variables = unfreeze(initial_variables)
-        hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
-            self.module.config.hyperencoder_model, from_pt=True
-        ).params
-        initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
-        initial_variables = freeze(initial_variables)
+        # add pretrained model if needed
+        if self.module.config.use_instructions:
+            initial_variables = unfreeze(initial_variables)
+            hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
+                self.module.config.hyperencoder_model, from_pt=True
+            ).params
+            initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
+            initial_variables = freeze(initial_variables)
         return initial_variables
 
     def _compute_logits(
@@ -689,13 +690,18 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
     ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, metrics_lib.MetricsMap]]:
         """"""
         logits, mod_vars = self._compute_logits(params, batch, dropout_rng, mutable="intermediates")
-        # note we should only have one hypernet feature (hypernet called once)
-        hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
-        # construct the contrastive loss truth
-        cosine_truth = (batch["task_names"][None, :, 0] == batch["task_names"]).astype(jnp.int32)
-
-        # cosine loss - for truth we want 0 for neg (not same task), 1 for pos (same task)
-        cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, cosine_truth)
+        if "intermediates" in mod_vars:
+            # note we should only have one hypernet feature (hypernet called once)
+            hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
+            # construct the contrastive loss truth
+            cosine_truth = (batch["task_names"][None, :, 0] == batch["task_names"]).astype(
+                jnp.int32
+            )
+            # cosine loss - for truth we want 0 for neg (not same task), 1 for pos (same task)
+            cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, cosine_truth)
+        else:
+            cos_loss = 0
+            cosine_truth = jnp.ones((1, 1))
 
         loss_normalizing_factor: Optional[
             Union[float, int, str, losses.SpecialLossNormalizingFactor]

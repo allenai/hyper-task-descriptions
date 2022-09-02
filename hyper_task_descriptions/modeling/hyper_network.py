@@ -55,7 +55,7 @@ class HyperT5Config(T5Config):
     use_prefix: bool = True
     num_prefix_tokens: int = 30
     use_lora: bool = False
-    lora_ranks: tuple = (2, None, 2, None)
+    lora_ranks: tuple = (None, None, None, None)
 
 
 # create our component id dict
@@ -762,11 +762,12 @@ class HyperDecoder(nn.Module):
             layer_adaptations = {
                 k: v[:, lyr : lyr + 2] for k, v in adaptations.items() if "adapter" not in k
             }
-            layer_adaptations |= {k: v[:, lyr] for k, v in adaptations.items() if "adapter" in k}
+            layer_adaptations_ada = {k: v[:, lyr] for k, v in adaptations.items() if "adapter" in k}
+            # I would use |=, but maintaining compat with older python
+            layer_adaptations = {**layer_adaptations, **layer_adaptations_ada}
             lyr_name = (
                 lyr - cfg.num_encoder_layers
             ) // 2  # to maintain rng equivalence with original code
-            print(lyr_name)
             y = HyperDecoderLayer(
                 config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr_name}"
             )(
