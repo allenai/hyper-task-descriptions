@@ -10,3 +10,5 @@ tensorflow==2.9.0 # 2.9 has tpu issues
 tensorflow-text==2.9.0
 # for caching only
 apache-beam==2.40.0
+# for ni-int
+rouge-score
