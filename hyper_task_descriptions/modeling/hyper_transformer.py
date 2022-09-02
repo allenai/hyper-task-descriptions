@@ -299,10 +299,10 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model
         initial_variables = unfreeze(initial_variables)
-        roberta_params = FlaxT5EncoderModel.from_pretrained(
+        hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
             self.module.config.hyperencoder_model, from_pt=True
         ).params
-        initial_variables["params"]["hyper"]["encoder"] = roberta_params
+        initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
         initial_variables = freeze(initial_variables)
         return initial_variables
 
@@ -359,7 +359,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             raw_inputs,  # only needed for encoder padding mask
             flat_ids,
             flat_ids,
-            adapters=adaptations,
+            adaptations=adaptations,
             enable_dropout=False,
             decode=True,
             max_decode_length=max_decode_length,
@@ -476,7 +476,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             self.module.apply(
                 {"params": params},
                 inputs,
-                adapters={
+                adaptations={
                     key: val for key, val in adaptations.items() if not key.endswith("_cc")
                 },  # TODO: make this cleaner
                 # *adaptations[:-2],  # no *cc adaptations
@@ -750,20 +750,3 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
                 }
             )
         return metrics
-
-
-class LoraEncoderDecoderModel(EncoderDecoderModel):
-    FEATURE_CONVERTER_CLS = HyperEncDecContFeatureConverter
-
-    def get_initial_variables(
-        self,
-        rng: jax.random.KeyArray,
-        input_shapes: Mapping[str, Array],
-        input_types: Optional[Mapping[str, jnp.dtype]] = None,
-    ) -> flax_scope.FrozenVariableDict:
-        initial_variables = super().get_initial_variables(rng, input_shapes, input_types)
-
-        # Add lora partitions
-        override_param_axes = lora_axes_names_override
-        initial_variables = override_params_axes_names(initial_variables, override_param_axes)
-        return initial_variables

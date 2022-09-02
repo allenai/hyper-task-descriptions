@@ -62,10 +62,10 @@ def get_test_model(
     num_prefix_tokens=1,
     num_encoder_layers=2,
     num_decoder_layers=2,
-    lora_hyper_gen=False,
-    lora_ranks=(4, None, 4, None),
+    use_instructions=True,
+    use_lora=False,
+    lora_ranks=(None, None, None, None),
     use_prefix=False,
-    do_lora=False,  # TODO: tmp until both configs are merged.
 ):
     import seqio
     from t5x import adafactor
@@ -76,77 +76,30 @@ def get_test_model(
     )
     from hyper_task_descriptions.modeling.hyper_transformer import (
         HyperEncoderDecoderModel,
-        LoraEncoderDecoderModel,
     )
 
-    if do_lora:
-        from hyper_task_descriptions.modeling.lora_network import (
-            HyperLoraTransformer,
-            LoraTransformer,
-        )
-
-        if lora_hyper_gen:
-            config = HyperT5Config(
-                num_encoder_layers=num_encoder_layers,
-                num_decoder_layers=num_decoder_layers,
-                vocab_size=vocab_size,
-                dropout_rate=0,
-                emb_dim=emb_dim,
-                num_heads=num_heads,
-                head_dim=head_dim,
-                mlp_dim=mlp_dim,
-                dtype=dtype,
-                mlp_activations=("gelu", "linear"),
-                num_prefix_tokens=num_prefix_tokens,
-                lora_hyper_gen=lora_hyper_gen,
-                lora_ranks=lora_ranks,
-                use_prefix=use_prefix,
-                hyperencoder_model="google/t5-small-lm-adapt",
-            )
-            module = HyperLoraTransformer(config=config)
-            vocab = seqio.test_utils.sentencepiece_vocab()
-            optimizer_def = adafactor.Adafactor()
-            return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
-        else:
-            config = HyperT5Config(
-                num_encoder_layers=num_encoder_layers,
-                num_decoder_layers=num_decoder_layers,
-                vocab_size=vocab_size,
-                dropout_rate=0,
-                emb_dim=emb_dim,
-                num_heads=num_heads,
-                head_dim=head_dim,
-                mlp_dim=mlp_dim,
-                dtype=dtype,
-                mlp_activations=("gelu", "linear"),
-                num_prefix_tokens=num_prefix_tokens,
-                lora_hyper_gen=lora_hyper_gen,
-                lora_ranks=lora_ranks,
-                use_prefix=use_prefix,
-                hyperencoder_model="google/t5-small-lm-adapt",
-            )
-            module = LoraTransformer(config=config)
-            vocab = seqio.test_utils.sentencepiece_vocab()
-            optimizer_def = adafactor.Adafactor()
-            return LoraEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
-    else:
-        config = HyperT5Config(
-            num_encoder_layers=num_encoder_layers,
-            num_decoder_layers=num_decoder_layers,
-            vocab_size=vocab_size,
-            dropout_rate=0,
-            emb_dim=emb_dim,
-            num_heads=num_heads,
-            head_dim=head_dim,
-            mlp_dim=mlp_dim,
-            dtype=dtype,
-            mlp_activations=("gelu", "linear"),
-        )
-        # TODO: maybe configure adapter specific things too.
-        module = HyperTransformer(config=config)
-        vocab = seqio.test_utils.sentencepiece_vocab()
-        optimizer_def = adafactor.Adafactor()
-        return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
+    config = HyperT5Config(
+        num_encoder_layers=num_encoder_layers,
+        num_decoder_layers=num_decoder_layers,
+        vocab_size=vocab_size,
+        dropout_rate=0,
+        emb_dim=emb_dim,
+        num_heads=num_heads,
+        head_dim=head_dim,
+        mlp_dim=mlp_dim,
+        dtype=dtype,
+        mlp_activations=("gelu", "linear"),
+        num_prefix_tokens=num_prefix_tokens,
+        use_lora=use_lora,
+        lora_ranks=lora_ranks,
+        use_prefix=use_prefix,
+        use_instructions=use_instructions,
+        hyperencoder_model="google/t5-small-lm-adapt",
+    )
+    module = HyperTransformer(config=config)
+    vocab = seqio.test_utils.sentencepiece_vocab()
+    optimizer_def = adafactor.Adafactor()
+    return HyperEncoderDecoderModel(module, vocab, vocab, optimizer_def=optimizer_def)
 
 
 def get_vanilla_test_model(
