@@ -65,7 +65,7 @@ seqio.TaskRegistry.add(
     output_features={
         "inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
         "targets": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
-        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, required=False, add_eos=True),
+        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
         "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
     },
     metric_fns=[],
@@ -107,7 +107,7 @@ seqio.TaskRegistry.add(
     output_features={
         "inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
         "targets": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
-        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, required=False, add_eos=True),
+        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
         "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
     },
     metric_fns=[],
@@ -152,7 +152,7 @@ seqio.TaskRegistry.add(
     output_features={
         "inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
         "targets": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
-        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, required=False, add_eos=True),
+        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
         "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
     },
     metric_fns=[],
