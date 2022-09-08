@@ -113,7 +113,7 @@ class Hypernet(nn.Module):
             layer_embed_components *= self.num_components
         self.embedder = jnp.asarray(
             param_with_axes(
-                "embedding",
+                "component_embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
                 (layer_embed_components, encoder.config.d_model),
                 jnp.float32,
