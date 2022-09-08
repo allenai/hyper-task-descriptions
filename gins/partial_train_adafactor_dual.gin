@@ -1,0 +1,49 @@
+# A variant of the **adam** gin but with adafactor instead.
+# Note: this will not restore adafactor states from the T5 checkpoints
+# since it uses the optax adafactor version.
+
+
+from __gin__ import dynamic_registration
+
+import optax
+from t5x import utils
+
+from hyper_task_descriptions import utils as hyper_utils
+
+utils.create_learning_rate_scheduler:
+  factors = 'constant'
+  base_learning_rate = 1e-3
+
+
+# multi optimizer - try to match hyper, then roberta, all else freeze
+# hyper = parameter generators
+# roberta = hyperencoder
+# all else = underlying model
+OPTIMIZER = @hyper_utils.multi_transform()
+hyper_utils.multi_transform:
+  transforms = {"hyper": @hyper/optax.adafactor(), "freeze": @under/optax.adafactor(), "roberta": @under/optax.adafactor()}
+  param_labels = @hyper_utils.match_any_optax_trip()  # match_any_optax
+
+hyper/optax.adam:
+  learning_rate = @hyper/utils.create_learning_rate_scheduler() 
+
+hyper/utils.create_learning_rate_scheduler:
+  base_learning_rate = 0.3
+  decay_factor = 0
+
+roberta/optax.adam:
+  learning_rate = @roberta/utils.create_learning_rate_scheduler() 
+
+roberta/utils.create_learning_rate_scheduler:
+  base_learning_rate = 1e-3
+  decay_factor = 0
+
+under/optax.adam:
+  learning_rate = @under/utils.create_learning_rate_scheduler() 
+
+under/utils.create_learning_rate_scheduler:
+  base_learning_rate = 1e-3
+  decay_factor = 0
+
+hyper_utils.match_any_optax_trip.regexes = [".*hyper/[eap].*"] # select encoder + adapter generators
+hyper_utils.match_any_optax_trip.hyper_regexes = [".*hyper.*"] # all other hyper
