@@ -12,6 +12,6 @@ class Adafactor(adafactor.Adafactor):
         return super().apply_param_gradient(step, hyper_params, param, state, grad, path)
 
     def apply_gradient(self, hyper_params, params, state, grads):
-         # must use replace function as hyper_params is a struct.dataclass and frozen
+        # must use replace function as hyper_params is a struct.dataclass and frozen
         hyper_params = hyper_params.replace(learning_rate=self.hyper_params.learning_rate)
         return super().apply_gradient(hyper_params, params, state, grads)
