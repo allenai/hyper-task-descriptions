@@ -29,7 +29,7 @@ hyper/optax.adam:
   learning_rate = @hyper/utils.create_learning_rate_scheduler() 
 
 hyper/utils.create_learning_rate_scheduler:
-  base_learning_rate = 1e-2
+  base_learning_rate = 0.3
   decay_factor = 0
 
 roberta/optax.adam:
@@ -46,5 +46,5 @@ under/utils.create_learning_rate_scheduler:
   base_learning_rate = 1e-4
   decay_factor = 0
 
-hyper_utils.match_any_optax_trip.regexes = [".*hyper/enc.*"]  # select encoder
+hyper_utils.match_any_optax_trip.regexes = [".*hyper/[eap].*"] # select encoder + adapter generators
 hyper_utils.match_any_optax_trip.hyper_regexes = [".*hyper.*"] # all other hyper
