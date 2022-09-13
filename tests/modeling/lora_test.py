@@ -7,6 +7,9 @@ from hyper_task_descriptions.common.testing import get_prng_key
 from hyper_task_descriptions.modeling.lora import (
     LoraDenseGeneral,
     LoraMultiHeadDotProductAttentionWithPrefix,
+    batch_lora_linear,
+    efficient_batch_lora_linear,
+    efficient_lora_linear,
     lora_linear,
 )
 
@@ -25,6 +28,28 @@ def test_lora_linear():
     assert output.shape == (batch_size, out_features)
     expected_output = (inputs @ W) + (inputs @ A @ B) * (1 / rank)  # W0x + (BAx*scaling)
     assert jnp.all(output == expected_output)
+
+    efficient_output = efficient_lora_linear(inputs, W, A, B, 1, rank)
+    assert efficient_output.shape == (batch_size, out_features)
+    np.testing.assert_allclose(efficient_output, expected_output, rtol=1e-6)
+
+
+def test_batch_lora_linear():
+    batch_size, in_features, out_features = 3, 4, 5
+    rank = 2
+
+    key = get_prng_key(23)
+    inputs = jax.random.normal(key, (batch_size, in_features))
+    W = jax.random.normal(key, (in_features, out_features))
+    A = jax.random.normal(key, (batch_size, in_features, rank))
+    B = jax.random.normal(key, (batch_size, rank, out_features))
+
+    output = batch_lora_linear(inputs, W, A, B, 1, rank)
+    assert output.shape == (batch_size, out_features)
+
+    efficient_output = efficient_batch_lora_linear(inputs, W, A, B, 1, rank)
+    assert output.shape == (batch_size, out_features)
+    np.testing.assert_allclose(output, efficient_output, rtol=1e-5)
 
 
 def test_lora_dense_general():
