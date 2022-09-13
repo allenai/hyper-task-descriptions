@@ -37,7 +37,7 @@ class TestHyperEncDecFeatureConverter(HyperTaskDescriptionsTestCase):
         expected = {
             "encoder_input_tokens": [9, 4, 3, 8, 1, 0, 0],
             "decoder_target_tokens": [3, 9, 4, 1, 0],
-            "hyper_encoder_input_tokens": [5, 7, 1],  # hyper_inputs padding is 1.
+            "hyper_encoder_input_tokens": [5, 7, 0],  # hyper_inputs padding is 0.
             # mtf.transformer.autoregressive_inputs does not zero out the last eos
             # when the data is not packed. This test mimic the behavior.
             "decoder_input_tokens": [0, 3, 9, 4, 1],
@@ -185,7 +185,7 @@ class TestHyperEncDecContFeatureConverter(HyperTaskDescriptionsTestCase):
         expected = {
             "encoder_input_tokens": [9, 4, 3, 8, 1, 0, 0],
             "decoder_target_tokens": [3, 9, 4, 1, 0],
-            "hyper_encoder_input_tokens": [5, 7, 1],  # hyper_inputs padding is 1.
+            "hyper_encoder_input_tokens": [5, 7, 0],  # hyper_inputs padding is 0.
             # mtf.transformer.autoregressive_inputs does not zero out the last eos
             # when the data is not packed. This test mimic the behavior.
             "decoder_input_tokens": [0, 3, 9, 4, 1],
@@ -394,7 +394,7 @@ class TestHyperEncoderDecoderModel(parameterized.TestCase):
 
         mock_transformer = mock.Mock()
         mock_transformer.config = mock.Mock()
-        mock_transformer.config.roberta_model = "hamishivi/fixed-roberta-base"
+        mock_transformer.config.hyperencoder_model = "google/t5-small-lm-adapt"
         # TODO: confirm that this mock test is reasonable
         mock_transformer.init.return_value = FrozenDict(
             {"params": {"hyper": {}}, "params_axes": {}}

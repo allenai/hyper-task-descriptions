@@ -34,10 +34,10 @@ _CITATION = """
 """
 
 _DESCRIPTION = """
-Natural-Instructions v2 is a benchmark of 1,600+ diverse language tasks and their expert-written instructions. 
-It covers 70+ distinct task types, such as tagging, in-filling, and rewriting. 
-These tasks are collected with contributions of NLP practitioners in the community and 
-through an iterative peer review process to ensure their quality. 
+Natural-Instructions v2 is a benchmark of 1,600+ diverse language tasks and their expert-written instructions.
+It covers 70+ distinct task types, such as tagging, in-filling, and rewriting.
+These tasks are collected with contributions of NLP practitioners in the community and
+through an iterative peer review process to ensure their quality.
 """
 
 _URL = "https://instructions.apps.allenai.org/"
@@ -46,12 +46,22 @@ _RELEASE_URL = f"https://api.github.com/repos/allenai/natural-instructions/zipba
 
 
 class NIConfig(datasets.BuilderConfig):
-    def __init__(self, split_subdir="splits/default/", task_subdir="tasks/", max_num_instances_per_task=None, max_num_instances_per_eval_task=None, *args, **kwargs):
+    def __init__(
+        self,
+        split_subdir="splits/default/",
+        task_subdir="tasks/",
+        max_num_instances_per_task=None,
+        max_num_instances_per_eval_task=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.split_subdir: str = split_subdir
         self.task_subdir: str = task_subdir
         self.max_num_instances_per_task: int = max_num_instances_per_task
-        self.max_num_instances_per_eval_task: int = max_num_instances_per_eval_task or max_num_instances_per_task
+        self.max_num_instances_per_eval_task: int = (
+            max_num_instances_per_eval_task or max_num_instances_per_task
+        )
 
 
 class NaturalInstructions(datasets.GeneratorBasedBuilder):
@@ -78,16 +88,20 @@ class NaturalInstructions(datasets.GeneratorBasedBuilder):
                     "Categories": [datasets.Value("string")],
                     "Reasoning": [datasets.Value("string")],
                     "Definition": [datasets.Value("string")],
-                    "Positive Examples": [{
-                        "input": datasets.Value("string"),
-                        "output": datasets.Value("string"),
-                        "explanation": datasets.Value("string")
-                    }],
-                    "Negative Examples": [{
-                        "input": datasets.Value("string"),
-                        "output": datasets.Value("string"),
-                        "explanation": datasets.Value("string")
-                    }],
+                    "Positive Examples": [
+                        {
+                            "input": datasets.Value("string"),
+                            "output": datasets.Value("string"),
+                            "explanation": datasets.Value("string"),
+                        }
+                    ],
+                    "Negative Examples": [
+                        {
+                            "input": datasets.Value("string"),
+                            "output": datasets.Value("string"),
+                            "explanation": datasets.Value("string"),
+                        }
+                    ],
                     "Input_language": [datasets.Value("string")],
                     "Output_language": [datasets.Value("string")],
                     "Instruction_language": [datasets.Value("string")],
@@ -95,7 +109,7 @@ class NaturalInstructions(datasets.GeneratorBasedBuilder):
                     "Instance": {
                         "id": datasets.Value("string"),
                         "input": datasets.Value("string"),
-                        "output": [datasets.Value("string")]
+                        "output": [datasets.Value("string")],
                     },
                 }
             ),
@@ -107,29 +121,35 @@ class NaturalInstructions(datasets.GeneratorBasedBuilder):
         """Returns SplitGenerators."""
         if self.config.data_dir is None:
             dl_path = dl_manager.download_and_extract(_RELEASE_URL)
-            self.config.data_dir = os.path.join(dl_path, os.listdir(dl_path)[0]) # get the extracted directory
+            self.config.data_dir = os.path.join(
+                dl_path, os.listdir(dl_path)[0]
+            )  # get the extracted directory
         split_dir = os.path.join(self.config.data_dir, self.config.split_subdir)
         task_dir = os.path.join(self.config.data_dir, self.config.task_subdir)
         return [
             datasets.SplitGenerator(
                 name=datasets.Split.TRAIN,
                 gen_kwargs={
-                    "path": os.path.join(split_dir, "train_tasks.txt"), 
-                    "task_dir": task_dir, 
+                    "path": os.path.join(split_dir, "train_tasks.txt"),
+                    "task_dir": task_dir,
                     "max_num_instances_per_task": self.config.max_num_instances_per_task,
-                    "split": datasets.Split.TRAIN
-                }),
+                    "split": datasets.Split.TRAIN,
+                },
+            ),
             datasets.SplitGenerator(
                 name=datasets.Split.TEST,
                 gen_kwargs={
-                    "path": os.path.join(split_dir, "test_tasks.txt"), 
-                    "task_dir": task_dir, 
+                    "path": os.path.join(split_dir, "test_tasks.txt"),
+                    "task_dir": task_dir,
                     "max_num_instances_per_task": self.config.max_num_instances_per_eval_task,
-                    "split": datasets.Split.TEST
-                }),
+                    "split": datasets.Split.TEST,
+                },
+            ),
         ]
 
-    def _generate_examples(self, path=None, task_dir=None, max_num_instances_per_task=None, split=None):
+    def _generate_examples(
+        self, path=None, task_dir=None, max_num_instances_per_task=None, split=None
+    ):
         """Yields examples."""
         logger.info(f"Reading {split} tasks from {path}")
         with open(path, encoding="utf-8") as split_f:
@@ -140,13 +160,20 @@ class NaturalInstructions(datasets.GeneratorBasedBuilder):
                     s = task_f.read()
                     task_data = json.loads(s)
                     # rename task name to task_num + source + category
-                    task_name = task_name.split("_")[0] + "_" + "_".join(task_data["Source"]).lower() + "_" + "_".join(task_data["Categories"][0].lower().split())
+                    task_name = (
+                        task_name.split("_")[0]
+                        + "_"
+                        + "_".join(task_data["Source"]).lower()
+                        + "_"
+                        + "_".join(task_data["Categories"][0].lower().split())
+                    )
                     task_data["Task"] = task_name
                     if "Instruction Source" in task_data:
                         task_data.pop("Instruction Source")
                     all_instances = task_data.pop("Instances")
                     if split == datasets.Split.TEST:
-                        # for testing tasks, 100 instances are selected for efficient evaluation and they are label-balanced.
+                        # for testing tasks, 100 instances are selected for efficient
+                        # evaluation and they are label-balanced.
                         # we put them in the first for reproducibility.
                         # so, we use them here
                         instances = all_instances[:100]

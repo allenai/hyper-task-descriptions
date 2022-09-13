@@ -27,6 +27,30 @@ with_sharding_constraint = nn_partitioning.with_sharding_constraint
 NumArray: TypeAlias = jnp.ndarray
 
 
+def efficient_lora_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: NumArray,
+    lora_b: NumArray,
+    alpha: int,
+    rank: int,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+    axis = _normalize_axes(axis, inputs.ndim)
+    contract_ind = tuple(range(0, len(axis)))
+    dimension_numbers = ((axis, contract_ind), ((), ()))
+
+    a_contract_axis = _normalize_axes(_canonicalize_tuple((-1,)), lora_a.ndim)
+    b_contract_axis = _normalize_axes(_canonicalize_tuple((0,)), lora_b.ndim)
+    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((), ()))
+    lora_kernel = lax.dot_general(lora_a, lora_b, ab_dimension_numbers)
+    new_kernel = kernel + lora_kernel * (alpha / rank)
+    output = lax.dot_general(inputs, new_kernel, dimension_numbers=dimension_numbers)
+    return output
+
+
 def lora_linear(
     inputs: NumArray,
     kernel: NumArray,
@@ -55,6 +79,32 @@ def lora_linear(
     x = lax.dot_general(x, lora_b, dimension_numbers=b_dimension_numbers)
 
     output = output + x * (alpha / rank)
+
+    return output
+
+
+def efficient_batch_lora_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: NumArray,
+    lora_b: NumArray,
+    alpha: int,
+    rank: int,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+
+    a_contract_axis = _normalize_axes((-1,), lora_a.ndim)
+    b_contract_axis = _normalize_axes((1,), lora_b.ndim)
+    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((0,), (0,)))
+    lora_kernel = lax.dot_general(lora_a, lora_b, ab_dimension_numbers)
+    lora_axis = _normalize_axes(axis, inputs.ndim)
+    lora_contract_ind = tuple(range(1, 1 + len(lora_axis)))
+    lora_dimension_numbers = ((lora_axis, lora_contract_ind), ((0,), (0,)))
+
+    new_kernel = kernel + lora_kernel * (alpha / rank)
+    output = lax.dot_general(inputs, new_kernel, dimension_numbers=lora_dimension_numbers)
 
     return output
 
@@ -122,7 +172,7 @@ class LoraDenseGeneral(nn.Module):
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "truncated_normal")
     kernel_axes: Tuple[str, ...] = ()
     lora_a_init: Initializer = nn.initializers.normal(0.01)
-    hyper_gen: bool = False  # TODO: handle this better?
+    manual_lora: bool = False
 
     @nn.compact
     def __call__(
@@ -151,7 +201,7 @@ class LoraDenseGeneral(nn.Module):
         # CHANGE from t5x
         assert self.rank > 0
 
-        if not self.hyper_gen:
+        if self.manual_lora:
             lora_a_shape = tuple([inputs.shape[ax] for ax in axis]) + tuple([self.rank])
             lora_a_param_shape = (np.prod([inputs.shape[ax] for ax in axis]), self.rank)
             lora_a = param_with_axes(
@@ -166,7 +216,7 @@ class LoraDenseGeneral(nn.Module):
             lora_b = jnp.asarray(lora_b, self.dtype)
             lora_b = jnp.reshape(lora_b, lora_b_shape)
 
-            return lora_linear(
+            return efficient_lora_linear(
                 inputs,
                 kernel,
                 lora_a=lora_a,
@@ -177,7 +227,7 @@ class LoraDenseGeneral(nn.Module):
             )
         else:
 
-            return batch_lora_linear(
+            return efficient_batch_lora_linear(
                 inputs,
                 kernel,
                 lora_a,
@@ -204,7 +254,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
 
     num_heads: int
     head_dim: int
-    hyper_gen: bool = False
+    manual_lora: bool = False
     dtype: jnp.dtype = jnp.float32
     dropout_rate: float = 0.0
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
@@ -268,7 +318,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
             features=(self.num_heads, self.head_dim),
             kernel_axes=("embed", "joined_kv"),
             dtype=self.dtype,
-            hyper_gen=self.hyper_gen,
+            manual_lora=self.manual_lora,
         )
 
         regular_projection = functools.partial(
@@ -458,7 +508,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
                 kernel_axes=("joined_kv", "embed"),
                 dtype=self.dtype,
                 name="out",
-                hyper_gen=self.hyper_gen,
+                manual_lora=self.manual_lora,
             )(x, lora_a=lora_oa, lora_b=lora_ob)
         else:
             out = DenseGeneral(

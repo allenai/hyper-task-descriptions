@@ -7,6 +7,9 @@ from hyper_task_descriptions.common.testing import get_prng_key
 from hyper_task_descriptions.modeling.lora import (
     LoraDenseGeneral,
     LoraMultiHeadDotProductAttentionWithPrefix,
+    batch_lora_linear,
+    efficient_batch_lora_linear,
+    efficient_lora_linear,
     lora_linear,
 )
 
@@ -26,6 +29,28 @@ def test_lora_linear():
     expected_output = (inputs @ W) + (inputs @ A @ B) * (1 / rank)  # W0x + (BAx*scaling)
     assert jnp.all(output == expected_output)
 
+    efficient_output = efficient_lora_linear(inputs, W, A, B, 1, rank)
+    assert efficient_output.shape == (batch_size, out_features)
+    np.testing.assert_allclose(efficient_output, expected_output, rtol=1e-6)
+
+
+def test_batch_lora_linear():
+    batch_size, in_features, out_features = 3, 4, 5
+    rank = 2
+
+    key = get_prng_key(23)
+    inputs = jax.random.normal(key, (batch_size, in_features))
+    W = jax.random.normal(key, (in_features, out_features))
+    A = jax.random.normal(key, (batch_size, in_features, rank))
+    B = jax.random.normal(key, (batch_size, rank, out_features))
+
+    output = batch_lora_linear(inputs, W, A, B, 1, rank)
+    assert output.shape == (batch_size, out_features)
+
+    efficient_output = efficient_batch_lora_linear(inputs, W, A, B, 1, rank)
+    assert output.shape == (batch_size, out_features)
+    np.testing.assert_allclose(output, efficient_output, rtol=1e-5)
+
 
 def test_lora_dense_general():
     batch_size, in_features, out_features = 3, 4, 5
@@ -33,7 +58,7 @@ def test_lora_dense_general():
 
     inputs = jnp.array(np.random.randn(batch_size, in_features))
 
-    lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=False)
+    lora_dense = LoraDenseGeneral(out_features, rank=rank, manual_lora=True)
     key = get_prng_key(23)
     params = lora_dense.init(key, inputs)
     assert "lora_a" in params["params"].keys()
@@ -49,7 +74,7 @@ def test_lora_dense_general():
     doutput = dense.apply(dparams, inputs)
     assert (output == doutput).all()
 
-    lora_dense = LoraDenseGeneral(out_features, rank=rank, hyper_gen=True)
+    lora_dense = LoraDenseGeneral(out_features, rank=rank, manual_lora=False)
     A = jax.random.normal(key, (batch_size, in_features, rank))
     B = jax.random.normal(key, (batch_size, rank, out_features))
     key = get_prng_key(23)
@@ -66,7 +91,11 @@ def test_lora_multihead_dot_product_attention_with_prefix():
     inputs_kv = jnp.array(np.random.randn(batch_size, kv_len, kv_features))
 
     lora_multihead = LoraMultiHeadDotProductAttentionWithPrefix(
-        num_heads=num_heads, head_dim=head_dim, lora_ranks=lora_ranks, use_prefix=False
+        num_heads=num_heads,
+        head_dim=head_dim,
+        lora_ranks=lora_ranks,
+        use_prefix=False,
+        manual_lora=True,
     )
     key = get_prng_key(23)
     params = lora_multihead.init(key, inputs_q, inputs_kv)

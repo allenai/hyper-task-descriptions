@@ -13,5 +13,4 @@ hyper_network.HyperT5Config:
   mlp_dim = 5120
   adapter_size = 64
   num_prefix_tokens = 15
-  hbottleneck_size = 128
   lora_ranks = (8, None, 8, None)

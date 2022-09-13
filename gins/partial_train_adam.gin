@@ -5,34 +5,46 @@ from t5x import utils
 
 from hyper_task_descriptions import utils as hyper_utils
 
-
-# multi optimizer - we map anything that matches param_labels to adamw, others dont train
-# note we use optaxs way of doing things here - the t5x multoptimizer didnt work for some
-# reason.
-OPTIMIZER = @hyper_utils.multi_transform()
-hyper_utils.multi_transform:
-  transforms = {"train": @optax.adam(), "freeze": @optax.set_to_zero()}
-  param_labels = @hyper_utils.match_any_optax()
-
-# we only train params that match this regex
-hyper_utils.match_any_optax.regexes = [".*hyper.*"]
-
-optax.adam:
-  learning_rate = @utils.create_learning_rate_scheduler() 
-  # adamw params below. See https://optax.readthedocs.io/en/latest/api.html#optax.adamw
-  # weight_decay = 0
-  # mask = @hyper_utils.match_any_optax_inverse()  
-
-# for adamw, a common case is not applying wd to layer norms and biases (but no bias in t5)
-#hyper_utils.match_any_optax_inverse.regexes = [".*/LayerNorm/.*"]
-
-
 # WARNING: t5x will log starting from the pretrained model step,
 # but optax calls this starting from 0. So ignore the tensorboard
 # learning rate logging.
 utils.create_learning_rate_scheduler:
-  factors = 'constant * linear_warmup'
-  base_learning_rate = 1e-5
+  factors = 'linear_decay'
+  base_learning_rate = 1e-4
+  decay_factor = 0
   warmup_steps = 1000
   step_offset = 0 # our steps start at 0 no matter what with optax.
 
+
+# multi optimizer - try to match hyper, then roberta, all else freeze
+# hyper = parameter generators
+# roberta = hyperencoder
+# all else = underlying model
+OPTIMIZER = @hyper_utils.multi_transform()
+hyper_utils.multi_transform:
+  transforms = {"hyper": @hyper/optax.adam(), "freeze": @under/optax.adam(), "roberta": @under/optax.adam()}
+  param_labels = @hyper_utils.match_any_optax_trip()  # match_any_optax
+
+hyper/optax.adam:
+  learning_rate = @hyper/utils.create_learning_rate_scheduler() 
+
+hyper/utils.create_learning_rate_scheduler:
+  base_learning_rate = 0.3
+  decay_factor = 0
+
+roberta/optax.adam:
+  learning_rate = @roberta/utils.create_learning_rate_scheduler() 
+
+roberta/utils.create_learning_rate_scheduler:
+  base_learning_rate = 1e-4
+  decay_factor = 0
+
+under/optax.adam:
+  learning_rate = @under/utils.create_learning_rate_scheduler() 
+
+under/utils.create_learning_rate_scheduler:
+  base_learning_rate = 1e-4
+  decay_factor = 0
+
+hyper_utils.match_any_optax_trip.regexes = [".*hyper/[eap].*"] # select encoder + adapter generators
+hyper_utils.match_any_optax_trip.hyper_regexes = [".*hyper.*"] # all other hyper

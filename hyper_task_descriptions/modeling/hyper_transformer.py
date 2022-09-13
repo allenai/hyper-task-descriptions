@@ -31,14 +31,12 @@ from t5x import metrics as metrics_lib
 from t5x import optimizers
 from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
 from t5x.utils import override_params_axes_names
-from transformers import FlaxRobertaModel
+from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
 from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
-from hyper_task_descriptions.modeling.roberta_partitioning import (
-    roberta_axes_names_override,
-)
+from hyper_task_descriptions.modeling.t5_partitioning import t5_axes_names_override
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -89,7 +87,7 @@ class HyperEncDecFeatureConverter(FeatureConverter):
     # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
     TASK_PADDING = {
         "inputs": 0,
-        "hyper_inputs": 1,
+        "hyper_inputs": 0,
         "targets": 0,
     }
     PACKING_FEATURE_DTYPES = {
@@ -292,23 +290,21 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
         )
 
-        override_param_axes = roberta_axes_names_override
+        override_param_axes = t5_axes_names_override
         # TODO: override this in lora_network
         # TODO: don't do this for every case.
 
         override_param_axes += lora_axes_names_override
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
-        # add pretrained model
-        initial_variables = unfreeze(initial_variables)
-        roberta_params = FlaxRobertaModel.from_pretrained(
-            self.module.config.roberta_model,
-            max_position_embeddings=520,
-            type_vocab_size=8,
-            vocab_size=50272,
-        ).params
-        initial_variables["params"]["hyper"]["encoder"] = roberta_params
-        initial_variables = freeze(initial_variables)
+        # add pretrained model if needed
+        if self.module.config.use_instructions:
+            initial_variables = unfreeze(initial_variables)
+            hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
+                self.module.config.hyperencoder_model, from_pt=True
+            ).params
+            initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
+            initial_variables = freeze(initial_variables)
         return initial_variables
 
     def _compute_logits(
@@ -364,7 +360,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             raw_inputs,  # only needed for encoder padding mask
             flat_ids,
             flat_ids,
-            adapters=adaptations,
+            adaptations=adaptations,
             enable_dropout=False,
             decode=True,
             max_decode_length=max_decode_length,
@@ -481,7 +477,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             self.module.apply(
                 {"params": params},
                 inputs,
-                adapters={
+                adaptations={
                     key: val for key, val in adaptations.items() if not key.endswith("_cc")
                 },  # TODO: make this cleaner
                 # *adaptations[:-2],  # no *cc adaptations
@@ -563,7 +559,7 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         "task_names": FeatureConverter.FeatureSpec(dtype=tf.int32),
     }
     # t5x by default pads everything with the token id 0, but for roberta it is the token id 1
-    TASK_PADDING = {"inputs": 0, "hyper_inputs": 1, "targets": 0, "task_names": 0}
+    TASK_PADDING = {"inputs": 0, "hyper_inputs": 0, "targets": 0, "task_names": 0}
     MODEL_FEATURES = {
         "encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
         "hyper_encoder_input_tokens": FeatureConverter.FeatureSpec(dtype=tf.int32),
@@ -694,13 +690,18 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
     ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, metrics_lib.MetricsMap]]:
         """"""
         logits, mod_vars = self._compute_logits(params, batch, dropout_rng, mutable="intermediates")
-        # note we should only have one hypernet feature (hypernet called once)
-        hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
-        # construct the contrastive loss truth
-        cosine_truth = (batch["task_names"][None, :, 0] == batch["task_names"]).astype(jnp.int32)
-
-        # cosine loss - for truth we want 0 for neg (not same task), 1 for pos (same task)
-        cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, cosine_truth)
+        if "intermediates" in mod_vars:
+            # note we should only have one hypernet feature (hypernet called once)
+            hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
+            # construct the contrastive loss truth
+            cosine_truth = (batch["task_names"][None, :, 0] == batch["task_names"]).astype(
+                jnp.int32
+            )
+            # cosine loss - for truth we want 0 for neg (not same task), 1 for pos (same task)
+            cos_loss = cosine_similarity_loss(hypernet_feats, hypernet_feats, cosine_truth)
+        else:
+            cos_loss = 0
+            cosine_truth = jnp.ones((1, 1))
 
         loss_normalizing_factor: Optional[
             Union[float, int, str, losses.SpecialLossNormalizingFactor]
@@ -755,20 +756,3 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
                 }
             )
         return metrics
-
-
-class LoraEncoderDecoderModel(EncoderDecoderModel):
-    FEATURE_CONVERTER_CLS = HyperEncDecContFeatureConverter
-
-    def get_initial_variables(
-        self,
-        rng: jax.random.KeyArray,
-        input_shapes: Mapping[str, Array],
-        input_types: Optional[Mapping[str, jnp.dtype]] = None,
-    ) -> flax_scope.FrozenVariableDict:
-        initial_variables = super().get_initial_variables(rng, input_shapes, input_types)
-
-        # Add lora partitions
-        override_param_axes = lora_axes_names_override
-        initial_variables = override_params_axes_names(initial_variables, override_param_axes)
-        return initial_variables
