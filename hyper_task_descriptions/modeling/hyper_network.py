@@ -858,10 +858,20 @@ class HyperTransformer(nn.Module):
         cfg = self.config
         assert encoder_input_tokens.ndim == 2  # (batch, len)
 
-        # Make padding attention mask.
-        encoder_mask = layers.make_attention_mask(
-            encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
-        )
+        if cfg.use_simple_prefix_vectors:
+            prefix_vector_length = prefix_vectors.shape[-2]
+            encoder_input_mask = jnp.concatenate([
+                jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
+                encoder_input_tokens > 0,
+            ], axis=1)
+            encoder_mask = layers.make_attention_mask(
+                encoder_input_mask, encoder_input_mask, dtype=cfg.dtype
+            )
+        else:    
+            # Make padding attention mask.
+            encoder_mask = layers.make_attention_mask(
+                encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
+            )
         # Add segmentation block-diagonal attention mask if using segmented data.
         if encoder_segment_ids is not None:
             encoder_mask = layers.combine_masks(
@@ -901,13 +911,22 @@ class HyperTransformer(nn.Module):
         """Applies Transformer decoder-branch on encoded-input and target."""
         cfg = self.config
 
+        if cfg.use_simple_prefix_vectors:
+            prefix_vector_length = prefix_vectors.shape[-2]
+            encoder_input_mask = jnp.concatenate([
+                jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
+                encoder_input_tokens > 0,
+            ], axis=1)
+        else:    
+            encoder_input_mask = encoder_input_tokens > 0
+
         # Make padding attention masks.
         if decode:
             # Do not mask decoder attention based on targets padding at
             # decoding/inference time.
             decoder_mask = None
             encoder_decoder_mask = layers.make_attention_mask(
-                jnp.ones_like(decoder_target_tokens), encoder_input_tokens > 0, dtype=cfg.dtype
+                jnp.ones_like(decoder_target_tokens), encoder_input_mask, dtype=cfg.dtype
             )
         else:
             decoder_mask = layers.make_decoder_mask(
@@ -916,7 +935,7 @@ class HyperTransformer(nn.Module):
                 decoder_segment_ids=decoder_segment_ids,
             )
             encoder_decoder_mask = layers.make_attention_mask(
-                decoder_target_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
+                decoder_target_tokens > 0, encoder_input_mask, dtype=cfg.dtype
             )
 
         # Add segmentation block-diagonal attention masks if using segmented data.
