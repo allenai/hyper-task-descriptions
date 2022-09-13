@@ -1,22 +1,3 @@
-<<<<<<< HEAD
-from datasets import load_dataset
-import functools
-import seqio
-import random
-import re
-import tensorflow as tf
-import transformers
-from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
-from hyper_task_descriptions.seqio_tasks.utils import hf_dataset_to_tf_dataset
-from hyper_task_descriptions.ni_tasks.evaluation import compute_metrics
-from hyper_task_descriptions.ni_tasks.ni_collator import DataCollatorForNI
-
-
-seqio.add_global_cache_dirs(["gs://yizhongw-tpu-bucket/ni_data_new/"])
-
-
-def get_ni_data(split, shuffle_files, seed, max_num_instances_per_task, max_num_instances_per_eval_task, raw_input, **ni_collator_args):
-=======
 import functools
 import random
 import re
@@ -43,7 +24,6 @@ def get_ni_data(
     raw_input,
     **ni_collator_args
 ):
->>>>>>> main
     # HF datasets does not support file-level shuffling
     del shuffle_files, seed
     dataset = load_dataset(
@@ -54,18 +34,10 @@ def get_ni_data(
         split=split,
     )
 
-<<<<<<< HEAD
-    # if not raw_input, we will use the following collator to add definition and examples to the input, as we did for Tk-Instruct.
-    if not raw_input:           
-        data_collator = DataCollatorForNI(
-            **ni_collator_args
-        )
-=======
     # if not raw_input, we will use the following collator to add definition and examples
     # to the input, as we did for Tk-Instruct.
     if not raw_input:
         data_collator = DataCollatorForNI(**ni_collator_args)
->>>>>>> main
 
     def convert_format(example):
         task_idx = re.findall(r"^task(\d+)_", example["Task"])
@@ -73,13 +45,6 @@ def get_ni_data(
         task_idx = int(task_idx[0])
         return {
             "id": example["id"],
-<<<<<<< HEAD
-            "inputs": example["Instance"]["input"] if raw_input else data_collator([example])["inputs"][0].strip(),
-            "hyper_inputs": example["Definition"][0],
-            "targets": random.choice(example["Instance"]["output"]),
-            "references": example["Instance"]["output"],
-            "task_names": tf.constant([task_idx], dtype=tf.int32) ,
-=======
             "inputs": example["Instance"]["input"]
             if raw_input
             else data_collator([example])["inputs"][0].strip(),
@@ -87,7 +52,6 @@ def get_ni_data(
             "targets": random.choice(example["Instance"]["output"]),
             "references": example["Instance"]["output"],
             "task_names": tf.constant([task_idx], dtype=tf.int32),
->>>>>>> main
         }
 
     original_columns = dataset.column_names
@@ -106,13 +70,8 @@ t5_vocab = HuggingfaceVocabulary("t5-base")
 roberta_vocab = HuggingfaceVocabulary("roberta-base", add_special_tokens=True)
 
 output_features = {
-<<<<<<< HEAD
-    "inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
-    "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=False, dtype=tf.int32),
-=======
     "inputs": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
     "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=True, dtype=tf.int32),
->>>>>>> main
     "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
     "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
 }
@@ -125,16 +84,6 @@ preprocessors = [
 
 
 def postprocessor(output_or_target, example=None, is_target=False):
-<<<<<<< HEAD
-  """Returns output as answer, or all answers if the full example is provided."""
-  if is_target:
-    return [it.decode("utf-8") for it in example["references"]]
-  else:
-    return output_or_target
-
-def ni_metrics_wrapper(targets, predictions):
-  return compute_metrics(predictions=predictions, references=targets, xlingual=False)
-=======
     """Returns output as answer, or all answers if the full example is provided."""
     if is_target:
         return [it.decode("utf-8") for it in example["references"]]
@@ -144,7 +93,6 @@ def ni_metrics_wrapper(targets, predictions):
 
 def ni_metrics_wrapper(targets, predictions):
     return compute_metrics(predictions=predictions, references=targets, xlingual=False)
->>>>>>> main
 
 
 dataset_fn = functools.partial(
@@ -152,11 +100,7 @@ dataset_fn = functools.partial(
     seed=None,
     max_num_instances_per_task=100,
     max_num_instances_per_eval_task=100,
-<<<<<<< HEAD
-    raw_input=True
-=======
     raw_input=True,
->>>>>>> main
 )
 
 data_source = seqio.FunctionDataSource(
@@ -188,11 +132,7 @@ dataset_fn = functools.partial(
     num_pos_examples=2,
     num_neg_examples=0,
     add_explanation=False,
-<<<<<<< HEAD
-    text_only=True
-=======
     text_only=True,
->>>>>>> main
 )
 
 data_source = seqio.FunctionDataSource(
@@ -224,11 +164,7 @@ dataset_fn = functools.partial(
     num_pos_examples=0,
     num_neg_examples=0,
     add_explanation=False,
-<<<<<<< HEAD
-    text_only=True
-=======
     text_only=True,
->>>>>>> main
 )
 
 data_source = seqio.FunctionDataSource(
@@ -237,19 +173,11 @@ data_source = seqio.FunctionDataSource(
 )
 
 seqio.TaskRegistry.add(
-<<<<<<< HEAD
-    "natural_instructions_def_only",
-=======
     "natural_instructions_def",
->>>>>>> main
     data_source,
     preprocessors=preprocessors,
     output_features=output_features,
     postprocess_fn=postprocessor,
     metric_fns=[ni_metrics_wrapper],
     shuffle_buffer_size=50000,  # default of 1000 is too small
-<<<<<<< HEAD
 )
-=======
-)
->>>>>>> main

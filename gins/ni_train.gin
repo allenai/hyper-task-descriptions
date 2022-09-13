@@ -22,12 +22,8 @@ trainer.Trainer.weight_metrics_computer = @trainer.WeightMetricsComputer()
 # the batch sizes are really big so I increase stats logging
 # for more visibility.
 train_script.train:
-<<<<<<< HEAD
-    stats_period = 100 # default is eval_period, which is 1000
-=======
     stats_period = 50 # default is eval_period, which is 1000
 
 
 utils.SaveCheckpointConfig:
   period = 100  # checkpoint frequency
->>>>>>> main
