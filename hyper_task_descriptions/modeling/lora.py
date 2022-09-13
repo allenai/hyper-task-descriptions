@@ -27,6 +27,30 @@ with_sharding_constraint = nn_partitioning.with_sharding_constraint
 NumArray: TypeAlias = jnp.ndarray
 
 
+def efficient_lora_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: NumArray,
+    lora_b: NumArray,
+    alpha: int,
+    rank: int,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+    axis = _normalize_axes(axis, inputs.ndim)
+    contract_ind = tuple(range(0, len(axis)))
+    dimension_numbers = ((axis, contract_ind), ((), ()))
+
+    a_contract_axis = _normalize_axes(_canonicalize_tuple((-1,)), lora_a.ndim)
+    b_contract_axis = _normalize_axes(_canonicalize_tuple((0,)), lora_b.ndim)
+    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((), ()))
+    lora_kernel = lax.dot_general(lora_a, lora_b, ab_dimension_numbers)
+    new_kernel = kernel + lora_kernel * (alpha / rank)
+    output = lax.dot_general(inputs, new_kernel, dimension_numbers=dimension_numbers)
+    return output
+
+
 def lora_linear(
     inputs: NumArray,
     kernel: NumArray,
@@ -55,6 +79,32 @@ def lora_linear(
     x = lax.dot_general(x, lora_b, dimension_numbers=b_dimension_numbers)
 
     output = output + x * (alpha / rank)
+
+    return output
+
+
+def efficient_batch_lora_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: NumArray,
+    lora_b: NumArray,
+    alpha: int,
+    rank: int,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+
+    a_contract_axis = _normalize_axes((-1,), lora_a.ndim)
+    b_contract_axis = _normalize_axes((1,), lora_b.ndim)
+    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((0,), (0,)))
+    lora_kernel = lax.dot_general(lora_a, lora_b, ab_dimension_numbers)
+    lora_axis = _normalize_axes(axis, inputs.ndim)
+    lora_contract_ind = tuple(range(1, 1 + len(lora_axis)))
+    lora_dimension_numbers = ((lora_axis, lora_contract_ind), ((0,), (0,)))
+
+    new_kernel = kernel + lora_kernel * (alpha / rank)
+    output = lax.dot_general(inputs, new_kernel, dimension_numbers=lora_dimension_numbers)
 
     return output
 
@@ -166,7 +216,7 @@ class LoraDenseGeneral(nn.Module):
             lora_b = jnp.asarray(lora_b, self.dtype)
             lora_b = jnp.reshape(lora_b, lora_b_shape)
 
-            return lora_linear(
+            return efficient_lora_linear(
                 inputs,
                 kernel,
                 lora_a=lora_a,
@@ -177,7 +227,7 @@ class LoraDenseGeneral(nn.Module):
             )
         else:
 
-            return batch_lora_linear(
+            return efficient_batch_lora_linear(
                 inputs,
                 kernel,
                 lora_a,
