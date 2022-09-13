@@ -56,6 +56,7 @@ class HyperT5Config(T5Config):
     num_prefix_tokens: int = 30
     use_lora: bool = False
     lora_ranks: tuple = (None, None, None, None)
+    use_simple_prefix_vectors: bool = True
 
 
 # create our component id dict
@@ -686,6 +687,7 @@ class HyperEncoder(nn.Module):
     def __call__(
         self,
         encoder_input_tokens,
+        prefix_vectors=None,
         adaptations={},
         encoder_mask=None,
         deterministic=False,
@@ -708,14 +710,25 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            # [batch, length, emb_dim] -> [batch, length, emb_dim]
-            x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
-                x,
-                **layer_adaptations,
-                encoder_mask=encoder_mask,
-                deterministic=deterministic,
-            )
-
+            if cfg.use_simple_prefix_vectors:
+                layer_prefix_vectors = prefix_vectors[:, lyr]
+                x = jnp.concatenate([layer_prefix_vectors, x], axis=1) 
+                # [batch, length, emb_dim] -> [batch, length, emb_dim]
+                x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
+                    x,
+                    **layer_adaptations,
+                    encoder_mask=encoder_mask,
+                    deterministic=deterministic,
+                )
+                x = x[:, layer_prefix_vectors.shape[1]:]
+            else:
+                # [batch, length, emb_dim] -> [batch, length, emb_dim]
+                x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
+                    x,
+                    **layer_adaptations,
+                    encoder_mask=encoder_mask,
+                    deterministic=deterministic,
+                )
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
 
@@ -729,6 +742,7 @@ class HyperDecoder(nn.Module):
         self,
         encoded,
         decoder_input_tokens,
+        prefix_vectors=None,
         adaptations={},
         decoder_positions=None,
         decoder_mask=None,
@@ -768,6 +782,9 @@ class HyperDecoder(nn.Module):
             lyr_name = (
                 lyr - cfg.num_encoder_layers
             ) // 2  # to maintain rng equivalence with original code
+            if cfg.use_simple_prefix_vectors:
+                layer_prefix_vectors = prefix_vectors[:, lyr_name]
+                encoded = jnp.concatenate([layer_prefix_vectors, encoded], axis=1)
             y = HyperDecoderLayer(
                 config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr_name}"
             )(
@@ -832,6 +849,7 @@ class HyperTransformer(nn.Module):
     def encode(
         self,
         encoder_input_tokens,
+        prefix_vectors=None,
         adaptations={},
         encoder_segment_ids=None,
         enable_dropout=True,
@@ -855,6 +873,7 @@ class HyperTransformer(nn.Module):
 
         return self.encoder(
             encoder_input_tokens,
+            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             encoder_mask=encoder_mask,
             deterministic=not enable_dropout,
@@ -870,6 +889,7 @@ class HyperTransformer(nn.Module):
         encoder_input_tokens,  # only needed for masks
         decoder_input_tokens,
         decoder_target_tokens,
+        prefix_vectors=None,
         adaptations={},
         encoder_segment_ids=None,
         decoder_segment_ids=None,
@@ -917,6 +937,7 @@ class HyperTransformer(nn.Module):
         logits = self.decoder(
             encoded,
             decoder_input_tokens=decoder_input_tokens,
+            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             decoder_positions=decoder_positions,
             decoder_mask=decoder_mask,
@@ -964,10 +985,18 @@ class HyperTransformer(nn.Module):
         Returns:
           logits array from full transformer.
         """
+
+        # get the prefix vectors        
+        cfg = self.config        
+        if cfg.use_simple_prefix_vectors:
+            hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens, attention_mask=encoder_input_tokens!=0)
+            prefix_vectors = hyper_encoded[:, None].repeat(cfg.num_encoder_layers + cfg.num_decoder_layers, axis=1)
+
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         encoded = self.encode(
             encoder_input_tokens,
+            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
@@ -978,6 +1007,7 @@ class HyperTransformer(nn.Module):
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
+            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             encoder_segment_ids=encoder_segment_ids,
             decoder_segment_ids=decoder_segment_ids,
