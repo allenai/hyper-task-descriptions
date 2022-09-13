@@ -989,7 +989,7 @@ class HyperTransformer(nn.Module):
         # get the prefix vectors        
         cfg = self.config        
         if cfg.use_simple_prefix_vectors:
-            hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens, attention_mask=hyper_encoder_input_tokens!=0)
+            hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens, attention_mask=hyper_encoder_input_tokens!=0)[0]
             prefix_vectors = hyper_encoded[:, None].repeat(cfg.num_encoder_layers + cfg.num_decoder_layers, axis=1)
 
         # generate adapters
