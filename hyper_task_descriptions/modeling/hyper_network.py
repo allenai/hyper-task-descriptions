@@ -427,13 +427,13 @@ class Hypernet(nn.Module):
                     self.lora_oa_gen,
                     sum_embeds,
                     "lora_oa",
-                    (bsz, total_layers, cfg.emb_dim, self.o_rank),
+                    (bsz, total_layers, cfg.num_heads, cfg.head_dim, self.o_rank),
                 )
                 generated_parameter_dict["lora_ob"] = generate_parameter(
                     self.lora_ob_gen,
                     sum_embeds,
                     "lora_ob",
-                    (bsz, total_layers, self.o_rank, cfg.num_heads, cfg.head_dim),
+                    (bsz, total_layers, self.o_rank, cfg.emb_dim),
                 )
 
         return generated_parameter_dict
