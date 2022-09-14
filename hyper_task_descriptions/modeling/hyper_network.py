@@ -275,6 +275,13 @@ class Hypernet(nn.Module):
                 kernel_axes=("mlp", "embed"),
                 name="prefix_vector_proj",
             )
+            self.prefix_vector_weight_proj = DenseGeneral(
+                features=1,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_vector_weight_proj",
+            )
+
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -447,8 +454,15 @@ class Hypernet(nn.Module):
                 )
         if cfg.use_simple_prefix_vectors:
             # generated_parameter_dict["prefix_vectors"] = output[0] * attn_mask[:, :, None]
-            proj_vectors = self.prefix_vector_proj(output[0])
-            generated_parameter_dict["prefix_vectors"] = proj_vectors * attn_mask[:, :, None]
+
+            # proj_vectors = self.prefix_vector_proj(output[0])
+            # generated_parameter_dict["prefix_vectors"] = proj_vectors * attn_mask[:, :, None]
+
+            prefix_vector_weights = self.prefix_vector_weight_proj(output[0]).squeeze(-1)
+            prefix_vector_weights = nn.softmax(prefix_vector_weights, axis=-1, where=attn_mask)
+            generated_parameter_dict["prefix_vectors"] = (
+                output[0] * prefix_vector_weights[:, :, None]
+            ).sum(axis=-2, keepdims=True)
 
         return generated_parameter_dict
 
