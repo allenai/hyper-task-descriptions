@@ -268,6 +268,13 @@ class Hypernet(nn.Module):
                     kernel_init=nn.initializers.zeros,
                     name="lora_ob_gen",
                 )
+        if cfg.use_simple_prefix_vectors:
+            self.prefix_vector_proj = DenseGeneral(
+                features=cfg.emb_dim,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_vector_proj",
+            )
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -439,7 +446,9 @@ class Hypernet(nn.Module):
                     (bsz, total_layers, self.o_rank, cfg.emb_dim),
                 )
         if cfg.use_simple_prefix_vectors:
-            generated_parameter_dict["prefix_vectors"] = output[0] * attn_mask[:, :, None]
+            # generated_parameter_dict["prefix_vectors"] = output[0] * attn_mask[:, :, None]
+            proj_vectors = self.prefix_vector_proj(output[0])
+            generated_parameter_dict["prefix_vectors"] = proj_vectors * attn_mask[:, :, None]
 
         return generated_parameter_dict
 
