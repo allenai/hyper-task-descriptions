@@ -459,7 +459,7 @@ class Hypernet(nn.Module):
             # generated_parameter_dict["prefix_vectors"] = proj_vectors * attn_mask[:, :, None]
 
             prefix_vector_weights = self.prefix_vector_weight_proj(output[0]).squeeze(-1)
-            prefix_vector_weights = nn.softmax(prefix_vector_weights, axis=-1, where=attn_mask)
+            prefix_vector_weights = nn.softmax(prefix_vector_weights, axis=-1, where=attn_mask, initial=0)
             generated_parameter_dict["prefix_vectors"] = (
                 output[0] * prefix_vector_weights[:, :, None]
             ).sum(axis=-2, keepdims=True)
