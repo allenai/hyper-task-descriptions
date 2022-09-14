@@ -24,7 +24,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
   --gin.hyper_network.HyperT5Config.use_simple_prefix_vectors=True \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1100200 \
+  --gin.TRAIN_STEPS=1101000 \
   --gin.partitioning.PjitPartitioner.num_partitions=4 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_base/checkpoint_1100000/\" \
 
