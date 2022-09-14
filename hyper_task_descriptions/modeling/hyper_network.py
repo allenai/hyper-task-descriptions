@@ -711,8 +711,7 @@ class HyperEncoder(nn.Module):
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
             if cfg.use_simple_prefix_vectors:
-                layer_prefix_vectors = prefix_vectors[:, lyr]
-                x = jnp.concatenate([layer_prefix_vectors, x], axis=1) 
+                x = jnp.concatenate([prefix_vectors, x], axis=1) 
                 # [batch, length, emb_dim] -> [batch, length, emb_dim]
                 x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                     x,
@@ -720,7 +719,7 @@ class HyperEncoder(nn.Module):
                     encoder_mask=encoder_mask,
                     deterministic=deterministic,
                 )
-                x = x[:, layer_prefix_vectors.shape[1]:]
+                x = x[:, prefix_vectors.shape[1]:]
             else:
                 # [batch, length, emb_dim] -> [batch, length, emb_dim]
                 x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
@@ -856,7 +855,7 @@ class HyperTransformer(nn.Module):
         assert encoder_input_tokens.ndim == 2  # (batch, len)
 
         if cfg.use_simple_prefix_vectors and prefix_vectors is not None:
-            prefix_vector_length = prefix_vectors.shape[-2]
+            prefix_vector_length = prefix_vectors.shape[1]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
                 encoder_input_tokens > 0,
@@ -909,13 +908,12 @@ class HyperTransformer(nn.Module):
         cfg = self.config
 
         if cfg.use_simple_prefix_vectors:
-            decoder_prefix_vectors = prefix_vectors[:, cfg.num_encoder_layers]
-            prefix_vector_length = decoder_prefix_vectors.shape[-2]
+            prefix_vector_length = prefix_vectors.shape[1]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
                 encoder_input_tokens > 0,
             ], axis=1)
-            encoded = jnp.concatenate([decoder_prefix_vectors, encoded], axis=1)
+            encoded = jnp.concatenate([prefix_vectors, encoded], axis=1)
         else:
             encoder_input_mask = encoder_input_tokens > 0
 
@@ -1007,7 +1005,7 @@ class HyperTransformer(nn.Module):
         cfg = self.config        
         if cfg.use_simple_prefix_vectors:
             hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens, attention_mask=hyper_encoder_input_tokens!=0)[0]
-            prefix_vectors = hyper_encoded[:, None].repeat(cfg.num_encoder_layers + 1, axis=1)
+            prefix_vectors = hyper_encoded
         else:
             prefix_vectors = None
 
