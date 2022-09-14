@@ -24,6 +24,7 @@ from flax.linen import partitioning as nn_partitioning
 from jax import lax
 from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
+from t5x.examples.t5.layers import DenseGeneral
 from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
 
@@ -1006,12 +1007,10 @@ class HyperTransformer(nn.Module):
         cfg = self.config        
         if cfg.use_simple_prefix_vectors:
             hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens.astype("i4"), attention_mask=hyper_encoder_input_tokens!=0)[0]
-            prefix_vectors = SimpleLinear(
-                output_dim=cfg.emb_dim,
-                act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
+            prefix_vectors = DenseGeneral(
+                features=cfg.emb_dim,
+                kernel_axes=("embed", "mlp"),
+                dtype=self.dtype,
                 name="prefix_vectors_proj",
             )(hyper_encoded)
         else:
