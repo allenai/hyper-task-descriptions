@@ -440,7 +440,7 @@ class Hypernet(nn.Module):
                 )
         if cfg.use_simple_prefix_vectors:
             generated_parameter_dict["prefix_vectors"] = output[0] * attn_mask[:, :, None]
-            
+
         return generated_parameter_dict
 
 
@@ -861,7 +861,7 @@ class HyperTransformer(nn.Module):
         assert encoder_input_tokens.ndim == 2  # (batch, len)
 
         if cfg.use_simple_prefix_vectors:
-            prefix_vectors = adaptations["prefix_vector"]
+            prefix_vectors = adaptations["prefix_vectors"]
             prefix_vector_length = prefix_vectors.shape[1]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
@@ -913,8 +913,8 @@ class HyperTransformer(nn.Module):
         cfg = self.config
 
         if cfg.use_simple_prefix_vectors:
-            prefix_vectors = adaptations["prefix_vector"]
-            adaptations = {k: v for k, v in adaptations.items() if k != "prefix_vector"} # reconstruct adaptations without prefix_vectors
+            prefix_vectors = adaptations["prefix_vectors"]
+            adaptations = {k: v for k, v in adaptations.items() if k != "prefix_vectors"} # reconstruct adaptations without prefix_vectors
             prefix_vector_length = prefix_vectors.shape[1]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
