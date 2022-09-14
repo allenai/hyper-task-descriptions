@@ -742,7 +742,6 @@ class HyperDecoder(nn.Module):
         self,
         encoded,
         decoder_input_tokens,
-        prefix_vectors=None,
         adaptations={},
         decoder_positions=None,
         decoder_mask=None,
@@ -782,14 +781,6 @@ class HyperDecoder(nn.Module):
             lyr_name = (
                 lyr - cfg.num_encoder_layers
             ) // 2  # to maintain rng equivalence with original code
-
-            if cfg.use_simple_prefix_vectors:
-                print("encoded before", encoded.shape)
-                layer_prefix_vectors = prefix_vectors[:, lyr_name]
-                encoded = jnp.concatenate([layer_prefix_vectors, encoded], axis=1)
-                print("layer_prefix_vectors", layer_prefix_vectors.shape)
-                print("encoded after", encoded.shape)
-
 
             y = HyperDecoderLayer(
                 config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr_name}"
@@ -917,13 +908,15 @@ class HyperTransformer(nn.Module):
         """Applies Transformer decoder-branch on encoded-input and target."""
         cfg = self.config
 
-        if cfg.use_simple_prefix_vectors and prefix_vectors is not None:
-            prefix_vector_length = prefix_vectors.shape[-2]
+        if cfg.use_simple_prefix_vectors:
+            decoder_prefix_vectors = prefix_vectors[cfg.num_encoder_layers]
+            prefix_vector_length = decoder_prefix_vectors.shape[-2]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
                 encoder_input_tokens > 0,
             ], axis=1)
-        else:    
+            encoded = jnp.concatenate([decoder_prefix_vectors, encoded], axis=1)
+        else:
             encoder_input_mask = encoder_input_tokens > 0
 
         # Make padding attention masks.
@@ -962,7 +955,6 @@ class HyperTransformer(nn.Module):
         logits = self.decoder(
             encoded,
             decoder_input_tokens=decoder_input_tokens,
-            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             decoder_positions=decoder_positions,
             decoder_mask=decoder_mask,
@@ -1015,9 +1007,9 @@ class HyperTransformer(nn.Module):
         cfg = self.config        
         if cfg.use_simple_prefix_vectors:
             hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens, attention_mask=hyper_encoder_input_tokens!=0)[0]
-            prefix_vectors = hyper_encoded[:, None].repeat(cfg.num_encoder_layers + cfg.num_decoder_layers, axis=1)
+            prefix_vectors = hyper_encoded[:, None].repeat(cfg.num_encoder_layers + 1, axis=1)
         else:
-            None
+            prefix_vectors = None
 
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
@@ -1027,7 +1019,7 @@ class HyperTransformer(nn.Module):
             adaptations=adaptations,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
-        )
+        )           
 
         return self.decode(
             encoded,
