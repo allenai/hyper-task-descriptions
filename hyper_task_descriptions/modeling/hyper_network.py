@@ -1010,7 +1010,7 @@ class HyperTransformer(nn.Module):
             prefix_vectors = DenseGeneral(
                 features=cfg.emb_dim,
                 kernel_axes=("embed", "mlp"),
-                dtype=self.dtype,
+                dtype=cfg.dtype,
                 name="prefix_vectors_proj",
             )(hyper_encoded)
         else:
