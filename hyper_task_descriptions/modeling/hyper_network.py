@@ -15,6 +15,7 @@
 """T5.1.1 Transformer model.
 Altered to include hypernet stuff.
 """
+from sqlite3 import adapt
 from typing import Callable, Iterable
 
 import jax.numpy as jnp
@@ -437,7 +438,9 @@ class Hypernet(nn.Module):
                     "lora_ob",
                     (bsz, total_layers, self.o_rank, cfg.emb_dim),
                 )
-
+        if cfg.use_simple_prefix_vectors:
+            generated_parameter_dict["prefix_vectors"] = output[0] * attn_mask[:, :, None]
+            
         return generated_parameter_dict
 
 
@@ -688,7 +691,6 @@ class HyperEncoder(nn.Module):
     def __call__(
         self,
         encoder_input_tokens,
-        prefix_vectors=None,
         adaptations={},
         encoder_mask=None,
         deterministic=False,
@@ -708,6 +710,10 @@ class HyperEncoder(nn.Module):
         x = self.shared_embedding(encoder_input_tokens.astype("int32"))
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x.astype(cfg.dtype)
+
+        if cfg.use_simple_prefix_vectors:
+            prefix_vectors = adaptations["prefix_vectors"]
+            adaptations = {k: v for k, v in adaptations.items() if k != "prefix_vectors"}
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
@@ -846,7 +852,6 @@ class HyperTransformer(nn.Module):
     def encode(
         self,
         encoder_input_tokens,
-        prefix_vectors=None,
         adaptations={},
         encoder_segment_ids=None,
         enable_dropout=True,
@@ -855,7 +860,8 @@ class HyperTransformer(nn.Module):
         cfg = self.config
         assert encoder_input_tokens.ndim == 2  # (batch, len)
 
-        if cfg.use_simple_prefix_vectors and prefix_vectors is not None:
+        if cfg.use_simple_prefix_vectors:
+            prefix_vectors = adaptations["prefix_vector"]
             prefix_vector_length = prefix_vectors.shape[1]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
@@ -880,7 +886,6 @@ class HyperTransformer(nn.Module):
 
         return self.encoder(
             encoder_input_tokens,
-            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             encoder_mask=encoder_mask,
             deterministic=not enable_dropout,
@@ -896,7 +901,6 @@ class HyperTransformer(nn.Module):
         encoder_input_tokens,  # only needed for masks
         decoder_input_tokens,
         decoder_target_tokens,
-        prefix_vectors=None,
         adaptations={},
         encoder_segment_ids=None,
         decoder_segment_ids=None,
@@ -909,6 +913,8 @@ class HyperTransformer(nn.Module):
         cfg = self.config
 
         if cfg.use_simple_prefix_vectors:
+            prefix_vectors = adaptations["prefix_vector"]
+            adaptations = {k: v for k, v in adaptations.items() if k != "prefix_vector"} # reconstruct adaptations without prefix_vectors
             prefix_vector_length = prefix_vectors.shape[1]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
@@ -1003,24 +1009,10 @@ class HyperTransformer(nn.Module):
           logits array from full transformer.
         """
 
-        # get the prefix vectors        
-        cfg = self.config        
-        if cfg.use_simple_prefix_vectors:
-            hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens.astype("i4"), attention_mask=hyper_encoder_input_tokens!=0)[0]
-            prefix_vectors = DenseGeneral(
-                features=cfg.emb_dim,
-                kernel_axes=("embed", "mlp"),
-                dtype=cfg.dtype,
-                name="prefix_vectors_proj",
-            )(hyper_encoded)
-        else:
-            prefix_vectors = None
-
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         encoded = self.encode(
             encoder_input_tokens,
-            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
@@ -1031,7 +1023,6 @@ class HyperTransformer(nn.Module):
             encoder_input_tokens,  # only used for masks
             decoder_input_tokens,
             decoder_target_tokens,
-            prefix_vectors=prefix_vectors,
             adaptations=adaptations,
             encoder_segment_ids=encoder_segment_ids,
             decoder_segment_ids=decoder_segment_ids,
