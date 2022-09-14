@@ -963,6 +963,7 @@ class HyperTransformer(nn.Module):
         )
         return logits
 
+    @nn.compact
     def __call__(
         self,
         encoder_input_tokens,
