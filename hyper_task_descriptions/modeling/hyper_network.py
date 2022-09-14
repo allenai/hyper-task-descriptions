@@ -1005,7 +1005,14 @@ class HyperTransformer(nn.Module):
         cfg = self.config        
         if cfg.use_simple_prefix_vectors:
             hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens, attention_mask=hyper_encoder_input_tokens!=0)[0]
-            prefix_vectors = hyper_encoded
+            prefix_vectors = SimpleLinear(
+                output_dim=cfg.emb_dim,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prefix_vectors_proj",
+            )(hyper_encoded)
         else:
             prefix_vectors = None
 
