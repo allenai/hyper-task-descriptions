@@ -909,7 +909,7 @@ class HyperTransformer(nn.Module):
         cfg = self.config
 
         if cfg.use_simple_prefix_vectors:
-            decoder_prefix_vectors = prefix_vectors[cfg.num_encoder_layers]
+            decoder_prefix_vectors = prefix_vectors[:, cfg.num_encoder_layers]
             prefix_vector_length = decoder_prefix_vectors.shape[-2]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
