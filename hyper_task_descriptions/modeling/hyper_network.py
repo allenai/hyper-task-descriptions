@@ -785,6 +785,11 @@ class HyperDecoder(nn.Module):
             if cfg.use_simple_prefix_vectors:
                 layer_prefix_vectors = prefix_vectors[:, lyr_name]
                 encoded = jnp.concatenate([layer_prefix_vectors, encoded], axis=1)
+
+
+            print("y shape", y.shape)
+            print("encoded shape", encoded.shape)
+
             y = HyperDecoderLayer(
                 config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr_name}"
             )(
@@ -858,7 +863,7 @@ class HyperTransformer(nn.Module):
         cfg = self.config
         assert encoder_input_tokens.ndim == 2  # (batch, len)
 
-        if cfg.use_simple_prefix_vectors:
+        if cfg.use_simple_prefix_vectors and prefix_vectors is not None:
             prefix_vector_length = prefix_vectors.shape[-2]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
@@ -911,7 +916,7 @@ class HyperTransformer(nn.Module):
         """Applies Transformer decoder-branch on encoded-input and target."""
         cfg = self.config
 
-        if cfg.use_simple_prefix_vectors:
+        if cfg.use_simple_prefix_vectors and prefix_vectors is not None:
             prefix_vector_length = prefix_vectors.shape[-2]
             encoder_input_mask = jnp.concatenate([
                 jnp.ones((encoder_input_tokens.shape[0], prefix_vector_length), dtype=jnp.bool_),
@@ -1010,6 +1015,8 @@ class HyperTransformer(nn.Module):
         if cfg.use_simple_prefix_vectors:
             hyper_encoded = self.hyper.encoder(hyper_encoder_input_tokens, attention_mask=hyper_encoder_input_tokens!=0)[0]
             prefix_vectors = hyper_encoded[:, None].repeat(cfg.num_encoder_layers + cfg.num_decoder_layers, axis=1)
+        else:
+            None
 
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
