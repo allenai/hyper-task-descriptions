@@ -482,12 +482,6 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         dropout_rng = None
         if not deterministic and self.dropout_rate > 0.0:
             dropout_rng = self.make_rng("dropout")
-
-        print("query shape", query.shape)
-        print("key shape", key.shape)
-        print("value shape", value.shape)
-        print("attention_bias shape", attention_bias.shape)
-        
         # Apply attention.
         x = dot_product_attention(
             query,

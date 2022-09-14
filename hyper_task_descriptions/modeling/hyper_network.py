@@ -782,13 +782,14 @@ class HyperDecoder(nn.Module):
             lyr_name = (
                 lyr - cfg.num_encoder_layers
             ) // 2  # to maintain rng equivalence with original code
+
             if cfg.use_simple_prefix_vectors:
+                print("encoded before", encoded.shape)
                 layer_prefix_vectors = prefix_vectors[:, lyr_name]
                 encoded = jnp.concatenate([layer_prefix_vectors, encoded], axis=1)
+                print("layer_prefix_vectors", layer_prefix_vectors.shape)
+                print("encoded after", encoded.shape)
 
-
-            print("y shape", y.shape)
-            print("encoded shape", encoded.shape)
 
             y = HyperDecoderLayer(
                 config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr_name}"
