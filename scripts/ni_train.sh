@@ -18,13 +18,13 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=64 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
-  --gin.BATCH_SIZE=1024 \
+  --gin.BATCH_SIZE=256 \
   --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
   --gin.hyper_network.HyperT5Config.use_simple_prefix_vectors=True \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1100500 \
+  --gin.TRAIN_STEPS=1101000 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\" \
 
