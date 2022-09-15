@@ -16,10 +16,10 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_file="partial_train_adam.gin" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.trainer.Trainer.num_microbatches=64 \
+  --gin.trainer.Trainer.num_microbatches=32 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
-  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-large-lm-adapt\" \
+  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
   --gin.hyper_network.HyperT5Config.use_simple_prefix_vectors=True \
@@ -37,7 +37,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="ni_eval.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
     --gin.USE_CACHED_TASKS=True \
-    --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-large-lm-adapt\" \
+    --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
     --gin.hyper_network.HyperT5Config.use_adapter=False \
     --gin.hyper_network.HyperT5Config.use_prefix=False \
     --gin.hyper_network.HyperT5Config.use_simple_prefix_vectors=True \
