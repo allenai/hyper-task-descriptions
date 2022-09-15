@@ -10,7 +10,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="hyper_base.gin" \
   --gin_file="ni_train.gin" \
-  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_only\" \
+  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
@@ -29,7 +29,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_search_paths="gins" \
     --gin_file="hyper_base.gin" \
     --gin_file="ni_eval.gin" \
-    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_only\" \
+    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.hyper_network.HyperT5Config.use_adapter=False \
     --gin.hyper_network.HyperT5Config.use_prefix=False \
