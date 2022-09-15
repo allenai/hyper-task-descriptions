@@ -12,7 +12,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin_file="ni_train.gin" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_only\" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.hyper_network.HyperT5Config.add_adapters=False \
+  --gin.hyper_network.HyperT5Config.use_adapters=False \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
   --gin.hyper_network.HyperT5Config.use_simple_prefix_vectors=False \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
@@ -31,7 +31,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="ni_eval.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_only\" \
     --gin.USE_CACHED_TASKS=True \
-    --gin.hyper_network.HyperT5Config.add_adapters=False \
+    --gin.hyper_network.HyperT5Config.use_adapters=False \
     --gin.hyper_network.HyperT5Config.use_prefix=False \
     --gin.hyper_network.HyperT5Config.use_simple_prefix_vectors=False \
     --gin.BATCH_SIZE=1024 \
