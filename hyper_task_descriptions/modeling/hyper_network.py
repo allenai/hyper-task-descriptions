@@ -453,7 +453,7 @@ class Hypernet(nn.Module):
                     (bsz, total_layers, self.o_rank, cfg.emb_dim),
                 )
         if cfg.use_simple_prefix_vectors:
-            # generated_parameter_dict["prefix_vectors"] = output[0] * attn_mask[:, :, None]
+            generated_parameter_dict["prefix_vectors"] = output[0] * attn_mask[:, :, None]
 
             # proj_vectors = self.prefix_vector_proj(output[0])
             # generated_parameter_dict["prefix_vectors"] = proj_vectors * attn_mask[:, :, None]
@@ -464,11 +464,11 @@ class Hypernet(nn.Module):
             #     output[0] * prefix_vector_weights[:, :, None]
             # ).sum(axis=-2, keepdims=True)
 
-            prefix_vector_weights = self.prefix_vector_weight_proj(output[0]).transpose(2, 0, 1)  # (total_layers, bsz, length)
-            prefix_vector_weights = nn.softmax(prefix_vector_weights, axis=-1, where=attn_mask, initial=0)
-            generated_parameter_dict["prefix_vectors"] = (
-                output[0][None, :, :, :] * prefix_vector_weights[:, :, :, None]
-            ).sum(axis=-2, keepdims=True)
+            # prefix_vector_weights = self.prefix_vector_weight_proj(output[0]).transpose(2, 0, 1)  # (total_layers, bsz, length)
+            # prefix_vector_weights = nn.softmax(prefix_vector_weights, axis=-1, where=attn_mask, initial=0)
+            # generated_parameter_dict["prefix_vectors"] = (
+            #     output[0][None, :, :, :] * prefix_vector_weights[:, :, :, None]
+            # ).sum(axis=-2, keepdims=True)
 
         return generated_parameter_dict
 
@@ -747,7 +747,8 @@ class HyperEncoder(nn.Module):
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
             if cfg.use_simple_prefix_vectors:
-                layer_prefix_vectors = prefix_vectors[lyr]
+                layer_prefix_vectors = prefix_vectors
+                # layer_prefix_vectors = prefix_vectors[lyr]
                 x = jnp.concatenate([layer_prefix_vectors, x], axis=1) 
                 # [batch, length, emb_dim] -> [batch, length, emb_dim]
                 x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
@@ -943,7 +944,8 @@ class HyperTransformer(nn.Module):
         cfg = self.config
 
         if cfg.use_simple_prefix_vectors:
-            decode_prefix_vectors = adaptations["prefix_vectors"][cfg.num_encoder_layers]
+            decode_prefix_vectors = adaptations["prefix_vectors"]
+            # decode_prefix_vectors = adaptations["prefix_vectors"][cfg.num_encoder_layers]
             adaptations = {k: v for k, v in adaptations.items() if k != "prefix_vectors"} # reconstruct adaptations without prefix_vectors
             prefix_vector_length = decode_prefix_vectors.shape[-2]
             encoder_input_mask = jnp.concatenate([
