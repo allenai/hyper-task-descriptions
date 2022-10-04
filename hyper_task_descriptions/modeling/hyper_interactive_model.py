@@ -1,3 +1,4 @@
+# type: ignore
 """
 Some changes to the t5x interactive model for dual-input setup.
 """
