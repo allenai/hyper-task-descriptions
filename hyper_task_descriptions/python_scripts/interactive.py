@@ -1,8 +1,3 @@
-import os
-
-os.environ["JAX_DISABLE_JIT"] = "true"
-import os
-
 import jax.numpy as jnp
 import numpy as np
 import optax
