@@ -10,7 +10,7 @@ mypy==0.971
 
 # Automatic code formatting
 # promptsource specifies these, so we have to match
-black==21.12b0
+black==22.10.0
 isort==5.8.0
 
 # Running tests
