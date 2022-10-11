@@ -1,8 +1,9 @@
 import jax.numpy as jnp
 import numpy as np
 import optax
-from t5x import partitioning, utils
+from flax import traverse_util
 
+from hyper_task_descriptions import learning_rate_adafactor
 from hyper_task_descriptions import utils as hyper_utils
 from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from hyper_task_descriptions.modeling.hyper_interactive_model import (
@@ -15,6 +16,7 @@ from hyper_task_descriptions.modeling.hyper_network import (
 from hyper_task_descriptions.modeling.hyper_transformer import (
     HyperEncoderDecoderContrastiveModel,
 )
+from t5x import optimizers, partitioning, utils
 
 # You'll need permissions to access the checkpoint
 checkpoint_path = "checkpoint_1109000"
@@ -46,30 +48,78 @@ module = HyperTransformer(
     )
 )
 
+# small config
+
+# module = HyperTransformer(
+#     config=HyperT5Config(
+#         vocab_size=32128,
+#         dtype=jnp.float32,
+#         emb_dim=512,
+#         num_heads=6,
+#         num_encoder_layers=8,
+#         num_decoder_layers=8,
+#         head_dim=64,
+#         mlp_dim=1024,
+#         mlp_activations=("gelu", "linear"),
+#         dropout_rate=0.0,
+#         layer_embedding_method="component",
+#         use_adapter=True,
+#         use_prefix=True,
+#         adapter_size=8,
+#         num_prefix_tokens=7,
+#         hyperencoder_model="google/t5-large-lm-adapt",
+#     )
+# )
+
+adafactor_optimizer = optimizers.MultiOptimizer(
+    traversals_and_optimizers=(
+        (
+            traverse_util.ModelParamTraversal(
+                filter_fn=hyper_utils.match_any(regexes=[".*/hyper/[^e].*"])
+            ),
+            learning_rate_adafactor.Adafactor(
+                multiply_by_parameter_scale=False, step_offset=1100000, learning_rate=1e-1
+            ),
+        ),
+        (
+            traverse_util.ModelParamTraversal(
+                filter_fn=hyper_utils.match_any(regexes=[".*/hyper/e.*"])
+            ),
+            learning_rate_adafactor.Adafactor(step_offset=1100000, learning_rate=1e-3),
+        ),
+        (
+            traverse_util.ModelParamTraversal(
+                filter_fn=hyper_utils.inverse_match_any(regexes=[".*hyper.*"])
+            ),
+            learning_rate_adafactor.Adafactor(step_offset=1100000, learning_rate=0),
+        ),
+    ),
+)
+
+adam_optimizer = hyper_utils.multi_transform(
+    transforms={
+        "hyper": optax.adam(
+            learning_rate=utils.create_learning_rate_scheduler(
+                base_learning_rate=0.3, decay_factor=0
+            )
+        ),
+        "freeze": optax.adam(
+            learning_rate=utils.create_learning_rate_scheduler(base_learning_rate=0, decay_factor=0)
+        ),
+        "roberta": optax.adam(
+            learning_rate=utils.create_learning_rate_scheduler(
+                base_learning_rate=1e-4, decay_factor=0
+            )
+        ),
+    },
+    param_labels=hyper_utils.match_any_optax_trip([".*hyper/[eap].*"], [".*hyper.*"]),
+)
+
 model = HyperEncoderDecoderContrastiveModel(
     module=module,
     input_vocabulary=HuggingfaceVocabulary("t5-base"),
     output_vocabulary=HuggingfaceVocabulary("t5-base"),
-    optimizer_def=hyper_utils.multi_transform(
-        transforms={
-            "hyper": optax.adam(
-                learning_rate=utils.create_learning_rate_scheduler(
-                    base_learning_rate=1e-2, decay_factor=0
-                )
-            ),
-            "freeze": optax.adam(
-                learning_rate=utils.create_learning_rate_scheduler(
-                    base_learning_rate=1e-4, decay_factor=0
-                )
-            ),
-            "roberta": optax.adam(
-                learning_rate=utils.create_learning_rate_scheduler(
-                    base_learning_rate=1e-4, decay_factor=0
-                )
-            ),
-        },
-        param_labels=hyper_utils.match_any_optax_trip([".*hyper/[eap].*"], [".*hyper.*"]),
-    ),
+    optimizer_def=adam_optimizer,
 )
 
 batch_size = 1
