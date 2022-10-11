@@ -1,7 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
 import optax
-from t5x import partitioning, utils, optimizers
 from flax import traverse_util
 
 from hyper_task_descriptions import learning_rate_adafactor
@@ -17,6 +16,7 @@ from hyper_task_descriptions.modeling.hyper_network import (
 from hyper_task_descriptions.modeling.hyper_transformer import (
     HyperEncoderDecoderContrastiveModel,
 )
+from t5x import optimizers, partitioning, utils
 
 # You'll need permissions to access the checkpoint
 checkpoint_path = "checkpoint_1109000"
@@ -74,18 +74,25 @@ module = HyperTransformer(
 adafactor_optimizer = optimizers.MultiOptimizer(
     traversals_and_optimizers=(
         (
-            traverse_util.ModelParamTraversal(filter_fn=hyper_utils.match_any(regexes=[".*/hyper/[^e].*"])), 
-            learning_rate_adafactor.Adafactor(multiply_by_parameter_scale=False, step_offset=1100000, learning_rate=1e-1),
+            traverse_util.ModelParamTraversal(
+                filter_fn=hyper_utils.match_any(regexes=[".*/hyper/[^e].*"])
+            ),
+            learning_rate_adafactor.Adafactor(
+                multiply_by_parameter_scale=False, step_offset=1100000, learning_rate=1e-1
+            ),
         ),
         (
-            traverse_util.ModelParamTraversal(filter_fn=hyper_utils.match_any(regexes=[".*/hyper/e.*"])), 
+            traverse_util.ModelParamTraversal(
+                filter_fn=hyper_utils.match_any(regexes=[".*/hyper/e.*"])
+            ),
             learning_rate_adafactor.Adafactor(step_offset=1100000, learning_rate=1e-3),
         ),
         (
-            traverse_util.ModelParamTraversal(filter_fn=hyper_utils.inverse_match_any(regexes=[".*hyper.*"])), 
+            traverse_util.ModelParamTraversal(
+                filter_fn=hyper_utils.inverse_match_any(regexes=[".*hyper.*"])
+            ),
             learning_rate_adafactor.Adafactor(step_offset=1100000, learning_rate=0),
         ),
-
     ),
 )
 
@@ -97,9 +104,7 @@ adam_optimizer = hyper_utils.multi_transform(
             )
         ),
         "freeze": optax.adam(
-            learning_rate=utils.create_learning_rate_scheduler(
-                base_learning_rate=0, decay_factor=0
-            )
+            learning_rate=utils.create_learning_rate_scheduler(base_learning_rate=0, decay_factor=0)
         ),
         "roberta": optax.adam(
             learning_rate=utils.create_learning_rate_scheduler(

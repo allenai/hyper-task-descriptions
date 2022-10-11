@@ -12,6 +12,8 @@ import clu.data.dataset_iterator
 import jax
 import seqio
 import tensorflow as tf
+
+from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from t5x import trainer as trainer_lib
 from t5x import utils
 from t5x.infer import _Inferences
@@ -20,8 +22,6 @@ from t5x.interactive_model import (
     InteractiveModel,
     _extract_tokens_and_aux_values,
 )
-
-from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 
 
 class HyperInteractiveModel(InteractiveModel):

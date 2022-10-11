@@ -2,8 +2,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from absl.testing import parameterized
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config, Transformer
 
 from hyper_task_descriptions.common.testing import (
     get_test_model,
@@ -17,6 +15,8 @@ from hyper_task_descriptions.modeling.hyper_network import (
     HyperT5Config,
     HyperTransformer,
 )
+from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config, Transformer
 
 
 class NetworkTest(parameterized.TestCase):
