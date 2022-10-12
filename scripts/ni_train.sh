@@ -25,7 +25,7 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_prefix=True \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1101000 \
-  --gin.partitioning.PjitPartitioner.num_partitions=8 \
+  --gin.partitioning.PjitPartitioner.num_partitions=2 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\" \
 
 echo "Training done. Now evaluating all checkpoints..."
@@ -42,7 +42,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.hyper_network.HyperT5Config.use_prefix=True \
     --gin.utils.DatasetConfig.batch_size=512 \
     --gin.utils.DatasetConfig.split=\"test\" \
-    --gin.partitioning.PjitPartitioner.num_partitions=8 \
+    --gin.partitioning.PjitPartitioner.num_partitions=2 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
     --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
     --gin.EVAL_OUTPUT_DIR=\"$EVAL_OUTPUT_DIR\"
