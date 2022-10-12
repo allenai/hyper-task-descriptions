@@ -18,7 +18,7 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
   --gin.hyper_network.HyperT5Config.use_instructions=False \
-  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
+  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=32 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
@@ -42,7 +42,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.hyper_network.HyperT5Config.use_adapter=False \
     --gin.hyper_network.HyperT5Config.use_prefix=False \
     --gin.hyper_network.HyperT5Config.use_instructions=False \
-    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
+    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.hyper_network.HyperT5Config.use_adapter=True \
     --gin.hyper_network.HyperT5Config.use_prefix=True \
