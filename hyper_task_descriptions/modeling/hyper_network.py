@@ -56,6 +56,7 @@ class HyperT5Config(T5Config):
     num_prefix_tokens: int = 30
     use_lora: bool = False
     lora_ranks: tuple = (None, None, None, None)
+    use_instruction_embedding: bool = False  # for debugging. Use prompt-style embed for instruction.
 
 
 # create our component id dict
@@ -129,6 +130,16 @@ class Hypernet(nn.Module):
             ], "Invalid layer embedding method"
             # encodes the task description
             self.encoder = encoder.module  # module = the 'actual' flax module
+
+        if cfg.use_instruction_embedding:
+            self.instruction_embedding = SimpleLinear(
+                cfg.emb_dim,
+                act_fn="linear",
+                dropout_rate=0,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="instruction_embed",
+            )
 
         if cfg.use_adapter:
             self.adapter_down_gen = SimpleLinear(
@@ -340,6 +351,9 @@ class Hypernet(nn.Module):
             parameters = param_gen(inputs, deterministic=deterministic)
             parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             return parameters
+
+        if cfg.use_instruction_embedding:
+            generated_parameter_dict["instruction_embedding"] = (output[0] * attn_mask[:, :, None])
 
         if cfg.use_adapter:
             # adapter weight down
@@ -706,6 +720,15 @@ class HyperEncoder(nn.Module):
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x.astype(cfg.dtype)
 
+        # concat. currently not using mask cor. but thats ok
+        if cfg.use_instruction_embedding:
+            instruction_embed = adaptations.pop("instruction_embedding")
+            x = jnp.concatenate([instruction_embed, x], axis=1)
+            encoder_tokens = jnp.concatenate([jnp.zeros_like(instruction_embed[:, :, 0]), encoder_input_tokens], axis=1)
+            encoder_mask = layers.make_attention_mask(
+                encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
+            )
+
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
@@ -881,6 +904,11 @@ class HyperTransformer(nn.Module):
         """Applies Transformer decoder-branch on encoded-input and target."""
         cfg = self.config
 
+        if cfg.use_instruction_embedding:
+            inst_embed_toks = jnp.ones_like(adaptations.pop("instruction_embedding")[:,:,0], dtype=cfg.dtype)
+            encoder_input_tokens = jnp.concatenate(
+                [inst_embed_toks, encoder_input_tokens], axis=1
+            )
         # Make padding attention masks.
         if decode:
             # Do not mask decoder attention based on targets padding at
@@ -966,13 +994,17 @@ class HyperTransformer(nn.Module):
         """
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
+        if self.config.use_instruction_embedding:
+            instruction_embedding = adaptations["instruction_embedding"]
         encoded = self.encode(
             encoder_input_tokens,
             adaptations=adaptations,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
         )
-
+        # we re-insert instruction embedding here
+        if self.config.use_instruction_embedding:
+            adaptations["instruction_embedding"] = instruction_embedding
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks

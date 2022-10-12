@@ -1,0 +1,7 @@
+
+# ------------------- Network specification overrides --------------------------
+hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  use_adapter = False
+  use_prefix = False
+  use_instruction_embedding = True
