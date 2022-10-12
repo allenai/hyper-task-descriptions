@@ -21,8 +21,6 @@ python3 -m t5x.train \
   --gin.trainer.Trainer.num_microbatches=32 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
-  --gin.hyper_network.HyperT5Config.use_adapter=True \
-  --gin.hyper_network.HyperT5Config.use_prefix=True \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1101000 \
   --gin.partitioning.PjitPartitioner.num_partitions=2 \
@@ -39,8 +37,6 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
     --gin.USE_CACHED_TASKS=True \
-    --gin.hyper_network.HyperT5Config.use_adapter=True \
-    --gin.hyper_network.HyperT5Config.use_prefix=True \
     --gin.utils.DatasetConfig.batch_size=512 \
     --gin.utils.DatasetConfig.split=\"test\" \
     --gin.partitioning.PjitPartitioner.num_partitions=2 \
