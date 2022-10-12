@@ -741,7 +741,8 @@ class HyperEncoder(nn.Module):
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
-            x = x[:, instruction_embed.shape[1]:]
+            if cfg.use_instruction_embedding:
+                x = x[:, instruction_embed.shape[1]:]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
