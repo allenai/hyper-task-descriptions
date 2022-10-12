@@ -722,15 +722,18 @@ class HyperEncoder(nn.Module):
 
         # concat. currently not using mask cor. but thats ok
         if cfg.use_instruction_embedding:
-            instruction_embed = adaptations.pop("instruction_embedding")
-            x = jnp.concatenate([adaptations.pop('hyper_encoder_input_tokens'), x], axis=1)
-            encoder_tokens = jnp.concatenate([jnp.zeros_like(instruction_embed[:, :, 0]), encoder_input_tokens], axis=1)
+            encoder_tokens = jnp.concatenate(
+                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
+                axis=1)
             encoder_mask = layers.make_attention_mask(
                 encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
             )
+            instruction_embed = adaptations.pop('instruction_embedding')
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
+            if cfg.use_instruction_embedding:
+                x = jnp.concatenate([instruction_embed, x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -738,6 +741,7 @@ class HyperEncoder(nn.Module):
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
+            x = x[:, instruction_embed.shape[1]:]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
@@ -904,10 +908,6 @@ class HyperTransformer(nn.Module):
         """Applies Transformer decoder-branch on encoded-input and target."""
         cfg = self.config
 
-        if cfg.use_instruction_embedding:
-            encoder_input_tokens = jnp.concatenate(
-                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens], axis=1
-            )
         # Make padding attention masks.
         if decode:
             # Do not mask decoder attention based on targets padding at
@@ -1004,8 +1004,12 @@ class HyperTransformer(nn.Module):
         )
         # we re-insert instruction embedding here
         if self.config.use_instruction_embedding:
-            adaptations["instruction_embedding"] = instruction_embedding
-            adaptations['hyper_encoder_input_tokens'] = hyper_encoder_input_tokens
+            encoded = jnp.concatenate(
+                [instruction_embedding, encoded], axis=1
+            )
+            encoder_input_tokens = jnp.concatenate(
+                [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
+            )
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks
