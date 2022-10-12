@@ -723,7 +723,7 @@ class HyperEncoder(nn.Module):
         # concat. currently not using mask cor. but thats ok
         if cfg.use_instruction_embedding:
             instruction_embed = adaptations.pop("instruction_embedding")
-            x = jnp.concatenate([instruction_embed, x], axis=1)
+            x = jnp.concatenate([adaptations.pop('hyper_encoder_input_tokens'), x], axis=1)
             encoder_tokens = jnp.concatenate([jnp.zeros_like(instruction_embed[:, :, 0]), encoder_input_tokens], axis=1)
             encoder_mask = layers.make_attention_mask(
                 encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
@@ -905,9 +905,8 @@ class HyperTransformer(nn.Module):
         cfg = self.config
 
         if cfg.use_instruction_embedding:
-            inst_embed_toks = jnp.ones_like(adaptations.pop("instruction_embedding")[:,:,0], dtype=cfg.dtype)
             encoder_input_tokens = jnp.concatenate(
-                [inst_embed_toks, encoder_input_tokens], axis=1
+                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens], axis=1
             )
         # Make padding attention masks.
         if decode:
@@ -996,6 +995,7 @@ class HyperTransformer(nn.Module):
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         if self.config.use_instruction_embedding:
             instruction_embedding = adaptations["instruction_embedding"]
+            adaptations['hyper_encoder_input_tokens'] = hyper_encoder_input_tokens
         encoded = self.encode(
             encoder_input_tokens,
             adaptations=adaptations,
@@ -1005,6 +1005,7 @@ class HyperTransformer(nn.Module):
         # we re-insert instruction embedding here
         if self.config.use_instruction_embedding:
             adaptations["instruction_embedding"] = instruction_embedding
+            adaptations['hyper_encoder_input_tokens'] = hyper_encoder_input_tokens
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks
