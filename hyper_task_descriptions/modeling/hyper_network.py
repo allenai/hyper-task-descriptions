@@ -57,6 +57,7 @@ class HyperT5Config(T5Config):
     use_lora: bool = False
     lora_ranks: tuple = (None, None, None, None)
     use_instruction_embedding: bool = False  # for debugging. Use prompt-style embed for instruction.
+    use_linear: bool = False
 
 
 # create our component id dict
@@ -132,7 +133,7 @@ class Hypernet(nn.Module):
             self.encoder = encoder.module  # module = the 'actual' flax module
 
         if cfg.use_instruction_embedding:
-            self.instruction_embedding = SimpleLinear(
+            self.instruction_linear = SimpleLinear(
                 cfg.emb_dim,
                 act_fn="linear",
                 dropout_rate=0,
@@ -353,7 +354,10 @@ class Hypernet(nn.Module):
             return parameters
 
         if cfg.use_instruction_embedding:
-            generated_parameter_dict["instruction_embedding"] = (output[0] * attn_mask[:, :, None])
+            instruction_embed = (output[0] * attn_mask[:, :, None])
+            if cfg.use_linear:
+                instruction_embed = self.instruction_linear(instruction_embed)
+            generated_parameter_dict["instruction_embedding"] = instruction_embed
 
         if cfg.use_adapter:
             # adapter weight down
