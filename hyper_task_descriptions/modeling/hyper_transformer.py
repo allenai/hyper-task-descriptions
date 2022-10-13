@@ -459,6 +459,9 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         adaptations = self.module.apply(
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
+        if self.module.config.use_instruction_embedding:
+            instruction_embedding = adaptations["instruction_embedding"]
+            adaptations['hyper_encoder_input_tokens'] = hyper_inputs
 
         batch_adaptions = {
             a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None
@@ -473,17 +476,25 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         # [el0, el1, el2] --> beamsize=2 --> [el0,el0,el1,el1,el2,el2]
         # [batch * num_decodes, input_len, emb_dim]
         # encoded inputs is the encoded states, ready for decoding.
+        encoded = self.module.apply(
+            {"params": params},
+            inputs,
+            adaptations={
+                key: val for key, val in adaptations.items() if not key.endswith("_cc")
+            },  # TODO: make this cleaner
+            # *adaptations[:-2],  # no *cc adaptations
+            enable_dropout=False,
+            method=self.module.encode,
+        )
+        if self.module.config.use_instruction_embedding:
+            encoded = jnp.concatenate(
+                [instruction_embedding, encoded], axis=1
+            )
+            inputs = jnp.concatenate(
+                [hyper_inputs, inputs], axis=1
+            )
         encoded_inputs = decoding.flat_batch_beam_expand(
-            self.module.apply(
-                {"params": params},
-                inputs,
-                adaptations={
-                    key: val for key, val in adaptations.items() if not key.endswith("_cc")
-                },  # TODO: make this cleaner
-                # *adaptations[:-2],  # no *cc adaptations
-                enable_dropout=False,
-                method=self.module.encode,
-            ),
+            encoded,
             num_decodes,
         )
 
