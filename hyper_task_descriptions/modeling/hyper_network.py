@@ -287,7 +287,7 @@ class Hypernet(nn.Module):
             attn_mask = encoder_input_tokens != 0
             # get type issues otherwise so make sure tokens are ints.
             encoder_input_tokens = encoder_input_tokens.astype("i4")
-            output = self.encoder(encoder_input_tokens, attn_mask)
+            output = self.encoder(encoder_input_tokens, attn_mask, deterministic=deterministic)
             # save pooled output for later (eg contrastive training)
             mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
                 :, None
