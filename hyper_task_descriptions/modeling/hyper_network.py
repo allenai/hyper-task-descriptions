@@ -140,7 +140,7 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="instruction_embed",
-                kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
+                #kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
             )
 
         if cfg.use_adapter:
