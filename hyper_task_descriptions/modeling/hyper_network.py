@@ -358,7 +358,7 @@ class Hypernet(nn.Module):
             instruction_embed = (output[0] * attn_mask[:, :, None])
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
-                instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
+                # instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
             generated_parameter_dict["instruction_embedding"] = instruction_embed
 
         if cfg.use_adapter:
