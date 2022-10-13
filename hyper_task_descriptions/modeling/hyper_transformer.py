@@ -465,7 +465,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
 
         batch_adaptions = {
             a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None
-            for a_name, a in adaptations.items()
+            for a_name, a in adaptations.items() if 'instruction_embedding' not in a_name and 'hyper_encoder_input_tokens' not in a_name
         }
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
