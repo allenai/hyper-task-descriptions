@@ -729,14 +729,14 @@ class HyperEncoder(nn.Module):
         x = x.astype(cfg.dtype)
 
         # concat. currently not using mask cor. but thats ok
-        if cfg.use_instruction_embedding:
-            encoder_tokens = jnp.concatenate(
-                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
-                axis=1)
-            encoder_mask = layers.make_attention_mask(
-                encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
-            )
-            instruction_embed = adaptations.pop('instruction_embedding')
+        # if cfg.use_instruction_embedding:
+        #     encoder_tokens = jnp.concatenate(
+        #         [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
+        #         axis=1)
+        #     encoder_mask = layers.make_attention_mask(
+        #         encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
+        #     )
+        #     instruction_embed = adaptations.pop('instruction_embedding')
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
