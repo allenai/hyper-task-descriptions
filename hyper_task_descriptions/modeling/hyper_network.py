@@ -140,7 +140,7 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="instruction_embed",
-                #kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
+                kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
             )
             self.inst_ln = layers.LayerNorm(dtype=cfg.dtype, name="instruction_embed_layernorm")
 
@@ -359,10 +359,7 @@ class Hypernet(nn.Module):
             instruction_embed = (output[0] * attn_mask[:, :, None])
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
-                embedding = self.shared_embedding.embedding
-                # basically just take dot product
-                attended = nn.softmax(self.shared_embedding.attend(instruction_embed), axis=-1)
-                instruction_embed = attended @ embedding
+
                 # instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
             generated_parameter_dict["instruction_embedding"] = instruction_embed
 
@@ -743,8 +740,8 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            if cfg.use_instruction_embedding:
-                x = jnp.concatenate([instruction_embed, x], axis=1)
+            # if cfg.use_instruction_embedding:
+            #     x = jnp.concatenate([instruction_embed, x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -752,8 +749,8 @@ class HyperEncoder(nn.Module):
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
-            if cfg.use_instruction_embedding:
-                x = x[:, instruction_embed.shape[1]:]
+            # if cfg.use_instruction_embedding:
+            #     x = x[:, instruction_embed.shape[1]:]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
