@@ -359,7 +359,10 @@ class Hypernet(nn.Module):
             instruction_embed = (output[0] * attn_mask[:, :, None])
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
-                instruction_embed = self.inst_ln(instruction_embed)
+                embedding = self.shared_embedding.embedding
+                # basically just take dot product
+                attended = nn.softmax(self.shared_embedding.attend(instruction_embed), axis=-1)
+                instruction_embed = attended @ embedding
                 # instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
             generated_parameter_dict["instruction_embedding"] = instruction_embed
 
