@@ -142,6 +142,7 @@ class Hypernet(nn.Module):
                 name="instruction_embed",
                 #kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
             )
+            self.inst_ln = layers.LayerNorm(dtype=cfg.dtype, name="instruction_embed_layernorm")
 
         if cfg.use_adapter:
             self.adapter_down_gen = SimpleLinear(
@@ -358,6 +359,7 @@ class Hypernet(nn.Module):
             instruction_embed = (output[0] * attn_mask[:, :, None])
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
+                instruction_embed = self.inst_ln(instruction_embed)
                 # instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
             generated_parameter_dict["instruction_embedding"] = instruction_embed
 
