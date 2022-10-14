@@ -136,11 +136,11 @@ class Hypernet(nn.Module):
             self.instruction_linear = SimpleLinear(
                 cfg.emb_dim,
                 act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.3,
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="instruction_embed",
-                kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
+                #kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
             )
 
         if cfg.use_adapter:
