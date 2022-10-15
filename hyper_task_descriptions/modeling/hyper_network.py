@@ -136,7 +136,7 @@ class Hypernet(nn.Module):
             self.instruction_linear = SimpleLinear(
                 cfg.emb_dim,
                 act_fn="linear",
-                dropout_rate=0.3,
+                dropout_rate=cfg.dropout_rate,
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="instruction_embed",

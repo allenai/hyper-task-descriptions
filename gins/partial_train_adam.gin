@@ -27,7 +27,7 @@ hyper_utils.multi_transform:
 
 hyper/optax.adamw:
   learning_rate = @hyper/utils.create_learning_rate_scheduler()
-  weight_decay = 0.1
+  weight_decay = 0
 
 hyper/utils.create_learning_rate_scheduler:
   base_learning_rate = 0.3
