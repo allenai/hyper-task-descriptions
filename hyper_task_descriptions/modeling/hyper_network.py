@@ -289,7 +289,8 @@ class Hypernet(nn.Module):
             attn_mask = encoder_input_tokens != 0
             # get type issues otherwise so make sure tokens are ints.
             encoder_input_tokens = encoder_input_tokens.astype("i4")
-            output = self.encoder(encoder_input_tokens, attn_mask, deterministic=deterministic)
+            output = self.encoder(encoder_input_tokens, attn_mask, output_hidden_states=True, deterministic=deterministic)
+            intermediate_hidden_states = output[1]
             # save pooled output for later (eg contrastive training)
             mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
                 :, None
@@ -356,12 +357,15 @@ class Hypernet(nn.Module):
             return parameters
 
         if cfg.use_instruction_embedding:
-            instruction_embed = (output[0] * attn_mask[:, :, None])
-            if cfg.use_linear:
-                instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
+            instruction_embeds = (output[0] * attn_mask[:, :, None])
+            instruction_embeds = [
+                hs * attn_mask[:, :, None] for hs in intermediate_hidden_states
+            ]
+            # if cfg.use_linear:
+            #     instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
 
-                # instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
-            generated_parameter_dict["instruction_embedding"] = instruction_embed
+            #     # instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
+            generated_parameter_dict["instruction_embedding"] = instruction_embeds
 
         if cfg.use_adapter:
             # adapter weight down
@@ -730,20 +734,18 @@ class HyperEncoder(nn.Module):
 
         # concat. currently not using mask cor. but thats ok
         if cfg.use_instruction_embedding:
-            adaptations.pop('hyper_encoder_input_tokens')
-            adaptations.pop('instruction_embedding')
-        #     encoder_tokens = jnp.concatenate(
-        #         [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
-        #         axis=1)
-        #     encoder_mask = layers.make_attention_mask(
-        #         encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
-        #     )
-        #     instruction_embed = adaptations.pop('instruction_embedding')
+            encoder_tokens = jnp.concatenate(
+                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
+                axis=1)
+            encoder_mask = layers.make_attention_mask(
+                encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
+            )
+            instruction_embeds = adaptations.pop('instruction_embedding')
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            # if cfg.use_instruction_embedding:
-            #     x = jnp.concatenate([instruction_embed, x], axis=1)
+            if cfg.use_instruction_embedding:
+                x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -751,8 +753,8 @@ class HyperEncoder(nn.Module):
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
-            # if cfg.use_instruction_embedding:
-            #     x = x[:, instruction_embed.shape[1]:]
+            if cfg.use_instruction_embedding:
+                x = x[:, instruction_embeds[lyr].shape[1]:]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
@@ -1016,7 +1018,7 @@ class HyperTransformer(nn.Module):
         # we re-insert instruction embedding here
         if self.config.use_instruction_embedding:
             encoded = jnp.concatenate(
-                [instruction_embedding, encoded], axis=1
+                [instruction_embedding[-1], encoded], axis=1
             )
             encoder_input_tokens = jnp.concatenate(
                 [hyper_encoder_input_tokens, encoder_input_tokens], axis=1

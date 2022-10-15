@@ -460,7 +460,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
         if self.module.config.use_instruction_embedding:
-            instruction_embedding = adaptations["instruction_embedding"]
+            instruction_embedding = adaptations["instruction_embedding"][-1]
             adaptations['hyper_encoder_input_tokens'] = hyper_inputs
 
         batch_adaptions = {
