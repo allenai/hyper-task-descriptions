@@ -305,7 +305,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             ).params
             initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
             # a fun extra: lets set the hyper layer norm to the same as the encoder layer norm
-            initial_variables["params"]["hyper"]["instruction_embed_layernorm"]["scale"] = hyperencoder_params["encoder"]['final_layer_norm']['weight']
+            # initial_variables["params"]["hyper"]["instruction_embed_layernorm"]["scale"] = hyperencoder_params["encoder"]['final_layer_norm']['weight']
             initial_variables = freeze(initial_variables)
         return initial_variables
 
