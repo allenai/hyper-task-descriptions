@@ -24,7 +24,7 @@ python3 -m t5x.train \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1101000 \
   --gin.partitioning.PjitPartitioner.num_partitions=2 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_base/checkpoint_1100000/\" \
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_base/checkpoint_1100000/\"
 
 echo "Training done. Now evaluating all checkpoints..."
 
