@@ -22,7 +22,7 @@ utils.create_learning_rate_scheduler:
 # all else = underlying model
 OPTIMIZER = @hyper_utils.multi_transform()
 hyper_utils.multi_transform:
-  transforms = {"hyper": @hyper/optax.adamw(), "freeze": @under/optax.adam(), "roberta": @roberta/optax.adam()}
+  transforms = {"hyper": @hyper/optax.adamw(), "freeze": @under/optax.set_to_zero(), "roberta": @roberta/optax.adam()}
   param_labels = @hyper_utils.match_any_optax_trip()  # match_any_optax
 
 hyper/optax.adamw:
