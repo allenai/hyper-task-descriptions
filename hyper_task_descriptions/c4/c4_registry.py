@@ -14,8 +14,9 @@
 
 # modified prefix lm pretraining, using 3-way split.
 
+import os
 import functools
-
+import random
 import seqio
 import tensorflow as tf
 from t5.data import preprocessors
@@ -28,27 +29,30 @@ seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/c4_pretrain_data"])
 
 t5_vocab = HuggingfaceVocabulary("t5-base")
 
+words_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+    "numeric_task",
+    "words.txt"
+)
 
-def pack_prefix_lm_encoder_decoder(ds, sequence_length, pad_id=0):
+words = [
+    line.strip() for line in open(words_path, "r").readlines()
+]
+
+def pack_prefix_lm_encoder_decoder_random_inputs(ds, sequence_length, pad_id=0):
     """Setup example for prefix lm. no packing becuz im lazy"""
 
     @seqio.utils.map_over_dataset(num_seeds=2)
     def create_example(example, seeds):
-        # to work out output.
         split_point_1 = tf.random.stateless_uniform(
-            (), minval=1, maxval=example["targets"].shape[0] - 2, seed=seeds[0], dtype=tf.int32
+            (), minval=1, maxval=example["targets"].shape[0], seed=seeds[0], dtype=tf.int32
         )
+        hyper_inputs = example["targets"][:split_point_1]
+        targets = example["targets"][split_point_1:]
 
-        split_point_2 = tf.random.stateless_uniform(
-            (),
-            minval=split_point_1,
-            maxval=sequence_length["targets"],
-            seed=seeds[1],
-            dtype=tf.int32,
-        )
-        inputs = example["targets"][:split_point_1]
-        hyper_inputs = example["targets"][split_point_1:split_point_2]
-        targets = example["targets"][split_point_2:]
+        #inputs = t5_vocab._encode_tf(random.choice(words))
+        # We want the length _after_ tokenization to be sequence_length['inputs']
+        inputs = t5_vocab._encode_tf(' '.join(random.choices(words, k=sequence_length['inputs'] // 4)))
         return {
             "inputs": inputs,
             "hyper_inputs": hyper_inputs,
@@ -62,7 +66,7 @@ def pack_prefix_lm_encoder_decoder(ds, sequence_length, pad_id=0):
 # only compatible when we use the T5 encoder as our hypernetwork
 seqio.TaskRegistry.add(
     "c4_pretrain",
-    source=seqio.TfdsDataSource(tfds_name="c4/en:3.0.1", splits=["train", "validation"]),
+    source=seqio.TfdsDataSource(tfds_name="c4/en:3.1.0", splits=["train", "validation"]),
     preprocessors=[
         functools.partial(
             preprocessors.rekey,
@@ -75,7 +79,7 @@ seqio.TaskRegistry.add(
         seqio.preprocessors.tokenize,
         seqio.CacheDatasetPlaceholder(),
         preprocessors.targets_for_prefix_lm_objective,
-        pack_prefix_lm_encoder_decoder,
+        pack_prefix_lm_encoder_decoder_random_inputs,
     ],
     output_features={
         "inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
