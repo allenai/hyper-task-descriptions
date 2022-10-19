@@ -753,7 +753,6 @@ class HyperEncoder(nn.Module):
             # if cfg.use_instruction_embedding:
             #     x = x[:, instruction_embeds[lyr].shape[1]:]
 
-        x = SimpleLinear(output_dim=cfg.emb_dim, act_fn="linear", name="final_linear", kernel_axes=("embed", "mlp"))(x, deterministic=deterministic)
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
 
