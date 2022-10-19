@@ -753,6 +753,7 @@ class HyperEncoder(nn.Module):
             # if cfg.use_instruction_embedding:
             #     x = x[:, instruction_embeds[lyr].shape[1]:]
 
+        x = SimpleLinear(output_dim=cfg.emb_dim, act_fn="linear", name="final_linear", kernel_axes=("embed", "mlp"))(x, deterministic=deterministic)
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
 
@@ -1001,8 +1002,6 @@ class HyperTransformer(nn.Module):
         Returns:
           logits array from full transformer.
         """
-        ## flip!
-        hyper_encoder_input_tokens, encoder_input_tokens = encoder_input_tokens, hyper_encoder_input_tokens
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         if self.config.use_instruction_embedding:
