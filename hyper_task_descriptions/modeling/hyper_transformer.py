@@ -440,6 +440,8 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         # [batch, input_len]
         inputs = batch["encoder_input_tokens"]
         hyper_inputs = batch["hyper_encoder_input_tokens"]
+        # we doing da flip
+        inputs, hyper_inputs = hyper_inputs, inputs
         # [batch, target_len]
         target_shape = batch["decoder_input_tokens"].shape
         target_type = batch["decoder_input_tokens"].dtype

@@ -1001,6 +1001,8 @@ class HyperTransformer(nn.Module):
         Returns:
           logits array from full transformer.
         """
+        ## flip!
+        hyper_encoder_input_tokens, encoder_input_tokens = encoder_input_tokens, hyper_encoder_input_tokens
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         if self.config.use_instruction_embedding:
