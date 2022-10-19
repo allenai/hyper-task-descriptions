@@ -1,0 +1,16 @@
+# T5.1.1 XL model.
+
+include 'gins/hyper_base.gin'  # imports vocab, optimizer and model.
+
+# ------------------- Network specification overrides --------------------------
+hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  emb_dim = 4096
+  num_heads = 64
+  num_encoder_layers = 24
+  num_decoder_layers = 24
+  head_dim = 64
+  mlp_dim = 10240
+  adapter_size = 64
+  num_prefix_tokens = 15
+
