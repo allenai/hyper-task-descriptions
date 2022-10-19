@@ -16,6 +16,6 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1212200 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
-  --gin.trainer.Trainer.num_microbatches=64 \
+  --gin.trainer.Trainer.num_microbatches=128 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xxl/checkpoint_1100000\" \
   --tfds_data_dir="gs://hamishi-us-bucket/t0_data/data"
