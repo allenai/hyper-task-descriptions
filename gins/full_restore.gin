@@ -20,7 +20,7 @@ utils.RestoreCheckpointConfig:
   # If the second pattern it `None` we skip trying to load this variable from
   # the checkpoint.
 
-  # We skip hypernetwork parameters
-  # any matching regex will not be restored from the checkpoint.
-  # anything not matching not in the checkpoint will cause an error.
-  assignment_map = None
+  # reset just the optimizer for now.
+  assignment_map = (
+    (r".*inner_states.*", None),
+  )
