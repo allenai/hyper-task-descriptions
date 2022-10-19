@@ -15,7 +15,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_instructions=False \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1212200 \
-  --gin.partitioning.PjitPartitioner.num_partitions=16 \
-  --gin.trainer.Trainer.num_microbatches=128 \
+  --gin.partitioning.PjitPartitioner.num_partitions=8 \
+  --gin.trainer.Trainer.num_microbatches=256 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xxl/checkpoint_1100000\" \
   --tfds_data_dir="gs://hamishi-us-bucket/t0_data/data"
