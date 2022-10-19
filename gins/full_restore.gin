@@ -11,7 +11,7 @@ utils.RestoreCheckpointConfig:
   # Activate the codepath that allow of the merging of the optimizer state as
   # specified in the config (with our new parameter) and the optimizer state as
   # defined in the checkpoint.
-  fallback_to_scratch = False
+  fallback_to_scratch = True
   # Use the T5X assignment map to grab values from the checkpoint. Each entry in
   # the map is a regular expression that matches some flatten variable in the
   # optimizer state as defined in the model created by the config. The second
