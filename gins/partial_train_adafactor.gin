@@ -26,7 +26,7 @@ optimizers.MultiOptimizer:
 # matches *any* of the regular expressions in the list.
 # hyper - we turn off param scaling, offset the step
 hyper/adafactor.Adafactor:
-  multiply_by_parameter_scale = True
+  multiply_by_parameter_scale = False
   step_offset = 1100000
 hyper/traverse_util.ModelParamTraversal:
   filter_fn = @hyper/hyper_utils.match_any()
