@@ -363,7 +363,7 @@ class Hypernet(nn.Module):
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
                 instruction_embed = self.inst_ln(instruction_embed)
             generated_parameter_dict["instruction_embedding"] = instruction_embed
-            generated_parameter_dict["instruction_embedding_layers"] = instruction_embed
+            generated_parameter_dict["instruction_embedding_layers"] = layer_embeds
 
         if cfg.use_adapter:
             # adapter weight down
