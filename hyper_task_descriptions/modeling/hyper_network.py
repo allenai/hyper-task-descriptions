@@ -1024,7 +1024,6 @@ class HyperTransformer(nn.Module):
             encoder_input_tokens = jnp.concatenate(
                 [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
             )
-        import pdb; pdb.set_trace()
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks
