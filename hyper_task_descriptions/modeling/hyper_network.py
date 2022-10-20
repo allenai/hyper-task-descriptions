@@ -740,10 +740,10 @@ class HyperEncoder(nn.Module):
             encoder_mask = layers.make_attention_mask(
                 encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
             )
-            instruction_embeds = adaptations['instruction_embedding_layers']
+            instruction_embeds = adaptations.pop('instruction_embedding_layers')
 
         for lyr in range(cfg.num_encoder_layers):
-            layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items() if k != 'instruction_embedding_layers'}
+            layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
             if cfg.use_instruction_embedding:
                 x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
