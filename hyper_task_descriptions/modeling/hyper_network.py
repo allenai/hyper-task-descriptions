@@ -289,7 +289,8 @@ class Hypernet(nn.Module):
             attn_mask = encoder_input_tokens != 0
             # get type issues otherwise so make sure tokens are ints.
             encoder_input_tokens = encoder_input_tokens.astype("i4")
-            output = self.encoder(encoder_input_tokens, attn_mask, deterministic=deterministic)
+            layer_out = self.encoder(encoder_input_tokens, attn_mask, output_hidden_states=True, deterministic=deterministic).hidden_states
+            output = layer_out[-1]
             # save pooled output for later (eg contrastive training)
             mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
                 :, None
@@ -356,7 +357,7 @@ class Hypernet(nn.Module):
             return parameters
 
         if cfg.use_instruction_embedding:
-            instruction_embed = (output[0] * attn_mask[:, :, None])
+            instruction_embed = [o[0] * attn_mask[:, :, None] for o in layer_out]
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
                 instruction_embed = self.inst_ln(instruction_embed)
