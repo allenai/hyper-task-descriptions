@@ -66,12 +66,10 @@ def get_ni_data(
 
 # use my unique vocab instead.
 t5_vocab = HuggingfaceVocabulary("t5-base")
-# we let hf deal with the special tokens for us
-roberta_vocab = HuggingfaceVocabulary("roberta-base", add_special_tokens=True)
 
 output_features = {
     "inputs": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
-    "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=True, dtype=tf.int32),
+    "hyper_inputs": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
     "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
     "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
 }
