@@ -290,7 +290,7 @@ class Hypernet(nn.Module):
             # get type issues otherwise so make sure tokens are ints.
             encoder_input_tokens = encoder_input_tokens.astype("i4")
             layer_out = self.encoder(encoder_input_tokens, attn_mask, output_hidden_states=True, deterministic=deterministic)
-            output = layer_out[0]
+            output = layer_out
             layer_out = layer_out.hidden_states
             # save pooled output for later (eg contrastive training)
             mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
@@ -733,11 +733,11 @@ class HyperEncoder(nn.Module):
 
         # concat. currently not using mask cor. but thats ok
         if cfg.use_instruction_embedding:
-            # adaptations.pop('hyper_encoder_input_tokens')
+            adaptations.pop('hyper_encoder_input_tokens')
             adaptations.pop('instruction_embedding')
-            encoder_tokens = jnp.concatenate(
-                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
-                axis=1)
+            # encoder_tokens = jnp.concatenate(
+            #     [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
+            #     axis=1)
             # encoder_mask = layers.make_attention_mask(
             #     encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
             # )
@@ -1024,6 +1024,7 @@ class HyperTransformer(nn.Module):
             encoder_input_tokens = jnp.concatenate(
                 [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
             )
+        import pdb; pdb.set_trace()
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks
