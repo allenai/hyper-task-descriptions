@@ -357,11 +357,13 @@ class Hypernet(nn.Module):
             return parameters
 
         if cfg.use_instruction_embedding:
-            instruction_embed = [o[0] * attn_mask[:, :, None] for o in layer_out]
+            layer_embeds = [o[0] * attn_mask[:, :, None] for o in layer_out]
+            instruction_embed = layer_embeds[0]
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
                 instruction_embed = self.inst_ln(instruction_embed)
             generated_parameter_dict["instruction_embedding"] = instruction_embed
+            generated_parameter_dict["instruction_embedding_layers"] = instruction_embed
 
         if cfg.use_adapter:
             # adapter weight down
@@ -738,7 +740,7 @@ class HyperEncoder(nn.Module):
             encoder_mask = layers.make_attention_mask(
                 encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
             )
-            instruction_embeds = adaptations.pop('instruction_embedding')
+            instruction_embeds = adaptations['instruction_embedding_layers']
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
