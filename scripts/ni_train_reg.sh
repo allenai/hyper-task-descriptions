@@ -13,7 +13,7 @@ python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="hyper_base.gin" \
   --gin_file="ni_train.gin" \
-  --gin_file="partial_train_adam.gin" \
+  --gin_file="partial_train_adafactor.gin" \
   --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
