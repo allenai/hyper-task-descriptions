@@ -743,7 +743,7 @@ class HyperEncoder(nn.Module):
             instruction_embeds = adaptations['instruction_embedding_layers']
 
         for lyr in range(cfg.num_encoder_layers):
-            layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
+            layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items() if k != 'instruction_embedding_layers'}
             if cfg.use_instruction_embedding:
                 x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
