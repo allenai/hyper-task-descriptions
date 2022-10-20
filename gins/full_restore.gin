@@ -22,6 +22,6 @@ utils.RestoreCheckpointConfig:
 
   # reset just the optimizer for now.
   assignment_map = (
-    (r".*inner_states.*", None),
     (r".*count.*", None),
+    (r".*inner_states.*", None),
   )
