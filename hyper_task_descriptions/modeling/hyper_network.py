@@ -359,7 +359,7 @@ class Hypernet(nn.Module):
 
         if cfg.use_instruction_embedding:
             layer_embeds = [o[0] * attn_mask[:, :, None] for o in layer_out]
-            instruction_embed = layer_embeds[0]
+            instruction_embed = layer_embeds.last_hidden_state
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
                 instruction_embed = self.inst_ln(instruction_embed)
