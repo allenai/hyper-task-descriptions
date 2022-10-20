@@ -5,4 +5,4 @@ hyper_network.HyperT5Config:
   use_adapter = False
   use_prefix = False
   use_instruction_embedding = True
-  use_linear = True
+  use_linear = False
