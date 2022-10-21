@@ -15,14 +15,14 @@ python3 -m t5x.train \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adafactor.gin" \
-  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
+  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-large-lm-adapt\" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=8 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1103000 \
+  --gin.TRAIN_STEPS=1102000 \
   --gin.partitioning.PjitPartitioner.num_partitions=2 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_base/checkpoint_1100000/\"
 
