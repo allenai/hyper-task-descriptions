@@ -23,9 +23,9 @@ python3 -m t5x.train \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1112500 \
+  --gin.TRAIN_STEPS=1111000 \
   --gin.partitioning.PjitPartitioner.num_partitions=2 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/pretrain-cross-att-linear-adaf-fixed-3/model/checkpoint_1111500\"
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/pretrain-cross-att-adaf-fixed/model/checkpoint_1110000\"
 
 echo "Training done. Now evaluating all checkpoints..."
 
