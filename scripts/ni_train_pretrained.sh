@@ -23,7 +23,7 @@ python3 -m t5x.train \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1111000 \
+  --gin.TRAIN_STEPS=1115000 \
   --gin.partitioning.PjitPartitioner.num_partitions=2 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/pretrain-cross-att-adaf-fixed/model/checkpoint_1110000\"
 
