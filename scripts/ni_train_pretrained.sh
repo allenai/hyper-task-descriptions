@@ -16,16 +16,16 @@ python3 -m t5x.train \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adafactor.gin" \
   --gin_file="full_restore.gin" \
-  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
+  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-large-lm-adapt\" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=8 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
-  --gin.TRAIN_STEPS=1115000 \
+  --gin.TRAIN_STEPS=1105000 \
   --gin.partitioning.PjitPartitioner.num_partitions=2 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/pretrain-cross-att-adaf-fixed/model/checkpoint_1110000\"
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/pretrain-cross-att-adaf-henc-large-3/model/checkpoint_1103000\"
 
 echo "Training done. Now evaluating all checkpoints..."
 
@@ -35,7 +35,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="hyper_base.gin" \
     --gin_file="instruction_embed.gin" \
     --gin_file="ni_eval.gin" \
-    --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
+    --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-large-lm-adapt\" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
