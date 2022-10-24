@@ -13,7 +13,7 @@ from hyper_task_descriptions.ni_tasks.evaluation import compute_metrics
 from hyper_task_descriptions.ni_tasks.ni_collator import DataCollatorForNI
 from hyper_task_descriptions.seqio_tasks.utils import hf_dataset_to_tf_dataset
 
-seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/ni_t5"])
+seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/ni_t5_pre_eos"])
 
 
 def get_ni_data(
