@@ -751,7 +751,7 @@ class HyperEncoder(nn.Module):
                     nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
                     (100, cfg.emb_dim),
                     jnp.float32,
-                    axes=("vocab", "embed", "mlp"),
+                    axes=("vocab", "embed"),
                 ),
                 jnp.float32,
             )
