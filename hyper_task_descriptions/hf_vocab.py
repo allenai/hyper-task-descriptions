@@ -67,11 +67,12 @@ class HuggingfaceVocabulary(Vocabulary):
 
     def _encode_tf(self, s: tf.Tensor) -> tf.Tensor:
         def enc(s):
-            return self.tokenizer(
+            r = self.tokenizer(
                 s.numpy().decode("utf-8"),
                 return_tensors="tf",
                 add_special_tokens=self._add_special_tokens,
             )["input_ids"]
+            return tf.cast(r, tf.int32)
 
         # we reshape to ensure that we get a 1-dimensional tensor.
         return tf.reshape(tf.py_function(enc, [s], Tout=tf.int32), [-1])

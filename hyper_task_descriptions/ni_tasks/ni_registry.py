@@ -1,6 +1,7 @@
 import functools
 import random
 import re
+import string
 
 import seqio
 import tensorflow as tf
@@ -12,7 +13,7 @@ from hyper_task_descriptions.ni_tasks.evaluation import compute_metrics
 from hyper_task_descriptions.ni_tasks.ni_collator import DataCollatorForNI
 from hyper_task_descriptions.seqio_tasks.utils import hf_dataset_to_tf_dataset
 
-seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/ni_t5_pre_eos"])
+seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/ni_t5"])
 
 
 def get_ni_data(
@@ -22,6 +23,7 @@ def get_ni_data(
     max_num_instances_per_task,
     max_num_instances_per_eval_task,
     raw_input,
+    alt_raw_input,
     **ni_collator_args
 ):
     # HF datasets does not support file-level shuffling
@@ -36,8 +38,20 @@ def get_ni_data(
 
     # if not raw_input, we will use the following collator to add definition and examples
     # to the input, as we did for Tk-Instruct.
+    def input_transform_func(x):
+            return x
     if not raw_input:
         data_collator = DataCollatorForNI(**ni_collator_args)
+    elif alt_raw_input:
+        # conversion for regular input
+        prefix_string = "Now complete the following example -\n"
+        prefix_string += "Input: "
+        suffix_string = "\nOutput: "
+
+        def input_transform_func(x):
+            if x[-1] not in string.punctuation:
+                x += "."
+            return prefix_string + x + suffix_string
 
     def convert_format(example):
         task_idx = re.findall(r"^task(\d+)_", example["Task"])
@@ -45,7 +59,7 @@ def get_ni_data(
         task_idx = int(task_idx[0])
         return {
             "id": example["id"],
-            "inputs": example["Instance"]["input"]
+            "inputs": input_transform_func(example["Instance"]["input"])
             if raw_input
             else data_collator([example])["inputs"][0].strip(),
             "hyper_inputs": example["Definition"][0],
@@ -172,6 +186,30 @@ data_source = seqio.FunctionDataSource(
 
 seqio.TaskRegistry.add(
     "natural_instructions_def",
+    data_source,
+    preprocessors=preprocessors,
+    output_features=output_features,
+    postprocess_fn=postprocessor,
+    metric_fns=[ni_metrics_wrapper],
+    shuffle_buffer_size=50000,  # default of 1000 is too small
+)
+
+dataset_fn = functools.partial(
+    get_ni_data,
+    seed=None,
+    max_num_instances_per_task=100,
+    max_num_instances_per_eval_task=100,
+    raw_input=True,
+    alt_raw_input=True
+)
+
+data_source = seqio.FunctionDataSource(
+    dataset_fn,
+    splits=["train", "test"],
+)
+
+seqio.TaskRegistry.add(
+    "natural_instructions_hyper_alt",
     data_source,
     preprocessors=preprocessors,
     output_features=output_features,
