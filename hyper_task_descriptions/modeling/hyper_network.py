@@ -751,7 +751,7 @@ class HyperEncoder(nn.Module):
                     nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
                     (encoder_input_tokens.shape[0], 100, cfg.emb_dim),
                     jnp.float32,
-                    axes=("vocab", "embed"),
+                    axes=("vocab", "embed", "mlp"),
                 ),
                 jnp.float32,
             )
@@ -1042,7 +1042,7 @@ class HyperTransformer(nn.Module):
                 [instruction_embedding, encoded], axis=1
             )
             encoder_input_tokens = jnp.concatenate(
-                [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
+                [hyper_encoder_input_tokens, jnp.ones((encoder_input_tokens.shape[0], 100), dtype=jnp.int32), encoder_input_tokens], axis=1
             )
         return self.decode(
             encoded,

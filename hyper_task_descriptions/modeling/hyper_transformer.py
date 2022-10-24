@@ -494,7 +494,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
                 [instruction_embedding, encoded], axis=1
             )
             inputs = jnp.concatenate(
-                [hyper_inputs, inputs], axis=1
+                [hyper_inputs, jnp.ones((inputs.shape[0], 100), dtype=jnp.int32), inputs], axis=1
             )
         encoded_inputs = decoding.flat_batch_beam_expand(
             encoded,
