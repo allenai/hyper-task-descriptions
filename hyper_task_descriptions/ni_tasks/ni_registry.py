@@ -39,7 +39,9 @@ def get_ni_data(
     # if not raw_input, we will use the following collator to add definition and examples
     # to the input, as we did for Tk-Instruct.
     def input_transform_func(x):
-            return x
+        return x
+    def hyper_input_transform_func(x):
+        return x
     if not raw_input:
         data_collator = DataCollatorForNI(**ni_collator_args)
     elif alt_raw_input:
@@ -49,9 +51,16 @@ def get_ni_data(
         suffix_string = "\nOutput: "
 
         def input_transform_func(x):
+            x = x.strip()
             if x[-1] not in string.punctuation:
                 x += "."
             return prefix_string + x + suffix_string
+
+        def hyper_input_transform_func(x):
+            x = x.strip()
+            if x[-1] not in string.punctuation:
+                x += "."
+            return "Definition: " + x + "\n\n"
 
     def convert_format(example):
         task_idx = re.findall(r"^task(\d+)_", example["Task"])
@@ -62,7 +71,7 @@ def get_ni_data(
             "inputs": input_transform_func(example["Instance"]["input"])
             if raw_input
             else data_collator([example])["inputs"][0].strip(),
-            "hyper_inputs": example["Definition"][0],
+            "hyper_inputs": hyper_input_transform_func(example["Definition"][0]),
             "targets": random.choice(example["Instance"]["output"]),
             "references": example["Instance"]["output"],
             "task_names": tf.constant([task_idx], dtype=tf.int32),
@@ -83,7 +92,7 @@ t5_vocab = HuggingfaceVocabulary("t5-base")
 
 output_features = {
     "inputs": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
-    "hyper_inputs": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
+    "hyper_inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
     "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
     "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
 }
