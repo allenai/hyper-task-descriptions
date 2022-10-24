@@ -58,6 +58,7 @@ class HyperT5Config(T5Config):
     lora_ranks: tuple = (None, None, None, None)
     use_instruction_embedding: bool = False  # for debugging. Use prompt-style embed for instruction.
     use_linear: bool = False
+    use_soft_prompt: bool = False
 
 
 # create our component id dict
@@ -739,15 +740,33 @@ class HyperEncoder(nn.Module):
             encoder_tokens = jnp.concatenate(
                 [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
                 axis=1)
+            # encoder_mask = layers.make_attention_mask(
+            #     encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
+            # )
+            instruction_embeds = adaptations.pop('instruction_embedding_layers')
+        if cfg.use_soft_prompt:
+            soft_prompt = jnp.asarray(
+                param_with_axes(
+                    "soft_prompt",
+                    nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
+                    (encoder_input_tokens.shape[0], 100, cfg.emb_dim),
+                    jnp.float32,
+                    axes=("vocab", "embed"),
+                ),
+                jnp.float32,
+            )
+            x = jnp.concatenate([soft_prompt, x], axis=1)
+            encoder_tokens = jnp.concatenate(
+                [jnp.ones((encoder_input_tokens.shape[0], 100), dtype=jnp.int32), encoder_input_tokens],
+                axis=1)
             encoder_mask = layers.make_attention_mask(
                 encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
             )
-            instruction_embeds = adaptations.pop('instruction_embedding_layers')
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            if cfg.use_instruction_embedding:
-                x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
+            # if cfg.use_instruction_embedding:
+            #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -755,8 +774,8 @@ class HyperEncoder(nn.Module):
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
-            if cfg.use_instruction_embedding:
-                x = x[:, instruction_embeds[lyr].shape[1]:]
+            # if cfg.use_instruction_embedding:
+            #     x = x[:, instruction_embeds[lyr].shape[1]:]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
