@@ -749,12 +749,13 @@ class HyperEncoder(nn.Module):
                 param_with_axes(
                     "soft_prompt",
                     nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                    (encoder_input_tokens.shape[0], 100, cfg.emb_dim),
+                    (100, cfg.emb_dim),
                     jnp.float32,
                     axes=("vocab", "embed", "mlp"),
                 ),
                 jnp.float32,
             )
+            soft_prompt = soft_prompt[None, ].repeat(x.shape[0], axis=0)
             x = jnp.concatenate([soft_prompt, x], axis=1)
             encoder_tokens = jnp.concatenate(
                 [jnp.ones((encoder_input_tokens.shape[0], 100), dtype=jnp.int32), encoder_input_tokens],
