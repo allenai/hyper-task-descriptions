@@ -45,14 +45,18 @@ def pack_prefix_lm_encoder_decoder_random_inputs(ds, sequence_length, pad_id=0):
     @seqio.utils.map_over_dataset(num_seeds=2)
     def create_example(example, seeds):
         split_point_1 = tf.random.stateless_uniform(
-            (), minval=1, maxval=example["targets"].shape[0], seed=seeds[0], dtype=tf.int32
+            (), minval=1, maxval=example["targets"].shape[0] - 2, seed=seeds[0], dtype=tf.int32
+        )
+        split_point_2 = tf.random.stateless_uniform(
+            (), minval=split_point_1, maxval=example["targets"].shape[0] - 2, seed=seeds[0], dtype=tf.int32
         )
         hyper_inputs = example["targets"][:split_point_1]
-        targets = example["targets"][split_point_1:]
+        inputs = example["targets"][split_point_1:split_point_2]
+        targets = example["targets"][split_point_2:]
 
         #inputs = t5_vocab._encode_tf(random.choice(words))
         # We want the length _after_ tokenization to be sequence_length['inputs']
-        inputs = t5_vocab._encode_tf(' '.join(random.choices(words, k=sequence_length['inputs'] // 4)))
+        # inputs = t5_vocab._encode_tf(' '.join(random.choices(words, k=sequence_length['inputs'] // 4)))
         return {
             "inputs": inputs,
             "hyper_inputs": hyper_inputs,
@@ -80,11 +84,12 @@ seqio.TaskRegistry.add(
         seqio.CacheDatasetPlaceholder(),
         preprocessors.targets_for_prefix_lm_objective,
         pack_prefix_lm_encoder_decoder_random_inputs,
+        seqio.preprocessors.append_eos,
     ],
     output_features={
         "inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
         "targets": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
-        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=True),
+        "hyper_inputs": seqio.Feature(vocabulary=t5_vocab, add_eos=False),
         "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
     },
     metric_fns=[],
