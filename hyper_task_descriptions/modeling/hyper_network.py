@@ -744,25 +744,6 @@ class HyperEncoder(nn.Module):
             #     encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
             # )
             instruction_embeds = adaptations.pop('instruction_embedding_layers')
-        if cfg.use_soft_prompt:
-            soft_prompt = jnp.asarray(
-                param_with_axes(
-                    "soft_prompt",
-                    nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                    (100, cfg.emb_dim),
-                    jnp.float32,
-                    axes=("vocab", "embed"),
-                ),
-                jnp.float32,
-            )
-            soft_prompt = soft_prompt[None, ].repeat(x.shape[0], axis=0)
-            x = jnp.concatenate([soft_prompt, x], axis=1)
-            encoder_tokens = jnp.concatenate(
-                [jnp.ones((encoder_input_tokens.shape[0], 100), dtype=jnp.int32), encoder_input_tokens],
-                axis=1)
-            encoder_mask = layers.make_attention_mask(
-                encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
-            )
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
@@ -1043,7 +1024,7 @@ class HyperTransformer(nn.Module):
                 [instruction_embedding, encoded], axis=1
             )
             encoder_input_tokens = jnp.concatenate(
-                [hyper_encoder_input_tokens, jnp.ones((encoder_input_tokens.shape[0], 100), dtype=jnp.int32), encoder_input_tokens], axis=1
+                [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
             )
         return self.decode(
             encoded,
