@@ -359,7 +359,7 @@ class Hypernet(nn.Module):
             return parameters
 
         if cfg.use_instruction_embedding:
-            layer_embeds = [o[0] * attn_mask[:, :, None] for o in layer_out]
+            layer_embeds = [o * attn_mask[:, :, None] for o in layer_out]
             instruction_embed = (output[0] * attn_mask[:, :, None])
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
@@ -748,7 +748,7 @@ class HyperEncoder(nn.Module):
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
             if cfg.use_instruction_embedding:
-                x = jnp.concatenate([embed, x], axis=1)
+                x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
