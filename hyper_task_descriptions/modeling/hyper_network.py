@@ -736,19 +736,19 @@ class HyperEncoder(nn.Module):
         # concat. currently not using mask cor. but thats ok
         if cfg.use_instruction_embedding:
             # adaptations.pop('hyper_encoder_input_tokens')
-            adaptations.pop('instruction_embedding')
+            embed = adaptations.pop('instruction_embedding')
             encoder_tokens = jnp.concatenate(
                 [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
                 axis=1)
-            # encoder_mask = layers.make_attention_mask(
-            #     encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
-            # )
+            encoder_mask = layers.make_attention_mask(
+                encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
+            )
             instruction_embeds = adaptations.pop('instruction_embedding_layers')
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            # if cfg.use_instruction_embedding:
-            #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
+            if cfg.use_instruction_embedding:
+                x = jnp.concatenate([embed, x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -756,8 +756,8 @@ class HyperEncoder(nn.Module):
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
-            # if cfg.use_instruction_embedding:
-            #     x = x[:, instruction_embeds[lyr].shape[1]:]
+            if cfg.use_instruction_embedding:
+                x = x[:, embed.shape[1]:]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
