@@ -25,9 +25,9 @@ optimizers.MultiOptimizer:
 # MultiOptimizer will match any parameter with a flattened name that
 # matches *any* of the regular expressions in the list.
 # hyper - we turn off param scaling, offset the step
-# hyper/adafactor.Adafactor:
-#   multiply_by_parameter_scale = False
-#   step_offset = 1100000
+hyper/adafactor.Adafactor:
+  multiply_by_parameter_scale = False
+  step_offset = 1100000
 hyper/traverse_util.ModelParamTraversal:
   filter_fn = @hyper/hyper_utils.match_any()
 hyper/hyper_utils.match_any.regexes = [".*/hyper/[^e].*"]
