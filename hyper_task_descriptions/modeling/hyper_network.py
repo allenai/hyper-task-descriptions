@@ -29,6 +29,7 @@ from hyper_task_descriptions.modeling.layers import SimpleLinear
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
+from hyper_task_descriptions.modeling.hf_t5_enc import FlaxT5EncoderModuleSharedEmbedding
 from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
 
@@ -131,7 +132,11 @@ class Hypernet(nn.Module):
                 "component",
             ], "Invalid layer embedding method"
             # encodes the task description
-            self.encoder = encoder.module  # module = the 'actual' flax module
+            self.encoder = FlaxT5EncoderModuleSharedEmbedding(
+                config=encoder.config,
+                shared_embedding=self.shared_embedding,
+                dtype=cfg.dtype,
+            )
 
         if cfg.use_instruction_embedding:
             self.instruction_linear = SimpleLinear(
