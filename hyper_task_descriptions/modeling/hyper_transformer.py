@@ -490,9 +490,9 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             method=self.module.encode,
         )
         if self.module.config.use_instruction_embedding:
-            # encoded = jnp.concatenate(
-            #     [instruction_embedding, encoded], axis=1
-            # )
+            encoded = jnp.concatenate(
+                [instruction_embedding, encoded], axis=1
+            )
             inputs = jnp.concatenate(
                 [hyper_inputs, inputs], axis=1
             )
