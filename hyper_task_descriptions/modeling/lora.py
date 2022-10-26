@@ -452,7 +452,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         if self.use_prefix:
             # pass through projections to get right heads/shape.
             prefix_key = key_proj(prefix_key)
-            value = value_proj(prefix_value)
+            prefix_value = value_proj(prefix_value)
             key = jnp.concatenate([prefix_key, key], axis=1)
             value = jnp.concatenate([prefix_value, value], axis=1)
         ####################
