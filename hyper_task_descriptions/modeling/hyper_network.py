@@ -510,7 +510,7 @@ class HyperEncoderLayer(nn.Module):
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="attention",
-            use_prefix=True,
+            use_prefix=cfg.use_prefix,
             lora_ranks=cfg.lora_ranks,
         )(
             x,
@@ -747,10 +747,8 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            layer_adaptations['prefix_key'] = instruction_embeds[lyr]
-            layer_adaptations['prefix_value'] = instruction_embeds[lyr]
-            # if cfg.use_instruction_embedding and lyr == 6:
-            #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
+            if cfg.use_instruction_embedding:
+                x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -758,8 +756,8 @@ class HyperEncoder(nn.Module):
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
-            # if cfg.use_instruction_embedding
-            #     x = x[:, embed.shape[1]:]
+            if cfg.use_instruction_embedding:
+                x = x[:, embed.shape[1]:]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)

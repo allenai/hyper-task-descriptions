@@ -50,6 +50,7 @@ def trim_and_pad(
     t: tf.Tensor,
     task_feature_lengths: Mapping[str, int],
     task_feature_paddings: Mapping[str, int],
+    left_pad: bool = False,
 ) -> tf.Tensor:
     """
     Trim/pad to the first axis of `t` to be of size `length`.
@@ -60,9 +61,14 @@ def trim_and_pad(
     length_k = task_feature_lengths[k]
     t = t[:length_k]
     pad_amt = length_k - tf.shape(t)[0]
-    padded_t = tf.pad(
-        t, [(0, pad_amt)] + [(0, 0)] * (len(t.shape) - 1), constant_values=task_feature_paddings[k]
+    if left_pad:
+        padded_t = tf.pad(
+        t, [(pad_amt, 0)] + [(0, 0)] * (len(t.shape) - 1), constant_values=task_feature_paddings[k]
     )
+    else:
+        padded_t = tf.pad(
+            t, [(0, pad_amt)] + [(0, 0)] * (len(t.shape) - 1), constant_values=task_feature_paddings[k]
+        )
     padded_t.set_shape([length_k] + t.shape.as_list()[1:])
     return padded_t
 
@@ -654,7 +660,7 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         # padding only, no packing.
         ds = ds.map(
             lambda x: {
-                k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()
+                k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING, left_pad=(k == "hyper_inputs")) for k, t in x.items()
             },
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )
