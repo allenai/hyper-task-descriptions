@@ -344,7 +344,8 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
                 inputs_q, lora_a=lora_qa, lora_b=lora_qb
             )
         else:
-            query = regular_projection(kernel_init=query_init, name="query")(inputs_q)
+            query_proj = regular_projection(kernel_init=query_init, name="query")
+            query = query_proj(inputs_q)
 
         k_rank = self.lora_ranks[1]
         if k_rank:
@@ -352,7 +353,8 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
                 inputs_kv, lora_a=lora_ka, lora_b=lora_kb
             )
         else:
-            key = regular_projection(kernel_init=self.kernel_init, name="key")(inputs_kv)
+            key_proj = regular_projection(kernel_init=self.kernel_init, name="key")
+            key = key_proj(inputs_kv)
 
         v_rank = self.lora_ranks[2]
         if v_rank:
@@ -360,7 +362,8 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
                 inputs_kv, lora_a=lora_va, lora_b=lora_vb
             )
         else:
-            value = regular_projection(kernel_init=self.kernel_init, name="value")(inputs_kv)
+            value_proj = regular_projection(kernel_init=self.kernel_init, name="value")
+            value = value_proj(inputs_kv)
 
         query = with_sharding_constraint(query, ("batch", "length", "heads", "kv"))
         key = with_sharding_constraint(key, ("batch", "length", "heads", "kv"))
@@ -447,6 +450,9 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         # ADD PREFIXES ###
         # key has dim [batch, len, num_heads, head_dim], and we add prefixes
         if self.use_prefix:
+            # pass through projections to get right heads/shape.
+            prefix_key = key_proj(prefix_key)
+            value = value_proj(prefix_value)
             key = jnp.concatenate([prefix_key, key], axis=1)
             value = jnp.concatenate([prefix_value, value], axis=1)
         ####################

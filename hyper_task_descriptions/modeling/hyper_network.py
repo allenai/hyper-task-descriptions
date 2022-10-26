@@ -510,7 +510,7 @@ class HyperEncoderLayer(nn.Module):
             dropout_rate=cfg.dropout_rate,
             float32_logits=cfg.float32_attention_logits,
             name="attention",
-            use_prefix=cfg.use_prefix,
+            use_prefix=True,
             lora_ranks=cfg.lora_ranks,
         )(
             x,
@@ -747,6 +747,8 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
+            layer_adaptations['prefix_key'] = instruction_embeds[lyr]
+            layer_adaptations['prefix_value'] = instruction_embeds[lyr]
             # if cfg.use_instruction_embedding and lyr == 6:
             #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
