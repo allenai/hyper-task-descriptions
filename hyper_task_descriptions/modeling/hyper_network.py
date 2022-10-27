@@ -755,8 +755,8 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            # if cfg.use_instruction_embedding and lyr == 0:
-            #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
+            if cfg.use_instruction_embedding and lyr == 0:
+                x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -1017,9 +1017,9 @@ class HyperTransformer(nn.Module):
         """
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
-        # if self.config.use_instruction_embedding:
-        #     instruction_embedding = adaptations["instruction_embedding"]
-        #     adaptations['hyper_encoder_input_tokens'] = hyper_encoder_input_tokens
+        if self.config.use_instruction_embedding:
+            instruction_embedding = adaptations["instruction_embedding"]
+            adaptations['hyper_encoder_input_tokens'] = hyper_encoder_input_tokens
         encoded = self.encode(
             encoder_input_tokens,
             adaptations=adaptations,
@@ -1027,13 +1027,13 @@ class HyperTransformer(nn.Module):
             enable_dropout=enable_dropout,
         )
         # we re-insert instruction embedding here
-        # if self.config.use_instruction_embedding:
-        #     # encoded = jnp.concatenate(
-        #     #     [instruction_embedding, encoded], axis=1
-        #     # )
-        #     encoder_input_tokens = jnp.concatenate(
-        #         [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
-        #     )
+        if self.config.use_instruction_embedding:
+            # encoded = jnp.concatenate(
+            #     [instruction_embedding, encoded], axis=1
+            # )
+            encoder_input_tokens = jnp.concatenate(
+                [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
+            )
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks

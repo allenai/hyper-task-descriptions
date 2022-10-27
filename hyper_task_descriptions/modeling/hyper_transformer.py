@@ -495,13 +495,13 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
             method=self.module.encode,
         )
-        # if self.module.config.use_instruction_embedding:
-        #     # encoded = jnp.concatenate(
-        #     #     [instruction_embedding, encoded], axis=1
-        #     # )
-        #     inputs = jnp.concatenate(
-        #         [hyper_inputs, inputs], axis=1
-        #     )
+        if self.module.config.use_instruction_embedding:
+            # encoded = jnp.concatenate(
+            #     [instruction_embedding, encoded], axis=1
+            # )
+            inputs = jnp.concatenate(
+                [hyper_inputs, inputs], axis=1
+            )
         encoded_inputs = decoding.flat_batch_beam_expand(
             encoded,
             num_decodes,
