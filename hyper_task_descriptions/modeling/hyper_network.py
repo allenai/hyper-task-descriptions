@@ -742,16 +742,16 @@ class HyperEncoder(nn.Module):
         x = x.astype(cfg.dtype)
 
         # concat. currently not using mask cor. but thats ok
-        if cfg.use_instruction_embedding:
-            adaptations.pop('hyper_encoder_input_tokens')
-            embed = adaptations.pop('instruction_embedding')
-            # encoder_tokens = jnp.concatenate(
-            #     [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
-            #     axis=1)
-            lyr_encoder_mask = layers.make_attention_mask(
-                encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
-            )
-            instruction_embeds = adaptations.pop('instruction_embedding_layers')
+        # if cfg.use_instruction_embedding:
+        #     adaptations.pop('hyper_encoder_input_tokens')
+        #     embed = adaptations.pop('instruction_embedding')
+        #     # encoder_tokens = jnp.concatenate(
+        #     #     [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
+        #     #     axis=1)
+        #     lyr_encoder_mask = layers.make_attention_mask(
+        #         encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
+        #     )
+        #     instruction_embeds = adaptations.pop('instruction_embedding_layers')
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
@@ -1017,9 +1017,9 @@ class HyperTransformer(nn.Module):
         """
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
-        if self.config.use_instruction_embedding:
-            instruction_embedding = adaptations["instruction_embedding"]
-            adaptations['hyper_encoder_input_tokens'] = hyper_encoder_input_tokens
+        # if self.config.use_instruction_embedding:
+        #     instruction_embedding = adaptations["instruction_embedding"]
+        #     adaptations['hyper_encoder_input_tokens'] = hyper_encoder_input_tokens
         encoded = self.encode(
             encoder_input_tokens,
             adaptations=adaptations,
@@ -1027,13 +1027,13 @@ class HyperTransformer(nn.Module):
             enable_dropout=enable_dropout,
         )
         # we re-insert instruction embedding here
-        if self.config.use_instruction_embedding:
-            # encoded = jnp.concatenate(
-            #     [instruction_embedding, encoded], axis=1
-            # )
-            encoder_input_tokens = jnp.concatenate(
-                [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
-            )
+        # if self.config.use_instruction_embedding:
+        #     # encoded = jnp.concatenate(
+        #     #     [instruction_embedding, encoded], axis=1
+        #     # )
+        #     encoder_input_tokens = jnp.concatenate(
+        #         [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
+        #     )
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks
