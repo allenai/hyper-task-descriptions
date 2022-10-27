@@ -5,10 +5,10 @@
 EXPERIMENT_NAME=$1
 
 # where model will be saved
-MODEL_DIR="s://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="g://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 
 
-EVAL_OUTPUT_DIR="g${EXPERIMENT_NAME}/eval/"
+EVAL_OUTPUT_DIR="${EXPERIMENT_NAME}/eval/"
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_search_paths="gins" \
     --gin_file="hyper_base.gin" \
