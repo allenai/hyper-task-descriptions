@@ -745,11 +745,11 @@ class HyperEncoder(nn.Module):
         if cfg.use_instruction_embedding:
             adaptations.pop('hyper_encoder_input_tokens')
             embed = adaptations.pop('instruction_embedding')
-            # encoder_tokens = jnp.concatenate(
-            #     [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
-            #     axis=1)
+            encoder_tokens = jnp.concatenate(
+                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
+                axis=1)
             lyr_encoder_mask = layers.make_attention_mask(
-                encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
+                encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
             )
             instruction_embeds = adaptations.pop('instruction_embedding_layers')
 
