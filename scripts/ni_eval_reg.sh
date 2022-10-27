@@ -5,7 +5,7 @@
 EXPERIMENT_NAME=$1
 
 # where model will be saved
-MODEL_DIR="g://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 
 
 EVAL_OUTPUT_DIR="${EXPERIMENT_NAME}/eval/"
