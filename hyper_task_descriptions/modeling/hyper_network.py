@@ -1025,9 +1025,9 @@ class HyperTransformer(nn.Module):
         )
         # we re-insert instruction embedding here
         if self.config.use_instruction_embedding:
-            encoded = jnp.concatenate(
-                [instruction_embedding, encoded], axis=1
-            )
+            # encoded = jnp.concatenate(
+            #     [instruction_embedding, encoded], axis=1
+            # )
             encoder_input_tokens = jnp.concatenate(
                 [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
             )
