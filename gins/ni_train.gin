@@ -13,7 +13,7 @@ include "t5x/configs/runs/finetune.gin"
 include "gins/t0.gin" # This overrides some default config in `t5x/configs/runs/finetune.gin`
 include "gins/restore_pretrained.gin" # for loading from checkpoints
 
-TASK_FEATURE_LENGTHS = {"inputs": 512, "hyper_inputs": 512, "task_names": 1, "targets": 256}
+TASK_FEATURE_LENGTHS = {"inputs": 2048, "hyper_inputs": 512, "task_names": 1, "targets": 256}
 MIXTURE_OR_TASK_NAME = "natural_instructions"
 
 trainer.Trainer.num_microbatches = 16 # 2048 // 16
