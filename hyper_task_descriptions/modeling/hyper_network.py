@@ -743,7 +743,6 @@ class HyperEncoder(nn.Module):
 
         # concat. currently not using mask cor. but thats ok
         if cfg.use_instruction_embedding:
-            adaptations.pop('hyper_encoder_input_tokens')
             embed = adaptations.pop('instruction_embedding')
             encoder_tokens = jnp.concatenate(
                 [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
