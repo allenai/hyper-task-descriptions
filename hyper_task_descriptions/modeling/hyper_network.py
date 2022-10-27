@@ -733,6 +733,9 @@ class HyperEncoder(nn.Module):
             name="relpos_bias",
         )
 
+        hyper_input_tokens = adaptations.pop('hyper_encoder_input_tokens')
+        encoder_input_tokens = jnp.concatenate([hyper_input_tokens, encoder_input_tokens], axis=1)
+
         # [batch, length] -> [batch, length, emb_dim]
         x = self.shared_embedding(encoder_input_tokens.astype("int32"))
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
@@ -742,18 +745,18 @@ class HyperEncoder(nn.Module):
         if cfg.use_instruction_embedding:
             # adaptations.pop('hyper_encoder_input_tokens')
             embed = adaptations.pop('instruction_embedding')
-            encoder_tokens = jnp.concatenate(
-                [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
-                axis=1)
+            # encoder_tokens = jnp.concatenate(
+            #     [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
+            #     axis=1)
             lyr_encoder_mask = layers.make_attention_mask(
-                encoder_tokens > 0, encoder_tokens > 0, dtype=cfg.dtype
+                encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
             )
             instruction_embeds = adaptations.pop('instruction_embedding_layers')
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            if cfg.use_instruction_embedding and lyr == 0:
-                x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
+            # if cfg.use_instruction_embedding and lyr == 0:
+            #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
