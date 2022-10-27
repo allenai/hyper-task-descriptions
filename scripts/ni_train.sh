@@ -28,7 +28,7 @@ JAX_DISABLE_JIT=1 python3 -m t5x.train \
 
 # echo "Training done. Now evaluating all checkpoints..."
 
-gsutil -m cp -r ${MODEL_DIR} gs://hamishi-us-bucket/${EXPERIMENT_NAME}
+gsutil -m cp -r ${MODEL_DIR} gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model
 
 # MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 # EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval/"
