@@ -733,8 +733,8 @@ class HyperEncoder(nn.Module):
             name="relpos_bias",
         )
 
-        hyper_input_tokens = adaptations['hyper_encoder_input_tokens']
-        encoder_input_tokens = jnp.concatenate([hyper_input_tokens, encoder_input_tokens], axis=1)
+        # hyper_input_tokens = adaptations['hyper_encoder_input_tokens']
+        # encoder_input_tokens = jnp.concatenate([hyper_input_tokens, encoder_input_tokens], axis=1)
 
         # [batch, length] -> [batch, length, emb_dim]
         x = self.shared_embedding(encoder_input_tokens.astype("int32"))
@@ -760,7 +760,7 @@ class HyperEncoder(nn.Module):
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
                 **layer_adaptations,
-                encoder_mask=lyr_encoder_mask,
+                encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
             # if cfg.use_instruction_embedding:
