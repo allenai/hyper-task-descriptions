@@ -733,7 +733,7 @@ class HyperEncoder(nn.Module):
             name="relpos_bias",
         )
 
-        hyper_input_tokens = adaptations.pop('hyper_encoder_input_tokens')
+        hyper_input_tokens = adaptations['hyper_encoder_input_tokens']
         encoder_input_tokens = jnp.concatenate([hyper_input_tokens, encoder_input_tokens], axis=1)
 
         # [batch, length] -> [batch, length, emb_dim]
