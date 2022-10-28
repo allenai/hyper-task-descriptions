@@ -200,7 +200,7 @@ seqio.TaskRegistry.add(
     output_features=output_features,
     postprocess_fn=postprocessor,
     metric_fns=[ni_metrics_wrapper],
-    shuffle_buffer_size=50000,  # default of 1000 is too small
+    shuffle_buffer_size=100000,  # default of 1000 is too small
 )
 
 dataset_fn = functools.partial(
