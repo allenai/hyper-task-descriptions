@@ -183,7 +183,7 @@ class NaturalInstructions(datasets.GeneratorBasedBuilder):
                     else:
                         instances = all_instances
                     if max_num_instances_per_task is not None and max_num_instances_per_task >= 0:
-                        random.Random(self.seed).shuffle(instances)
+                        random.Random(self.config.seed).shuffle(instances)
                         instances = instances[:max_num_instances_per_task]
                     for idx, instance in enumerate(instances):
                         example = task_data.copy()
