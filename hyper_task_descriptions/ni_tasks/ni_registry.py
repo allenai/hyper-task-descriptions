@@ -27,7 +27,8 @@ def get_ni_data(
     **ni_collator_args
 ):
     # HF datasets does not support file-level shuffling
-    del shuffle_files, seed
+    random_gen = random.Random(seed)
+    del shuffle_files
     dataset = load_dataset(
         "hyper_task_descriptions/ni_tasks/ni_dataset.py",
         # data_dir="../natural-instructions/",
@@ -35,6 +36,7 @@ def get_ni_data(
         max_num_instances_per_eval_task=max_num_instances_per_eval_task,
         split=split,
     )
+    dataset = dataset.shuffle(seed=seed)
 
     # if not raw_input, we will use the following collator to add definition and examples
     # to the input, as we did for Tk-Instruct.
@@ -72,7 +74,7 @@ def get_ni_data(
             if raw_input
             else data_collator([example])["inputs"][0].strip(),
             "hyper_inputs": hyper_input_transform_func(example["Definition"][0]),
-            "targets": random.choice(example["Instance"]["output"]),
+            "targets": random_gen.choice(example["Instance"]["output"]),
             "references": example["Instance"]["output"],
             "task_names": tf.constant([task_idx], dtype=tf.int32),
         }
