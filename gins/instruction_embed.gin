@@ -7,3 +7,4 @@ hyper_network.HyperT5Config:
   use_instruction_embedding = True
   use_linear = False
   use_soft_prompt = False
+  use_segment_embeds = True

@@ -60,6 +60,7 @@ class HyperT5Config(T5Config):
     use_instruction_embedding: bool = False  # for debugging. Use prompt-style embed for instruction.
     use_linear: bool = False
     use_soft_prompt: bool = False
+    use_segment_embeds: bool = False
 
 
 # create our component id dict
@@ -112,6 +113,16 @@ class Hypernet(nn.Module):
         self.num_components, self.component_2_id = create_component_id_dict(cfg)
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
         encoder = FlaxT5EncoderModel.from_pretrained(cfg.hyperencoder_model, from_pt=True)
+        self.henc_segment = jnp.asarray(
+            param_with_axes(
+                "henc_segment",
+                nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
+                (1, encoder.config.d_model),
+                jnp.float32,
+                axes=("vocab", "embed"),
+            ),
+            jnp.float32,
+        )
 
         if cfg.layer_embedding_method == "component":
             layer_embed_components *= self.num_components
@@ -366,10 +377,13 @@ class Hypernet(nn.Module):
         if cfg.use_instruction_embedding:
             layer_embeds = [o * attn_mask[:, :, None] for o in layer_out]
             instruction_embed = (output[0] * attn_mask[:, :, None])
+            if cfg.use_segment_embeds:
+                instruction_embed = self.henc_segment[None,] + instruction_embed
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
                 instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
                 #instruction_embed = self.inst_ln(instruction_embed)
+            
             generated_parameter_dict["instruction_embedding"] = instruction_embed
             generated_parameter_dict["instruction_embedding_layers"] = layer_embeds
 
@@ -754,17 +768,31 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            if cfg.use_instruction_embedding:
-                x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
+            # if cfg.use_instruction_embedding:
+            #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
                 **layer_adaptations,
-                encoder_mask=lyr_encoder_mask,
+                encoder_mask=encoder_mask,
                 deterministic=deterministic,
             )
-            if cfg.use_instruction_embedding:
-                x = x[:, embed.shape[1]:]
+            # if cfg.use_instruction_embedding:
+            #     x = x[:, embed.shape[1]:]
+        
+        enc_segment = jnp.asarray(
+            param_with_axes(
+                "enc_segment",
+                nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
+                (1, cfg.emb_dim),
+                jnp.float32,
+                axes=("vocab", "embed"),
+            ),
+            jnp.float32,
+        )
+
+        if cfg.use_segment_embeds:
+            x = x + enc_segment[None,]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
