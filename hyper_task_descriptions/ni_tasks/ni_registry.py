@@ -13,7 +13,7 @@ from hyper_task_descriptions.ni_tasks.evaluation import compute_metrics
 from hyper_task_descriptions.ni_tasks.ni_collator import DataCollatorForNI
 from hyper_task_descriptions.seqio_tasks.utils import hf_dataset_to_tf_dataset
 
-seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/ni_t5_pre_eos_200"])
+seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/ni_t5_pre_eos"])
 
 
 def get_ni_data(
@@ -27,7 +27,6 @@ def get_ni_data(
     **ni_collator_args
 ):
     # HF datasets does not support file-level shuffling
-    random_gen = random.Random(seed)
     del shuffle_files
     dataset = load_dataset(
         "hyper_task_descriptions/ni_tasks/ni_dataset.py",
@@ -36,7 +35,8 @@ def get_ni_data(
         max_num_instances_per_eval_task=max_num_instances_per_eval_task,
         split=split,
     )
-    dataset = dataset.shuffle(seed=seed)
+    dataset = dataset.shuffle(seed)
+    random_gen = random.Random(seed)
 
     # if not raw_input, we will use the following collator to add definition and examples
     # to the input, as we did for Tk-Instruct.
@@ -220,7 +220,7 @@ data_source = seqio.FunctionDataSource(
 )
 
 seqio.TaskRegistry.add(
-    "natural_instructions_hyper_alt",
+    "natural_instructions_split_mimic_def",
     data_source,
     preprocessors=preprocessors,
     output_features=output_features,
