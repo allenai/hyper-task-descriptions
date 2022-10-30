@@ -24,7 +24,7 @@ echo "----- ALL DEPENDENCIES INSTALLED -----"
 python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('t5-base')"
 python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('google/t5-large-lm-adapt')"
 python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('google/t5-small-lm-adapt')"
-TRANSFORMERS_OFFLINE=1 python3 -c "import hyper_task_descriptions.seqio_tasks.all_t0_tasks"
+# TRANSFORMERS_OFFLINE=1 python3 -c "import hyper_task_descriptions.seqio_tasks.all_t0_tasks"
 echo "----- CACHED TOKENIZERS AND SPLITS -----"
 # and we are done!
 echo "----- TPU SETUP COMPLETE -----"
