@@ -15,7 +15,7 @@ python3 -m t5x.train \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adam.gin" \
-  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-large-lm-adapt\" \
+  --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-xl-lm-adapt\" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
