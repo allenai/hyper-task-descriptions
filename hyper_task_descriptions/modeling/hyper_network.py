@@ -117,7 +117,7 @@ class Hypernet(nn.Module):
             param_with_axes(
                 "henc_segment",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (1, encoder.config.d_model),
+                (16, encoder.config.d_model),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -378,7 +378,7 @@ class Hypernet(nn.Module):
             layer_embeds = [o * attn_mask[:, :, None] for o in layer_out]
             instruction_embed = (output[0] * attn_mask[:, :, None])
             if cfg.use_segment_embeds:
-                instruction_embed = self.henc_segment[None,] + instruction_embed
+                instruction_embed = self.henc_segment[None,None,0] + instruction_embed
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(instruction_embed, deterministic=deterministic)
                 instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
@@ -784,7 +784,7 @@ class HyperEncoder(nn.Module):
             param_with_axes(
                 "enc_segment",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (1, cfg.emb_dim),
+                (16, cfg.emb_dim),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -792,7 +792,7 @@ class HyperEncoder(nn.Module):
         )
 
         if cfg.use_segment_embeds:
-            x = x + enc_segment[None,]
+            x = x + enc_segment[None,None,0]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
         return nn.Dropout(rate=cfg.dropout_rate)(x, deterministic=deterministic)
