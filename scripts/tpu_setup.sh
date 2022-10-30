@@ -16,8 +16,8 @@ python3 -m pip uninstall -y seqio seqio-nightly
 python3 -m pip install git+https://github.com/hamishivi/seqio.git
 
 # I've had some issues with tensorflow. these versions seem to work
-python3 -m pip install tensorflow==2.9.0
-python3 -m pip install tensorflow-text==2.9.0
+python3 -m pip install -U tensorflow==2.10.0
+python3 -m pip install -U tensorflow-text==2.10.0
 echo "----- ALL DEPENDENCIES INSTALLED -----"
 # next, we cache the tokenizers / HF splits used so we don't have to load them later.
 # This can take ~15 minutes.
