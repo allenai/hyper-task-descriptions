@@ -70,7 +70,7 @@ def pack_prefix_lm_encoder_decoder_random_inputs(ds, sequence_length, pad_id=0):
 # only compatible when we use the T5 encoder as our hypernetwork
 seqio.TaskRegistry.add(
     "c4_pretrain",
-    source=seqio.TfdsDataSource(tfds_name="c4/en:3.0.1", splits=["train", "validation"]),
+    source=seqio.TfdsDataSource(tfds_name="c4/en:3.1.0", splits=["train", "validation"]),
     preprocessors=[
         functools.partial(
             preprocessors.rekey,
