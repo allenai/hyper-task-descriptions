@@ -7,10 +7,10 @@ python3 -m pip install -e '.[tpu]' -f https://storage.googleapis.com/jax-release
 python3 -m pip install promptsource
 # i use a new feature in t5.data
 python3 -m pip uninstall -y t5
-python3 -m pip install git+https://github.com/google-research/text-to-text-transfer-transformer.git
+python3 -m pip install -U git+https://github.com/google-research/text-to-text-transfer-transformer.git
 # use a compatible version of optax
 python3 -m pip uninstall -y optax
-python3 -m pip install optax==0.1.2
+python3 -m pip install -U optax==0.1.2
 # custom fixed seqio
 python3 -m pip uninstall -y seqio seqio-nightly
 python3 -m pip install git+https://github.com/hamishivi/seqio.git
