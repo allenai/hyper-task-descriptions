@@ -774,7 +774,7 @@ class HyperEncoder(nn.Module):
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
                 **layer_adaptations,
-                encoder_mask=encoder_mask,
+                encoder_mask=lyr_encoder_mask,
                 deterministic=deterministic,
             )
             if cfg.use_instruction_embedding:
