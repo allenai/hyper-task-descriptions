@@ -150,12 +150,14 @@ class Hypernet(nn.Module):
             )
 
         if cfg.use_instruction_embedding:
-            self.instruction_linear = layers.MlpBlock(
-                intermediate_dim=cfg.emb_dim,
-                activations=("relu",),
-                intermediate_dropout_rate=cfg.dropout_rate,
+            self.instruction_linear = SimpleLinear(
+                cfg.emb_dim,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
                 dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
                 name="instruction_embed",
+                # kernel_init=lambda _, shape, dtype: jnp.eye(shape[0], dtype=dtype),
             )
             self.inst_ln = layers.LayerNorm(dtype=cfg.dtype, name="instruction_embed_layernorm")
 
