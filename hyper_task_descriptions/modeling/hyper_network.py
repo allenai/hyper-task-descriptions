@@ -103,6 +103,7 @@ def create_component_id_dict(cfg: HyperT5Config):
 
 
 class Hypernet(nn.Module):
+    encoder: nn.Module
     config: HyperT5Config
     shared_embedding: nn.Module
 
@@ -112,12 +113,12 @@ class Hypernet(nn.Module):
         # setup embeddings - enc attn, dec attn, cross attn
         self.num_components, self.component_2_id = create_component_id_dict(cfg)
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
-        encoder = FlaxT5EncoderModel.from_pretrained(cfg.hyperencoder_model, from_pt=True)
+        #encoder = FlaxT5EncoderModel.from_pretrained(cfg.hyperencoder_model, from_pt=True)
         self.henc_segment = jnp.asarray(
             param_with_axes(
                 "henc_segment",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (16, encoder.config.d_model),
+                (16, cfg.emb_dim),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -130,7 +131,7 @@ class Hypernet(nn.Module):
             param_with_axes(
                 "component_embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (layer_embed_components, encoder.config.d_model),
+                (layer_embed_components, cfg.emb_dim),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -143,11 +144,11 @@ class Hypernet(nn.Module):
                 "component",
             ], "Invalid layer embedding method"
             # encodes the task description
-            self.encoder = FlaxT5EncoderModuleSharedEmbedding(
-                config=encoder.config,
-                shared_embedding=self.shared_embedding,
-                dtype=cfg.dtype,
-            )
+            # self.encoder = FlaxT5EncoderModuleSharedEmbedding(
+            #     config=encoder.config,
+            #     shared_embedding=self.shared_embedding,
+            #     dtype=cfg.dtype,
+            # )
 
         if cfg.use_instruction_embedding:
             self.instruction_linear = SimpleLinear(
@@ -306,9 +307,9 @@ class Hypernet(nn.Module):
             attn_mask = encoder_input_tokens != 0
             # get type issues otherwise so make sure tokens are ints.
             encoder_input_tokens = encoder_input_tokens.astype("i4")
-            layer_out = self.encoder(encoder_input_tokens, attn_mask, output_hidden_states=True, deterministic=deterministic)
+            layer_out = self.encoder(encoder_input_tokens, deterministic=deterministic, hyper=True)
             output = layer_out
-            layer_out = layer_out.hidden_states
+            #layer_out = layer_out.hidden_states
             # save pooled output for later (eg contrastive training)
             mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
                 :, None
@@ -385,7 +386,7 @@ class Hypernet(nn.Module):
                 #instruction_embed = self.inst_ln(instruction_embed)
             
             generated_parameter_dict["instruction_embedding"] = instruction_embed
-            generated_parameter_dict["instruction_embedding_layers"] = layer_embeds
+            generated_parameter_dict["instruction_embedding_layers"] = [instruction_embed]
 
         if cfg.use_adapter:
             # adapter weight down
@@ -735,6 +736,7 @@ class HyperEncoder(nn.Module):
         adaptations={},
         encoder_mask=None,
         deterministic=False,
+        hyper=False,
     ):
         cfg = self.config
         assert encoder_input_tokens.ndim == 2  # [batch, length]
@@ -756,7 +758,7 @@ class HyperEncoder(nn.Module):
         x = x.astype(cfg.dtype)
 
         # concat. currently not using mask cor. but thats ok
-        if cfg.use_instruction_embedding:
+        if cfg.use_instruction_embedding and not hyper:
             embed = adaptations.pop('instruction_embedding')
             encoder_tokens = jnp.concatenate(
                 [adaptations.pop('hyper_encoder_input_tokens'), encoder_input_tokens],
@@ -791,7 +793,7 @@ class HyperEncoder(nn.Module):
             jnp.float32,
         )
 
-        if cfg.use_segment_embeds:
+        if cfg.use_segment_embeds and not hyper:
             x = x + enc_segment[None,None,0]
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
@@ -903,9 +905,9 @@ class HyperTransformer(nn.Module):
                 None,
             ), "lora_ranks must be None if not using lora"
 
-        self.hyper = Hypernet(config=cfg, shared_embedding=self.shared_embedding)
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)
+        self.hyper = Hypernet(encoder=self.encoder, config=cfg, shared_embedding=self.shared_embedding)
 
     def encode(
         self,

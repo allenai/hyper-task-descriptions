@@ -304,16 +304,16 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model if needed
-        if self.module.config.use_instructions:
-            initial_variables = unfreeze(initial_variables)
-            hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
-                self.module.config.hyperencoder_model, from_pt=True
-            ).params
-            initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
-            # a fun extra: lets set the hyper layer norm to the same as the encoder layer norm
-            # if self.module.config.use_linear:
-            #     initial_variables["params"]["hyper"]["instruction_embed_layernorm"]["scale"] = initial_variables["params"]["encoder"]['encoder_norm']['scale']
-            initial_variables = freeze(initial_variables)
+        # if self.module.config.use_instructions:
+        #     initial_variables = unfreeze(initial_variables)
+        #     hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
+        #         self.module.config.hyperencoder_model, from_pt=True
+        #     ).params
+        #     initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
+        #     # a fun extra: lets set the hyper layer norm to the same as the encoder layer norm
+        #     # if self.module.config.use_linear:
+        #     #     initial_variables["params"]["hyper"]["instruction_embed_layernorm"]["scale"] = initial_variables["params"]["encoder"]['encoder_norm']['scale']
+        #     initial_variables = freeze(initial_variables)
         return initial_variables
 
     def _compute_logits(
