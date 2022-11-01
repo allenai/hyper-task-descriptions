@@ -520,7 +520,7 @@ class TestHyperEncoderDecoderModel(parameterized.TestCase):
         class MockModule:
             def __init__(self):
                 self.dtype = jnp.float32
-                self.config = HyperT5Config()
+                self.config = HyperT5Config(vocab_size=100, dtype=jnp.float32)
 
             def apply(self, *args, method=None, **kwargs):
                 del args, kwargs
