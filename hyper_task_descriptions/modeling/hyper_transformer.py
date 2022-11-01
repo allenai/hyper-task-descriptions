@@ -304,15 +304,13 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model if needed
+        # this was how we integrated huggingface models. Leaving here for future reference.
         # if self.module.config.use_instructions:
         #     initial_variables = unfreeze(initial_variables)
         #     hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
         #         self.module.config.hyperencoder_model, from_pt=True
         #     ).params
         #     initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
-        #     # a fun extra: lets set the hyper layer norm to the same as the encoder layer norm
-        #     # if self.module.config.use_linear:
-        #     #     initial_variables["params"]["hyper"]["instruction_embed_layernorm"]["scale"] = initial_variables["params"]["encoder"]['encoder_norm']['scale']
         #     initial_variables = freeze(initial_variables)
         return initial_variables
 
@@ -660,7 +658,7 @@ class HyperEncDecContFeatureConverter(HyperEncDecFeatureConverter):
         # padding only, no packing.
         ds = ds.map(
             lambda x: {
-                k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING, left_pad=(k == "hyper_inputs")) for k, t in x.items()
+                k: trim_and_pad(k, t, task_feature_lengths, self.TASK_PADDING) for k, t in x.items()
             },
             num_parallel_calls=tf.data.experimental.AUTOTUNE,
         )

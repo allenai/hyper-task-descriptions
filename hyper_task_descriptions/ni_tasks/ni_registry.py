@@ -219,6 +219,9 @@ data_source = seqio.FunctionDataSource(
     splits=["train", "test"],
 )
 
+
+# this adds text to the hyper and regular inputs such that concatenating them
+# (without padding) gives back the baseline input.
 seqio.TaskRegistry.add(
     "natural_instructions_split_mimic_def",
     data_source,
