@@ -125,6 +125,15 @@ class Hypernet(nn.Module):
             jnp.float32,
         )
 
+        self.attn = layers.MultiHeadDotProductAttention(
+            num_heads=cfg.num_heads,
+            dtype=cfg.dtype,
+            head_dim=cfg.head_dim,
+            dropout_rate=cfg.dropout_rate,
+            float32_logits=cfg.float32_attention_logits,
+            name="hyperattn",
+        )
+
         if cfg.layer_embedding_method == "component":
             layer_embed_components *= self.num_components
         self.embedder = jnp.asarray(
@@ -319,35 +328,24 @@ class Hypernet(nn.Module):
             total_layers = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
             # layer embedding setup
             if cfg.layer_embedding_method == "layer":
-                seq_output = (output * attn_mask[:, :, None])[
-                    :, :, None
-                ]  # to prevent padding annoying us.
-                layer_embeds = self.embedder[None, :, None, :].repeat(
+                seq_output = (output * attn_mask[:, :, None])  # to prevent padding annoying us.
+                layer_embeds = self.embedder[None, :, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
-                sum_embeds = layers.dot_product_attention(
-                    layer_embeds,
-                    seq_output,
-                    seq_output,
-                    (1 - attn_mask[:, None, None, :]) * -1e9,
-                    deterministic=deterministic,
-                )[:, :, 0, :]
+                mask = layers.make_attention_mask(
+                    jnp.ones((layer_embeds.shape[0], layer_embeds.shape[1])), encoder_input_tokens, dtype=cfg.dtype
+                )
+                sum_embeds = self.attn(layer_embeds, seq_output, mask=mask, deterministic=deterministic)
+
             elif cfg.layer_embedding_method == "component":
-                seq_output = (output * attn_mask[:, :, None])[
-                    :, :, None
-                ]  # to prevent padding annoying us.
-                layer_embeds = self.embedder[None, :, None, :].repeat(
+                seq_output = (output * attn_mask[:, :, None])  # to prevent padding annoying us.
+                layer_embeds = self.embedder[None, :, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
-                # layer embeds = [batch size, num_layers, 1, hidden size]
-                # seq output = [batch size, instr. length, 1, hidden size]
-                sum_embeds = layers.dot_product_attention(
-                    layer_embeds,
-                    seq_output,
-                    seq_output,
-                    (1 - attn_mask[:, None, None, :]) * -1e9,
-                    deterministic=deterministic,
-                )[:, :, 0, :]
+                mask = layers.make_attention_mask(
+                    jnp.ones((layer_embeds.shape[0], layer_embeds.shape[1])), encoder_input_tokens, dtype=cfg.dtype
+                )
+                sum_embeds = self.attn(layer_embeds, seq_output, mask=mask, deterministic=deterministic)
             else:  # else = use concat
                 # layer embeds - repeat in batch, length dim
                 sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
@@ -512,6 +510,7 @@ class HyperEncoderLayer(nn.Module):
         lora_ob=None,
         encoder_mask=None,
         deterministic=False,
+        hyper=False,
     ):
         cfg = self.config
 
@@ -548,6 +547,7 @@ class HyperEncoderLayer(nn.Module):
             prefix_key=prefix_key,
             prefix_value=prefix_value,
             deterministic=deterministic,
+            use_prefix=not hyper,
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
@@ -564,7 +564,7 @@ class HyperEncoderLayer(nn.Module):
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         # adapter block
-        if cfg.use_adapter:
+        if cfg.use_adapter and not hyper:
             adapter_y = (
                 lax.batch_matmul(lx, adapter_wd)
                 + adapter_bd[
@@ -770,17 +770,18 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            if cfg.use_instruction_embedding and not hyper:
-                x = jnp.concatenate([embed, x], axis=1)
+            # if cfg.use_instruction_embedding and not hyper:
+            #     x = jnp.concatenate([embed, x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
                 **layer_adaptations,
-                encoder_mask=lyr_encoder_mask if not hyper else encoder_mask,
+                encoder_mask=encoder_mask,
                 deterministic=deterministic,
+                hyper=hyper,
             )
-            if cfg.use_instruction_embedding and not hyper:
-                x = x[:, embed.shape[1]:]
+            # if cfg.use_instruction_embedding and not hyper:
+            #     x = x[:, embed.shape[1]:]
 
         enc_segment = jnp.asarray(
             param_with_axes(

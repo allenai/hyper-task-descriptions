@@ -279,6 +279,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         lora_ob: Optional[NumArray] = None,
         prefix_key: Optional[NumArray] = None,
         prefix_value: Optional[NumArray] = None,
+        use_prefix: Optional[bool] = None,  # optional config override
         *,
         decode: bool = False,
         deterministic: bool = False
@@ -449,10 +450,10 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         # CHANGE from t5x
         # ADD PREFIXES ###
         # key has dim [batch, len, num_heads, head_dim], and we add prefixes
-        if self.use_prefix:
-            # pass through projections to get right heads/shape.
-            prefix_key = key_proj(prefix_key)
-            prefix_value = value_proj(prefix_value)
+        if use_prefix is None:
+            use_prefix = self.use_prefix
+
+        if use_prefix:
             key = jnp.concatenate([prefix_key, key], axis=1)
             value = jnp.concatenate([prefix_value, value], axis=1)
         ####################
@@ -476,7 +477,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         # PREFIX CHANGE
         # Avoid attention bias affecting the prefixes by prepending 0s
         # attention_bias has shape [batch, num_heads, q_length, kv_length]
-        if attention_bias is not None and self.use_prefix:
+        if attention_bias is not None and use_prefix:
             num_prefix_toks = prefix_key.shape[1]  # type: ignore
             batch, num_heads, q_length, _ = attention_bias.shape
             attention_bias = jnp.concatenate(
