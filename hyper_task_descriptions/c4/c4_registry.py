@@ -14,9 +14,10 @@
 
 # modified prefix lm pretraining, using 3-way split.
 
-import os
 import functools
+import os
 import random
+
 import seqio
 import tensorflow as tf
 from t5.data import preprocessors
@@ -30,14 +31,11 @@ seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/c4_pretrain_data"])
 t5_vocab = HuggingfaceVocabulary("t5-base")
 
 words_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    "numeric_task",
-    "words.txt"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "numeric_task", "words.txt"
 )
 
-words = [
-    line.strip() for line in open(words_path, "r").readlines()
-]
+words = [line.strip() for line in open(words_path, "r").readlines()]
+
 
 def pack_prefix_lm_encoder_decoder_random_inputs(ds, sequence_length, pad_id=0):
     """Setup example for prefix lm. no packing becuz im lazy"""
@@ -48,13 +46,17 @@ def pack_prefix_lm_encoder_decoder_random_inputs(ds, sequence_length, pad_id=0):
             (), minval=1, maxval=example["targets"].shape[0] - 2, seed=seeds[0], dtype=tf.int32
         )
         split_point_2 = tf.random.stateless_uniform(
-            (), minval=split_point_1, maxval=example["targets"].shape[0] - 2, seed=seeds[0], dtype=tf.int32
+            (),
+            minval=split_point_1,
+            maxval=example["targets"].shape[0] - 2,
+            seed=seeds[0],
+            dtype=tf.int32,
         )
         hyper_inputs = example["targets"][:split_point_1]
         inputs = example["targets"][split_point_1:split_point_2]
         targets = example["targets"][split_point_2:]
 
-        #inputs = t5_vocab._encode_tf(random.choice(words))
+        # inputs = t5_vocab._encode_tf(random.choice(words))
         # We want the length _after_ tokenization to be sequence_length['inputs']
         # inputs = t5_vocab._encode_tf(' '.join(random.choices(words, k=sequence_length['inputs'] // 4)))
         return {

@@ -26,17 +26,17 @@ from flax import linen as nn
 from flax.core import scope as flax_scope
 from flax.core.frozen_dict import freeze, unfreeze
 from seqio import FeatureConverter, non_padding_position, utils
+from t5x import decoding, losses
+from t5x import metrics as metrics_lib
+from t5x import optimizers
+from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
+from t5x.utils import override_params_axes_names
 from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
 from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
 from hyper_task_descriptions.modeling.t5_partitioning import t5_axes_names_override
-from t5x import decoding, losses
-from t5x import metrics as metrics_lib
-from t5x import optimizers
-from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
-from t5x.utils import override_params_axes_names
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -63,11 +63,15 @@ def trim_and_pad(
     pad_amt = length_k - tf.shape(t)[0]
     if left_pad:
         padded_t = tf.pad(
-        t, [(pad_amt, 0)] + [(0, 0)] * (len(t.shape) - 1), constant_values=task_feature_paddings[k]
-    )
+            t,
+            [(pad_amt, 0)] + [(0, 0)] * (len(t.shape) - 1),
+            constant_values=task_feature_paddings[k],
+        )
     else:
         padded_t = tf.pad(
-            t, [(0, pad_amt)] + [(0, 0)] * (len(t.shape) - 1), constant_values=task_feature_paddings[k]
+            t,
+            [(0, pad_amt)] + [(0, 0)] * (len(t.shape) - 1),
+            constant_values=task_feature_paddings[k],
         )
     padded_t.set_shape([length_k] + t.shape.as_list()[1:])
     return padded_t
@@ -468,11 +472,12 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         )
         if self.module.config.use_instruction_embedding:
             instruction_embedding = adaptations["instruction_embedding"]
-            adaptations['hyper_encoder_input_tokens'] = hyper_inputs
+            adaptations["hyper_encoder_input_tokens"] = hyper_inputs
 
         batch_adaptions = {
             a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None
-            for a_name, a in adaptations.items() if 'instruction_embedding' not in a_name and 'hyper_encoder_input_tokens' not in a_name
+            for a_name, a in adaptations.items()
+            if "instruction_embedding" not in a_name and "hyper_encoder_input_tokens" not in a_name
         }
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
@@ -494,12 +499,8 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             method=self.module.encode,
         )
         if self.module.config.use_instruction_embedding:
-            encoded = jnp.concatenate(
-                [instruction_embedding, encoded], axis=1
-            )
-            inputs = jnp.concatenate(
-                [hyper_inputs, inputs], axis=1
-            )
+            encoded = jnp.concatenate([instruction_embedding, encoded], axis=1)
+            inputs = jnp.concatenate([hyper_inputs, inputs], axis=1)
         encoded_inputs = decoding.flat_batch_beam_expand(
             encoded,
             num_decodes,

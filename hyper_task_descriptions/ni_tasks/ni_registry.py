@@ -42,8 +42,10 @@ def get_ni_data(
     # to the input, as we did for Tk-Instruct.
     def input_transform_func(x):
         return x
+
     def hyper_input_transform_func(x):
         return x
+
     if not raw_input:
         data_collator = DataCollatorForNI(**ni_collator_args)
     elif alt_raw_input:
@@ -211,7 +213,7 @@ dataset_fn = functools.partial(
     max_num_instances_per_task=100,
     max_num_instances_per_eval_task=100,
     raw_input=True,
-    alt_raw_input=True
+    alt_raw_input=True,
 )
 
 data_source = seqio.FunctionDataSource(

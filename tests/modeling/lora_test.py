@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+from t5x.examples.t5.layers import DenseGeneral, MultiHeadDotProductAttention
 
 from hyper_task_descriptions.common.testing import get_prng_key
 from hyper_task_descriptions.modeling.lora import (
@@ -11,7 +12,6 @@ from hyper_task_descriptions.modeling.lora import (
     efficient_lora_linear,
     lora_linear,
 )
-from t5x.examples.t5.layers import DenseGeneral, MultiHeadDotProductAttention
 
 
 def test_lora_linear():
