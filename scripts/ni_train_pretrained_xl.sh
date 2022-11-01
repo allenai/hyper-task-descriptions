@@ -9,13 +9,14 @@ MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
+#   --gin_file="full_restore.gin" \
+
 python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adafactor.gin" \
-  --gin_file="full_restore.gin" \
   --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-large-lm-adapt\" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
