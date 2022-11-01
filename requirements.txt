@@ -4,7 +4,7 @@
 t5 @ git+https://github.com/google-research/text-to-text-transfer-transformer.git
 git+https://github.com/google-research/t5x.git
 promptsource
-transformers==4.21.3
+transformers==4.24.0
 tensorflow==2.9.0 # 2.9 has tpu issues
 #tensorflow-macos==2.9.0
 tensorflow-text==2.9.0
