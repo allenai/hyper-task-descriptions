@@ -386,7 +386,7 @@ class Hypernet(nn.Module):
                 #instruction_embed = self.inst_ln(instruction_embed)
             
             generated_parameter_dict["instruction_embedding"] = instruction_embed
-            generated_parameter_dict["instruction_embedding_layers"] = [instruction_embed]
+            generated_parameter_dict["instruction_embedding_layers"] = instruction_embed
 
         if cfg.use_adapter:
             # adapter weight down
@@ -770,18 +770,18 @@ class HyperEncoder(nn.Module):
 
         for lyr in range(cfg.num_encoder_layers):
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
-            # if cfg.use_instruction_embedding:
-            #     x = jnp.concatenate([instruction_embeds[lyr], x], axis=1)
+            if cfg.use_instruction_embedding and not hyper:
+                x = jnp.concatenate([embed, x], axis=1)
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
                 **layer_adaptations,
-                encoder_mask=encoder_mask,
+                encoder_mask=lyr_encoder_mask if not hyper else encoder_mask,
                 deterministic=deterministic,
             )
-            # if cfg.use_instruction_embedding:
-            #     x = x[:, embed.shape[1]:]
-        
+            if cfg.use_instruction_embedding and not hyper:
+                x = x[:, embed.shape[1]:]
+
         enc_segment = jnp.asarray(
             param_with_axes(
                 "enc_segment",
