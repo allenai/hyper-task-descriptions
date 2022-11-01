@@ -1,5 +1,5 @@
 import functools
-from typing import Iterable, Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union, Any
 
 import jax
 import jax.numpy as jnp
@@ -259,7 +259,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
     dropout_rate: float = 0.0
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
     float32_logits: bool = False  # computes logits in float32 for stability.
-    lora_ranks: tuple = (4, None, 4, None)
+    lora_ranks: tuple[Any, Any, Any, Any] = (4, None, 4, None)
     use_prefix: bool = False
 
     @nn.compact
@@ -279,7 +279,10 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         lora_ob: Optional[NumArray] = None,
         prefix_key: Optional[NumArray] = None,
         prefix_value: Optional[NumArray] = None,
-        use_prefix: Optional[bool] = None,  # optional config override
+        use_prefix: bool = False,
+        use_gen: Optional[
+            bool
+        ] = None,  # optional config. If present and false, turns off lora and prefixes.
         *,
         decode: bool = False,
         deterministic: bool = False
@@ -336,10 +339,16 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         depth_scaling = jnp.sqrt(self.head_dim).astype(self.dtype)
         query_init = lambda *args: self.kernel_init(*args) / depth_scaling  # noqa: E731
 
+        # if we have told the model explicitly to turn off lora, do this.
+        if use_gen is not None and not use_gen:
+            lora_ranks = (None, None, None, None)
+        else:
+            lora_ranks = self.lora_ranks
+
         # Project inputs_q to multi-headed q/k/v
         # dimensions are then [batch, length, num_heads, head_dim]
 
-        q_rank = self.lora_ranks[0]
+        q_rank = lora_ranks[0]
         if q_rank:
             query = lora_projection(kernel_init=query_init, name="query", rank=q_rank)(
                 inputs_q, lora_a=lora_qa, lora_b=lora_qb
@@ -348,7 +357,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
             query_proj = regular_projection(kernel_init=query_init, name="query")
             query = query_proj(inputs_q)
 
-        k_rank = self.lora_ranks[1]
+        k_rank = lora_ranks[1]
         if k_rank:
             key = lora_projection(kernel_init=self.kernel_init, name="key", rank=k_rank)(
                 inputs_kv, lora_a=lora_ka, lora_b=lora_kb
@@ -357,7 +366,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
             key_proj = regular_projection(kernel_init=self.kernel_init, name="key")
             key = key_proj(inputs_kv)
 
-        v_rank = self.lora_ranks[2]
+        v_rank = lora_ranks[2]
         if v_rank:
             value = lora_projection(kernel_init=self.kernel_init, name="value", rank=v_rank)(
                 inputs_kv, lora_a=lora_va, lora_b=lora_vb
@@ -450,8 +459,10 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         # CHANGE from t5x
         # ADD PREFIXES ###
         # key has dim [batch, len, num_heads, head_dim], and we add prefixes
-        if use_prefix is None:
-            use_prefix = self.use_prefix
+
+        # allow use_gen override
+        if use_gen is not None and not use_gen:
+            use_prefix = False
 
         if use_prefix:
             key = jnp.concatenate([prefix_key, key], axis=1)

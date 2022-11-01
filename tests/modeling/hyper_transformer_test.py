@@ -16,6 +16,7 @@ from hyper_task_descriptions.common.testing import (
     HyperTaskDescriptionsTestCase,
     get_test_model,
 )
+from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
 from hyper_task_descriptions.modeling.hyper_transformer import (
     HyperEncDecContFeatureConverter,
     HyperEncDecFeatureConverter,
@@ -519,6 +520,7 @@ class TestHyperEncoderDecoderModel(parameterized.TestCase):
         class MockModule:
             def __init__(self):
                 self.dtype = jnp.float32
+                self.config = HyperT5Config()
 
             def apply(self, *args, method=None, **kwargs):
                 del args, kwargs

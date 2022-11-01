@@ -309,13 +309,13 @@ class NetworkTest(parameterized.TestCase):
         assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["out"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
-        self.assertAlmostEqual(loss, 15.268826, delta=0.05)
+        self.assertAlmostEqual(loss, 15.191198, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
         np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
-        np.testing.assert_allclose(scores["scores"], [-3.501117, -2.826092], rtol=1e-3)
+        np.testing.assert_allclose(scores["scores"], [-3.43138, -2.780487], rtol=1e-3)
 
         # Sanity check
         vmodel = get_vanilla_test_model(
@@ -379,21 +379,21 @@ class NetworkTest(parameterized.TestCase):
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         if use_prefix:
-            self.assertAlmostEqual(loss, 15.368638, delta=0.05)
+            self.assertAlmostEqual(loss, 15.097386, delta=0.05)
         else:
-            self.assertAlmostEqual(loss, 15.260639, delta=0.05)
+            self.assertAlmostEqual(loss, 15.479643, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
         if use_prefix:
-            np.testing.assert_array_equal(predicted, [[9, 3, 3], [2, 6, 1]])
+            np.testing.assert_array_equal(predicted, [[9, 3, 3], [2, 6, 5]])
         else:
             np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
         if use_prefix:
-            np.testing.assert_allclose(scores["scores"], [-3.740182, -3.216981], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.39137, -2.973788], rtol=1e-3)
         else:
-            np.testing.assert_allclose(scores["scores"], [-3.504862, -2.826767], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.436732, -2.862548], rtol=1e-3)
 
 
 # if __name__ == "__main__":

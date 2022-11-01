@@ -524,7 +524,7 @@ class HyperEncoderLayer(nn.Module):
             prefix_key=prefix_key,
             prefix_value=prefix_value,
             deterministic=deterministic,
-            use_prefix=not hyper,
+            use_gen=not hyper,
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
