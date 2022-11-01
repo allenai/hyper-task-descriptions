@@ -311,7 +311,7 @@ class Hypernet(nn.Module):
             output = layer_out
             #layer_out = layer_out.hidden_states
             # save pooled output for later (eg contrastive training)
-            mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
+            mean_seq = (output * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
                 :, None
             ]
             self.sow("intermediates", "features", mean_seq)
@@ -319,7 +319,7 @@ class Hypernet(nn.Module):
             total_layers = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
             # layer embedding setup
             if cfg.layer_embedding_method == "layer":
-                seq_output = (output[0] * attn_mask[:, :, None])[
+                seq_output = (output * attn_mask[:, :, None])[
                     :, :, None
                 ]  # to prevent padding annoying us.
                 layer_embeds = self.embedder[None, :, None, :].repeat(
@@ -333,7 +333,7 @@ class Hypernet(nn.Module):
                     deterministic=deterministic,
                 )[:, :, 0, :]
             elif cfg.layer_embedding_method == "component":
-                seq_output = (output[0] * attn_mask[:, :, None])[
+                seq_output = (output * attn_mask[:, :, None])[
                     :, :, None
                 ]  # to prevent padding annoying us.
                 layer_embeds = self.embedder[None, :, None, :].repeat(
@@ -377,7 +377,7 @@ class Hypernet(nn.Module):
 
         if cfg.use_instruction_embedding:
             layer_embeds = [o * attn_mask[:, :, None] for o in layer_out]
-            instruction_embed = (output[0] * attn_mask[:, :, None])
+            instruction_embed = (output * attn_mask[:, :, None])
             if cfg.use_segment_embeds:
                 instruction_embed = self.henc_segment[None,None,0] + instruction_embed
             if cfg.use_linear:
