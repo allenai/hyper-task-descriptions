@@ -40,11 +40,11 @@ def get_ni_data(
 
     # if not raw_input, we will use the following collator to add definition and examples
     # to the input, as we did for Tk-Instruct.
-    def input_transform_func(x):
+    def no_transform(x):
         return x
 
-    def hyper_input_transform_func(x):
-        return x
+    input_transform_func = no_transform
+    hyper_input_transform_func = no_transform
 
     if not raw_input:
         data_collator = DataCollatorForNI(**ni_collator_args)
@@ -54,17 +54,21 @@ def get_ni_data(
         prefix_string += "Input: "
         suffix_string = "\nOutput: "
 
-        def input_transform_func(x):
+        def input_transform_alt(x):
             x = x.strip()
             if x[-1] not in string.punctuation:
                 x += "."
             return prefix_string + x + suffix_string
 
-        def hyper_input_transform_func(x):
+        input_transform_func = input_transform_alt
+
+        def hyper_input_transform_alt(x):
             x = x.strip()
             if x[-1] not in string.punctuation:
                 x += "."
             return "Definition: " + x + "\n\n"
+
+        hyper_input_transform_func = hyper_input_transform_alt
 
     def convert_format(example):
         task_idx = re.findall(r"^task(\d+)_", example["Task"])

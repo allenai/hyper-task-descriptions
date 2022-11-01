@@ -16,7 +16,6 @@
 
 import functools
 import os
-import random
 
 import seqio
 import tensorflow as tf

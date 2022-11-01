@@ -24,7 +24,6 @@ from flax.linen import partitioning as nn_partitioning
 from jax import lax
 from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
-from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import SimpleLinear
@@ -32,7 +31,6 @@ from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
 
-# from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
 with_sharding_constraint = nn_partitioning.with_sharding_constraint
 

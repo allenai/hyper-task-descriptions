@@ -6,9 +6,8 @@ import argparse
 
 import jax
 from jax import numpy as jnp
-from transformers import AutoTokenizer, FlaxT5EncoderModel, T5EncoderModel
-
 from t5x import checkpoints
+from transformers import AutoTokenizer, FlaxT5EncoderModel, T5EncoderModel
 
 
 def extract_roberta_model(t5x_checkpoint_path, flax_dump_folder_path):
@@ -36,10 +35,10 @@ def get_attention_values(model, t5x_model, tok, text):
 def play_with_model(t5x_checkpoint_path):
     tok = AutoTokenizer.from_pretrained("t5-base")
     t5x_model = checkpoints.load_t5x_checkpoint(t5x_checkpoint_path)
-    hf_model = FlaxT5EncoderModel.from_pretrained("google/t5-large-lm-adapt", from_pt=True)
-    hf_model.params = t5x_model["target"]["hyper"]["encoder"]
-    get_out = lambda x: get_model_output(hf_model, tok, x)
-    get_attn = lambda x: get_attention_values(hf_model, t5x_model, tok, x)
+    # hf_model = FlaxT5EncoderModel.from_pretrained("google/t5-large-lm-adapt", from_pt=True)
+    # hf_model.params = t5x_model["target"]["hyper"]["encoder"]
+    # get_out = lambda x: get_model_output(hf_model, tok, x)
+    # get_attn = lambda x: get_attention_values(hf_model, t5x_model, tok, x)
     import pdb
 
     pdb.set_trace()
