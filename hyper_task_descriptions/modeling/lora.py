@@ -1,5 +1,5 @@
 import functools
-from typing import Iterable, Optional, Tuple, Union, Any
+from typing import Any, Iterable, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -259,7 +259,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
     dropout_rate: float = 0.0
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
     float32_logits: bool = False  # computes logits in float32 for stability.
-    lora_ranks: tuple[Any, Any, Any, Any] = (4, None, 4, None)
+    lora_ranks: Tuple[Any, Any, Any, Any] = (4, None, 4, None)
     use_prefix: bool = False
 
     @nn.compact
