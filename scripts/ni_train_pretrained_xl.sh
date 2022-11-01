@@ -24,7 +24,7 @@ python3 -m t5x.train \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1109000 \
-  --gin.partitioning.PjitPartitioner.num_partitions=2 \
+  --gin.partitioning.PjitPartitioner.num_partitions=8 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/ni-fid-adapter-prefix-pretrain/model/checkpoint_1108000\"
 
 echo "Training done. Now evaluating all checkpoints..."
