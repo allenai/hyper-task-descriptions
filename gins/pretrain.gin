@@ -15,6 +15,7 @@ include "gins/restore_pretrained.gin" # for loading from checkpoints
 
 TASK_FEATURE_LENGTHS = {"inputs": 512, "hyper_inputs": 512, "task_names": 1, "targets": 512}
 MIXTURE_OR_TASK_NAME = "c4_pretrain"
+DROPOUT_RATE = 0.0
 
 trainer.Trainer.num_microbatches = 16 # 2048 // 16
 trainer.Trainer.weight_metrics_computer = @trainer.WeightMetricsComputer()
