@@ -23,8 +23,10 @@ def get_ni_data(
     max_num_instances_per_task,
     max_num_instances_per_eval_task,
     raw_input,
-    alt_raw_input,
-    **ni_collator_args
+    conversion=None,
+    max_hyper_seq_length=1024,
+    hyper_tokenizer=None,
+    **ni_collator_args,
 ):
     # HF datasets does not support file-level shuffling
     del shuffle_files
@@ -40,35 +42,8 @@ def get_ni_data(
 
     # if not raw_input, we will use the following collator to add definition and examples
     # to the input, as we did for Tk-Instruct.
-    def no_transform(x):
-        return x
-
-    input_transform_func = no_transform
-    hyper_input_transform_func = no_transform
-
     if not raw_input:
         data_collator = DataCollatorForNI(**ni_collator_args)
-    elif alt_raw_input:
-        # conversion for regular input
-        prefix_string = "Now complete the following example -\n"
-        prefix_string += "Input: "
-        suffix_string = "\nOutput: "
-
-        def input_transform_alt(x):
-            x = x.strip()
-            if x[-1] not in string.punctuation:
-                x += "."
-            return prefix_string + x + suffix_string
-
-        input_transform_func = input_transform_alt
-
-        def hyper_input_transform_alt(x):
-            x = x.strip()
-            if x[-1] not in string.punctuation:
-                x += "."
-            return "Definition: " + x + "\n\n"
-
-        hyper_input_transform_func = hyper_input_transform_alt
 
     def convert_format(example):
         task_idx = re.findall(r"^task(\d+)_", example["Task"])
@@ -76,17 +51,81 @@ def get_ni_data(
         task_idx = int(task_idx[0])
         return {
             "id": example["id"],
-            "inputs": input_transform_func(example["Instance"]["input"])
+            "inputs": example["Instance"]["input"]
             if raw_input
             else data_collator([example])["inputs"][0].strip(),
-            "hyper_inputs": hyper_input_transform_func(example["Definition"][0]),
+            "hyper_inputs": example["Definition"][0].strip(),
+            "targets": random_gen.choice(example["Instance"]["output"]),
+            "references": example["Instance"]["output"],
+            "task_names": tf.constant([task_idx], dtype=tf.int32),
+        }
+
+    def hyper_mimic_baseline(example):
+        def input_transform_alt(x):
+            prefix_string = "Now complete the following example -\n"
+            prefix_string += "Input: "
+            suffix_string = "\nOutput: "
+            x = x.strip()
+            if x[-1] not in string.punctuation:
+                x += "."
+            return prefix_string + x + suffix_string
+
+        def hyper_input_transform_alt(x):
+            x = x.strip()
+            if x[-1] not in string.punctuation:
+                x += "."
+            return "Definition: " + x + "\n\n"
+
+        task_idx = re.findall(r"^task(\d+)_", example["Task"])
+        assert len(task_idx) == 1
+        task_idx = int(task_idx[0])
+        return {
+            "id": example["id"],
+            "inputs": input_transform_alt(example["Instance"]["input"])
+            if raw_input
+            else data_collator([example])["inputs"][0].strip(),
+            "hyper_inputs": hyper_input_transform_alt(example["Definition"][0]),
+            "targets": random_gen.choice(example["Instance"]["output"]),
+            "references": example["Instance"]["output"],
+            "task_names": tf.constant([task_idx], dtype=tf.int32),
+        }
+
+    def convert_format_pack_positive_examples(example):
+        task_idx = re.findall(r"^task(\d+)_", example["Task"])
+        assert len(task_idx) == 1
+        task_idx = int(task_idx[0])
+        defn_input = "Definition: " + example["Definition"][0]
+        tokenizer = hyper_tokenizer
+        for idx, pos_example in enumerate(example["Positive Examples"]):
+            pos_example_str = f" Positive Example {idx+1} -\n"
+            pos_example_str += f"Input: {pos_example['input'].strip()}"
+            if not pos_example_str[-1] in string.punctuation:
+                pos_example_str += "."
+            pos_example_str += "\n"
+            pos_example_str += f" Output: {pos_example['output'].strip()}"
+            if not pos_example_str[-1] in string.punctuation:
+                pos_example_str += "."
+            pos_example_str += "\n"
+            if len(tokenizer(defn_input + pos_example_str)["input_ids"]) <= max_hyper_seq_length:
+                defn_input = pos_example_str + defn_input
+        return {
+            "id": example["id"],
+            "inputs": example["Instance"]["input"]
+            if raw_input
+            else data_collator([example])["inputs"][0].strip(),
+            "hyper_inputs": defn_input,
             "targets": random_gen.choice(example["Instance"]["output"]),
             "references": example["Instance"]["output"],
             "task_names": tf.constant([task_idx], dtype=tf.int32),
         }
 
     original_columns = dataset.column_names
-    dataset = dataset.map(convert_format)
+    conversion_fn = convert_format
+    if conversion == "alt_raw":
+        conversion_fn = hyper_mimic_baseline
+    elif conversion == "pack_positive_examples":
+        conversion_fn = convert_format_pack_positive_examples
+    dataset = dataset.map(conversion_fn)
     # map keeps original columns, remove them
     dataset = dataset.remove_columns(
         set(original_columns)
@@ -217,7 +256,7 @@ dataset_fn = functools.partial(
     max_num_instances_per_task=100,
     max_num_instances_per_eval_task=100,
     raw_input=True,
-    alt_raw_input=True,
+    conversion="alt_raw",
 )
 
 data_source = seqio.FunctionDataSource(
@@ -225,11 +264,37 @@ data_source = seqio.FunctionDataSource(
     splits=["train", "test"],
 )
 
-
 # this adds text to the hyper and regular inputs such that concatenating them
 # (without padding) gives back the baseline input.
 seqio.TaskRegistry.add(
     "natural_instructions_split_mimic_def",
+    data_source,
+    preprocessors=preprocessors,
+    output_features=output_features,
+    postprocess_fn=postprocessor,
+    metric_fns=[ni_metrics_wrapper],
+    shuffle_buffer_size=50000,  # default of 1000 is too small
+)
+
+dataset_fn = functools.partial(
+    get_ni_data,
+    seed=None,
+    max_num_instances_per_task=100,
+    max_num_instances_per_eval_task=100,
+    raw_input=True,
+    conversion="pack_positive_examples",
+    max_hyper_seq_length=1024,
+    hyper_tokenizer=transformers.AutoTokenizer.from_pretrained("t5-base"),
+)
+
+data_source = seqio.FunctionDataSource(
+    dataset_fn,
+    splits=["train", "test"],
+)
+
+# here, we pack positive examples into the hyper inputs.
+seqio.TaskRegistry.add(
+    "natural_instruction_positive_example_hyper",
     data_source,
     preprocessors=preprocessors,
     output_features=output_features,
