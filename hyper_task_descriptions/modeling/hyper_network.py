@@ -995,8 +995,8 @@ class HyperTransformer(nn.Module):
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
         if self.config.use_instruction_embedding:
-            instruction_embedding = adaptations["instruction_embedding"]
-            adaptations["hyper_encoder_input_tokens"] = hyper_encoder_input_tokens
+            instruction_embedding = adaptations.pop("instruction_embedding")
+            #adaptations["hyper_encoder_input_tokens"] = hyper_encoder_input_tokens
         encoded = self.encode(
             encoder_input_tokens,
             adaptations=adaptations,
