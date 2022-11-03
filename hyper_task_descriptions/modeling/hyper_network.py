@@ -22,17 +22,15 @@ from flax import linen as nn
 from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
-from transformers import FlaxT5EncoderModel
+from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import SimpleLinear
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config
 
-# from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes
 with_sharding_constraint = nn_partitioning.with_sharding_constraint
 
@@ -56,6 +54,8 @@ class HyperT5Config(T5Config):
     num_prefix_tokens: int = 30
     use_lora: bool = False
     lora_ranks: tuple = (None, None, None, None)
+    use_fusion_in_decoder: bool = False  # enables fid
+    use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
 
 
 # create our component id dict
@@ -98,6 +98,7 @@ def create_component_id_dict(cfg: HyperT5Config):
 
 
 class Hypernet(nn.Module):
+    encoder: nn.Module
     config: HyperT5Config
     shared_embedding: nn.Module
 
@@ -107,7 +108,15 @@ class Hypernet(nn.Module):
         # setup embeddings - enc attn, dec attn, cross attn
         self.num_components, self.component_2_id = create_component_id_dict(cfg)
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
-        encoder = FlaxT5EncoderModel.from_pretrained(cfg.hyperencoder_model, from_pt=True)
+
+        self.attn = layers.MultiHeadDotProductAttention(
+            num_heads=cfg.num_heads,
+            dtype=cfg.dtype,
+            head_dim=cfg.head_dim,
+            dropout_rate=cfg.dropout_rate,
+            float32_logits=cfg.float32_attention_logits,
+            name="hyperattn",
+        )
 
         if cfg.layer_embedding_method == "component":
             layer_embed_components *= self.num_components
@@ -115,7 +124,7 @@ class Hypernet(nn.Module):
             param_with_axes(
                 "component_embedding",
                 nn.initializers.variance_scaling(1.0, "fan_in", "normal", out_axis=0),
-                (layer_embed_components, encoder.config.d_model),
+                (layer_embed_components, cfg.emb_dim),
                 jnp.float32,
                 axes=("vocab", "embed"),
             ),
@@ -127,8 +136,16 @@ class Hypernet(nn.Module):
                 "layer",
                 "component",
             ], "Invalid layer embedding method"
-            # encodes the task description
-            self.encoder = encoder.module  # module = the 'actual' flax module
+
+        if cfg.use_fusion_in_decoder:
+            self.instruction_linear = SimpleLinear(
+                cfg.emb_dim,
+                act_fn="linear",
+                dropout_rate=cfg.dropout_rate,
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="instruction_embed",
+            )
 
         if cfg.use_adapter:
             self.adapter_down_gen = SimpleLinear(
@@ -275,45 +292,40 @@ class Hypernet(nn.Module):
             attn_mask = encoder_input_tokens != 0
             # get type issues otherwise so make sure tokens are ints.
             encoder_input_tokens = encoder_input_tokens.astype("i4")
-            output = self.encoder(encoder_input_tokens, attn_mask)
+            output = self.encoder(encoder_input_tokens, deterministic=deterministic, hyper=True)
             # save pooled output for later (eg contrastive training)
-            mean_seq = (output[0] * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[
-                :, None
-            ]
+            mean_seq = (output * attn_mask[:, :, None]).sum(axis=1) / attn_mask.sum(axis=1)[:, None]
             self.sow("intermediates", "features", mean_seq)
             # we have encoder self attn, decoder self attn, decoder cross attn
             total_layers = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
             # layer embedding setup
             if cfg.layer_embedding_method == "layer":
-                seq_output = (output[0] * attn_mask[:, :, None])[
-                    :, :, None
-                ]  # to prevent padding annoying us.
-                layer_embeds = self.embedder[None, :, None, :].repeat(
+                seq_output = output * attn_mask[:, :, None]  # to prevent padding annoying us.
+                layer_embeds = self.embedder[None, :, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
-                sum_embeds = layers.dot_product_attention(
-                    layer_embeds,
-                    seq_output,
-                    seq_output,
-                    (1 - attn_mask[:, None, None, :]) * -1e9,
-                    deterministic=deterministic,
-                )[:, :, 0, :]
+                mask = layers.make_attention_mask(
+                    jnp.ones((layer_embeds.shape[0], layer_embeds.shape[1])),
+                    encoder_input_tokens,
+                    dtype=cfg.dtype,
+                )
+                sum_embeds = self.attn(
+                    layer_embeds, seq_output, mask=mask, deterministic=deterministic
+                )
+
             elif cfg.layer_embedding_method == "component":
-                seq_output = (output[0] * attn_mask[:, :, None])[
-                    :, :, None
-                ]  # to prevent padding annoying us.
-                layer_embeds = self.embedder[None, :, None, :].repeat(
+                seq_output = output * attn_mask[:, :, None]  # to prevent padding annoying us.
+                layer_embeds = self.embedder[None, :, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
-                # layer embeds = [batch size, num_layers, 1, hidden size]
-                # seq output = [batch size, instr. length, 1, hidden size]
-                sum_embeds = layers.dot_product_attention(
-                    layer_embeds,
-                    seq_output,
-                    seq_output,
-                    (1 - attn_mask[:, None, None, :]) * -1e9,
-                    deterministic=deterministic,
-                )[:, :, 0, :]
+                mask = layers.make_attention_mask(
+                    jnp.ones((layer_embeds.shape[0], layer_embeds.shape[1])),
+                    encoder_input_tokens,
+                    dtype=cfg.dtype,
+                )
+                sum_embeds = self.attn(
+                    layer_embeds, seq_output, mask=mask, deterministic=deterministic
+                )
             else:  # else = use concat
                 # layer embeds - repeat in batch, length dim
                 sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
@@ -340,6 +352,16 @@ class Hypernet(nn.Module):
             parameters = param_gen(inputs, deterministic=deterministic)
             parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             return parameters
+
+        if cfg.use_fusion_in_decoder:
+            instruction_embed = output * attn_mask[:, :, None]
+            if cfg.use_linear:
+                instruction_embed = self.instruction_linear(
+                    instruction_embed, deterministic=deterministic
+                )
+                instruction_embed = instruction_embed / jnp.sqrt(instruction_embed.shape[-1])
+
+            generated_parameter_dict["instruction_embedding"] = instruction_embed
 
         if cfg.use_adapter:
             # adapter weight down
@@ -465,6 +487,7 @@ class HyperEncoderLayer(nn.Module):
         lora_ob=None,
         encoder_mask=None,
         deterministic=False,
+        hyper=False,
     ):
         cfg = self.config
 
@@ -501,6 +524,7 @@ class HyperEncoderLayer(nn.Module):
             prefix_key=prefix_key,
             prefix_value=prefix_value,
             deterministic=deterministic,
+            use_gen=not hyper,
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
@@ -517,7 +541,7 @@ class HyperEncoderLayer(nn.Module):
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         # adapter block
-        if cfg.use_adapter:
+        if cfg.use_adapter and not hyper:
             adapter_y = (
                 lax.batch_matmul(lx, adapter_wd)
                 + adapter_bd[
@@ -689,6 +713,7 @@ class HyperEncoder(nn.Module):
         adaptations={},
         encoder_mask=None,
         deterministic=False,
+        hyper=False,
     ):
         cfg = self.config
         assert encoder_input_tokens.ndim == 2  # [batch, length]
@@ -714,6 +739,7 @@ class HyperEncoder(nn.Module):
                 **layer_adaptations,
                 encoder_mask=encoder_mask,
                 deterministic=deterministic,
+                hyper=hyper,
             )
 
         x = layers.LayerNorm(dtype=cfg.dtype, name="encoder_norm")(x)
@@ -825,9 +851,11 @@ class HyperTransformer(nn.Module):
                 None,
             ), "lora_ranks must be None if not using lora"
 
-        self.hyper = Hypernet(config=cfg, shared_embedding=self.shared_embedding)
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)
+        self.hyper = Hypernet(
+            encoder=self.encoder, config=cfg, shared_embedding=self.shared_embedding
+        )
 
     def encode(
         self,
@@ -966,13 +994,20 @@ class HyperTransformer(nn.Module):
         """
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
+        if self.config.use_fusion_in_decoder:
+            instruction_embedding = adaptations.pop("instruction_embedding")
         encoded = self.encode(
             encoder_input_tokens,
             adaptations=adaptations,
             encoder_segment_ids=encoder_segment_ids,
             enable_dropout=enable_dropout,
         )
-
+        # we re-insert instruction embedding here
+        if self.config.use_fusion_in_decoder:
+            encoded = jnp.concatenate([instruction_embedding, encoded], axis=1)
+            encoder_input_tokens = jnp.concatenate(
+                [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
+            )
         return self.decode(
             encoded,
             encoder_input_tokens,  # only used for masks

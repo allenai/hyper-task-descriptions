@@ -28,6 +28,7 @@ class DataCollatorForNI:
     add_explanation: bool = False
     tk_instruct: bool = False
     text_only: bool = False
+    random_gen: random.Random = random.Random(42)
 
     def __call__(self, batch, return_tensors=None):
 
@@ -79,7 +80,7 @@ class DataCollatorForNI:
                         "add_explanation": True,
                     },
                 ]
-                encoding_schema = random.choice(all_valid_encodings)
+                encoding_schema = self.random_gen.choice(all_valid_encodings)
                 add_task_name = encoding_schema["add_task_name"]
                 add_task_definition = encoding_schema["add_task_definition"]
                 num_pos_examples = encoding_schema["num_pos_examples"]
@@ -208,7 +209,7 @@ class DataCollatorForNI:
 
         if "output" in batch[0]["Instance"] and batch[0]["Instance"]["output"]:
             # Randomly select one reference if multiple are provided.
-            labels = [random.choice(ex["Instance"]["output"]) for ex in batch]
+            labels = [self.random_gen.choice(ex["Instance"]["output"]) for ex in batch]
             if self.text_only:
                 model_inputs["labels"] = labels
             else:

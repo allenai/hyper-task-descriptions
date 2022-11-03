@@ -24,19 +24,21 @@ import seqio
 import tensorflow as tf
 from flax import linen as nn
 from flax.core import scope as flax_scope
-from flax.core.frozen_dict import freeze, unfreeze
-from seqio import FeatureConverter, non_padding_position, utils
-from transformers import FlaxT5EncoderModel
-from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
-from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
-from hyper_task_descriptions.modeling.t5_partitioning import t5_axes_names_override
+# from flax.core.frozen_dict import freeze, unfreeze
+from seqio import FeatureConverter, non_padding_position, utils
 from t5x import decoding, losses
 from t5x import metrics as metrics_lib
 from t5x import optimizers
 from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
 from t5x.utils import override_params_axes_names
+
+# from transformers import FlaxT5EncoderModel
+from typing_extensions import TypeAlias
+
+from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
+from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
+from hyper_task_descriptions.modeling.t5_partitioning import t5_axes_names_override
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
@@ -50,6 +52,7 @@ def trim_and_pad(
     t: tf.Tensor,
     task_feature_lengths: Mapping[str, int],
     task_feature_paddings: Mapping[str, int],
+    left_pad: bool = False,
 ) -> tf.Tensor:
     """
     Trim/pad to the first axis of `t` to be of size `length`.
@@ -60,9 +63,18 @@ def trim_and_pad(
     length_k = task_feature_lengths[k]
     t = t[:length_k]
     pad_amt = length_k - tf.shape(t)[0]
-    padded_t = tf.pad(
-        t, [(0, pad_amt)] + [(0, 0)] * (len(t.shape) - 1), constant_values=task_feature_paddings[k]
-    )
+    if left_pad:
+        padded_t = tf.pad(
+            t,
+            [(pad_amt, 0)] + [(0, 0)] * (len(t.shape) - 1),
+            constant_values=task_feature_paddings[k],
+        )
+    else:
+        padded_t = tf.pad(
+            t,
+            [(0, pad_amt)] + [(0, 0)] * (len(t.shape) - 1),
+            constant_values=task_feature_paddings[k],
+        )
     padded_t.set_shape([length_k] + t.shape.as_list()[1:])
     return padded_t
 
@@ -298,13 +310,14 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         #  roberta has no partitions, so we add that here.
         initial_variables = override_params_axes_names(initial_variables, override_param_axes)
         # add pretrained model if needed
-        if self.module.config.use_instructions:
-            initial_variables = unfreeze(initial_variables)
-            hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
-                self.module.config.hyperencoder_model, from_pt=True
-            ).params
-            initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
-            initial_variables = freeze(initial_variables)
+        # this was how we integrated huggingface models. Leaving here for future reference.
+        # if self.module.config.use_instructions:
+        #     initial_variables = unfreeze(initial_variables)
+        #     hyperencoder_params = FlaxT5EncoderModel.from_pretrained(
+        #         self.module.config.hyperencoder_model, from_pt=True
+        #     ).params
+        #     initial_variables["params"]["hyper"]["encoder"] = hyperencoder_params
+        #     initial_variables = freeze(initial_variables)
         return initial_variables
 
     def _compute_logits(
@@ -459,10 +472,14 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         adaptations = self.module.apply(
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
+        if self.module.config.use_fusion_in_decoder:
+            instruction_embedding = adaptations["instruction_embedding"]
+            adaptations["hyper_encoder_input_tokens"] = hyper_inputs
 
         batch_adaptions = {
             a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None
             for a_name, a in adaptations.items()
+            if "instruction_embedding" not in a_name and "hyper_encoder_input_tokens" not in a_name
         }
 
         # Prepare transformer fast-decoder call for beam search: for beam search, we
@@ -473,17 +490,21 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         # [el0, el1, el2] --> beamsize=2 --> [el0,el0,el1,el1,el2,el2]
         # [batch * num_decodes, input_len, emb_dim]
         # encoded inputs is the encoded states, ready for decoding.
+        encoded = self.module.apply(
+            {"params": params},
+            inputs,
+            adaptations={
+                key: val for key, val in adaptations.items() if not key.endswith("_cc")
+            },  # TODO: make this cleaner
+            # *adaptations[:-2],  # no *cc adaptations
+            enable_dropout=False,
+            method=self.module.encode,
+        )
+        if self.module.config.use_fusion_in_decoder:
+            encoded = jnp.concatenate([instruction_embedding, encoded], axis=1)
+            inputs = jnp.concatenate([hyper_inputs, inputs], axis=1)
         encoded_inputs = decoding.flat_batch_beam_expand(
-            self.module.apply(
-                {"params": params},
-                inputs,
-                adaptations={
-                    key: val for key, val in adaptations.items() if not key.endswith("_cc")
-                },  # TODO: make this cleaner
-                # *adaptations[:-2],  # no *cc adaptations
-                enable_dropout=False,
-                method=self.module.encode,
-            ),
+            encoded,
             num_decodes,
         )
 

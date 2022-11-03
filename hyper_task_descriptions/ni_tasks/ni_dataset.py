@@ -53,12 +53,14 @@ class NIConfig(datasets.BuilderConfig):
         task_subdir="tasks/",
         max_num_instances_per_task=None,
         max_num_instances_per_eval_task=None,
+        seed=42,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.split_subdir: str = split_subdir
         self.task_subdir: str = task_subdir
+        self.seed: int = seed
         self.max_num_instances_per_task: int = max_num_instances_per_task
         self.max_num_instances_per_eval_task: int = (
             max_num_instances_per_eval_task or max_num_instances_per_task
@@ -181,7 +183,7 @@ class NaturalInstructions(datasets.GeneratorBasedBuilder):
                     else:
                         instances = all_instances
                     if max_num_instances_per_task is not None and max_num_instances_per_task >= 0:
-                        random.shuffle(instances)
+                        random.Random(self.config.seed).shuffle(instances)
                         instances = instances[:max_num_instances_per_task]
                     for idx, instance in enumerate(instances):
                         example = task_data.copy()

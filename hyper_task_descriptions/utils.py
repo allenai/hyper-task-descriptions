@@ -22,7 +22,6 @@ from typing import Any, Callable, Optional, Sequence, Tuple
 import flax
 import optax
 from flax.core import frozen_dict
-
 from t5x import optimizers, partitioning
 
 PartitionRule = Tuple[str, Optional[partitioning.PartitionSpec]]
