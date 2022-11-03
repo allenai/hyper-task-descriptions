@@ -54,7 +54,7 @@ class HyperT5Config(T5Config):
     num_prefix_tokens: int = 30
     use_lora: bool = False
     lora_ranks: tuple = (None, None, None, None)
-    use_instruction_embedding: bool = False  # enables fid
+    use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
 
 
@@ -137,7 +137,7 @@ class Hypernet(nn.Module):
                 "component",
             ], "Invalid layer embedding method"
 
-        if cfg.use_instruction_embedding:
+        if cfg.use_fusion_in_decoder:
             self.instruction_linear = SimpleLinear(
                 cfg.emb_dim,
                 act_fn="linear",
@@ -353,7 +353,7 @@ class Hypernet(nn.Module):
             parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             return parameters
 
-        if cfg.use_instruction_embedding:
+        if cfg.use_fusion_in_decoder:
             instruction_embed = output * attn_mask[:, :, None]
             if cfg.use_linear:
                 instruction_embed = self.instruction_linear(
@@ -994,9 +994,8 @@ class HyperTransformer(nn.Module):
         """
         # generate adapters
         adaptations = self.hyperencode(hyper_encoder_input_tokens, enable_dropout=enable_dropout)
-        if self.config.use_instruction_embedding:
-            instruction_embedding = adaptations["instruction_embedding"]
-            adaptations["hyper_encoder_input_tokens"] = hyper_encoder_input_tokens
+        if self.config.use_fusion_in_decoder:
+            instruction_embedding = adaptations.pop("instruction_embedding")
         encoded = self.encode(
             encoder_input_tokens,
             adaptations=adaptations,
@@ -1004,7 +1003,7 @@ class HyperTransformer(nn.Module):
             enable_dropout=enable_dropout,
         )
         # we re-insert instruction embedding here
-        if self.config.use_instruction_embedding:
+        if self.config.use_fusion_in_decoder:
             encoded = jnp.concatenate([instruction_embedding, encoded], axis=1)
             encoder_input_tokens = jnp.concatenate(
                 [hyper_encoder_input_tokens, encoder_input_tokens], axis=1
