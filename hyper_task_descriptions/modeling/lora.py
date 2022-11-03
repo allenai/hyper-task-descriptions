@@ -1,5 +1,5 @@
 import functools
-from typing import Iterable, Optional, Tuple, Union
+from typing import Any, Iterable, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -7,9 +7,6 @@ import numpy as np
 from flax import linen as nn
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
-from typing_extensions import TypeAlias
-
-from hyper_task_descriptions.modeling.layers import Initializer
 from t5x.examples.t5.layers import (
     DenseGeneral,
     _canonicalize_tuple,
@@ -19,6 +16,9 @@ from t5x.examples.t5.layers import (
     dot_product_attention,
     dynamic_vector_slice_in_dim,
 )
+from typing_extensions import TypeAlias
+
+from hyper_task_descriptions.modeling.layers import Initializer
 
 param_with_axes = nn_partitioning.param_with_axes
 with_sharding_constraint = nn_partitioning.with_sharding_constraint
@@ -259,7 +259,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
     dropout_rate: float = 0.0
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
     float32_logits: bool = False  # computes logits in float32 for stability.
-    lora_ranks: tuple = (4, None, 4, None)
+    lora_ranks: Tuple[Any, Any, Any, Any] = (4, None, 4, None)
     use_prefix: bool = False
 
     @nn.compact
@@ -279,6 +279,10 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         lora_ob: Optional[NumArray] = None,
         prefix_key: Optional[NumArray] = None,
         prefix_value: Optional[NumArray] = None,
+        use_prefix: bool = False,
+        use_gen: Optional[
+            bool
+        ] = None,  # optional config. If present and false, turns off lora and prefixes.
         *,
         decode: bool = False,
         deterministic: bool = False
@@ -335,32 +339,41 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         depth_scaling = jnp.sqrt(self.head_dim).astype(self.dtype)
         query_init = lambda *args: self.kernel_init(*args) / depth_scaling  # noqa: E731
 
+        # if we have told the model explicitly to turn off lora, do this.
+        if use_gen is not None and not use_gen:
+            lora_ranks = (None, None, None, None)
+        else:
+            lora_ranks = self.lora_ranks
+
         # Project inputs_q to multi-headed q/k/v
         # dimensions are then [batch, length, num_heads, head_dim]
 
-        q_rank = self.lora_ranks[0]
+        q_rank = lora_ranks[0]
         if q_rank:
             query = lora_projection(kernel_init=query_init, name="query", rank=q_rank)(
                 inputs_q, lora_a=lora_qa, lora_b=lora_qb
             )
         else:
-            query = regular_projection(kernel_init=query_init, name="query")(inputs_q)
+            query_proj = regular_projection(kernel_init=query_init, name="query")
+            query = query_proj(inputs_q)
 
-        k_rank = self.lora_ranks[1]
+        k_rank = lora_ranks[1]
         if k_rank:
             key = lora_projection(kernel_init=self.kernel_init, name="key", rank=k_rank)(
                 inputs_kv, lora_a=lora_ka, lora_b=lora_kb
             )
         else:
-            key = regular_projection(kernel_init=self.kernel_init, name="key")(inputs_kv)
+            key_proj = regular_projection(kernel_init=self.kernel_init, name="key")
+            key = key_proj(inputs_kv)
 
-        v_rank = self.lora_ranks[2]
+        v_rank = lora_ranks[2]
         if v_rank:
             value = lora_projection(kernel_init=self.kernel_init, name="value", rank=v_rank)(
                 inputs_kv, lora_a=lora_va, lora_b=lora_vb
             )
         else:
-            value = regular_projection(kernel_init=self.kernel_init, name="value")(inputs_kv)
+            value_proj = regular_projection(kernel_init=self.kernel_init, name="value")
+            value = value_proj(inputs_kv)
 
         query = with_sharding_constraint(query, ("batch", "length", "heads", "kv"))
         key = with_sharding_constraint(key, ("batch", "length", "heads", "kv"))
@@ -446,7 +459,12 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         # CHANGE from t5x
         # ADD PREFIXES ###
         # key has dim [batch, len, num_heads, head_dim], and we add prefixes
-        if self.use_prefix:
+
+        # allow use_gen override
+        if use_gen is not None and not use_gen:
+            use_prefix = False
+
+        if use_prefix:
             key = jnp.concatenate([prefix_key, key], axis=1)
             value = jnp.concatenate([prefix_value, value], axis=1)
         ####################
@@ -470,7 +488,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         # PREFIX CHANGE
         # Avoid attention bias affecting the prefixes by prepending 0s
         # attention_bias has shape [batch, num_heads, q_length, kv_length]
-        if attention_bias is not None and self.use_prefix:
+        if attention_bias is not None and use_prefix:
             num_prefix_toks = prefix_key.shape[1]  # type: ignore
             batch, num_heads, q_length, _ = attention_bias.shape
             attention_bias = jnp.concatenate(

@@ -27,7 +27,7 @@ from hyper_task_descriptions.ni_tasks import ni_registry # Needed to define the 
 MIXTURE_OR_TASK_NAME = "natural_instructions"
 CHECKPOINT_PATH = %gin.REQUIRED
 EVAL_OUTPUT_DIR = %gin.REQUIRED
-TASK_FEATURE_LENGTHS = {"inputs": 1024, "hyper_inputs": 512,  "task_names": 1, "targets": 256}
+TASK_FEATURE_LENGTHS = {"inputs": 1024, "hyper_inputs": 1024,  "task_names": 1, "targets": 256}
 DROPOUT_RATE = 0.0
 
 # DEPRECATED: Import the this module in your gin file.

@@ -10,17 +10,18 @@ import tensorflow as tf
 from absl.testing import parameterized
 from flax import traverse_util
 from seqio.test_utils import assert_dataset, create_default_dataset
+from t5x import decoding
 
 from hyper_task_descriptions.common.testing import (
     HyperTaskDescriptionsTestCase,
     get_test_model,
 )
+from hyper_task_descriptions.modeling.hyper_network import HyperT5Config
 from hyper_task_descriptions.modeling.hyper_transformer import (
     HyperEncDecContFeatureConverter,
     HyperEncDecFeatureConverter,
     HyperEncoderDecoderModel,
 )
-from t5x import decoding
 
 BATCH_SIZE, ENCODER_LEN, MAX_DECODE_LEN, EMBED_DIM, HYPER_ENCODER_LEN = 2, 3, 4, 5, 6
 
@@ -519,6 +520,7 @@ class TestHyperEncoderDecoderModel(parameterized.TestCase):
         class MockModule:
             def __init__(self):
                 self.dtype = jnp.float32
+                self.config = HyperT5Config(vocab_size=100, dtype=jnp.float32)
 
             def apply(self, *args, method=None, **kwargs):
                 del args, kwargs
