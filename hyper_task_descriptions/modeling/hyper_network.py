@@ -61,20 +61,22 @@ class HyperT5Config(T5Config):
 # create our component id dict
 # since we create component-specific embeddings, we need to
 # be able to keep track of which embedding for which component.
+# 'component id' = the range of component ids for a given component
+# this is because we used to have a single embedding for each component
 def create_component_id_dict(cfg: HyperT5Config):
     num_components = 0
     component_2_id = {}
     if cfg.use_adapter:
-        num_components += 4
-        component_2_id["adapter_wd"] = 0
-        component_2_id["adapter_wu"] = 1
-        component_2_id["adapter_bd"] = 2
-        component_2_id["adapter_bu"] = 3
+        num_components += cfg.adapter_size * 2 + 2
+        component_2_id["adapter_wd"] = (0, cfg.adapter_size)
+        component_2_id["adapter_wu"] = (cfg.adapter_size, cfg.adapter_size * 2)
+        component_2_id["adapter_bd"] = (cfg.adapter_size * 2, cfg.adapter_size * 2 + 1)
+        component_2_id["adapter_bu"] = (cfg.adapter_size * 2 + 1, cfg.adapter_size * 2 + 2)
     if cfg.use_prefix:
-        num_components += 2  # prefix key, value
-        component_2_id["prefix_key"] = num_components - 2
-        component_2_id["prefix_value"] = num_components - 1
-    if cfg.use_lora:
+        component_2_id["prefix_key"] = (num_components, num_components + cfg.num_prefix_tokens)
+        component_2_id["prefix_value"] = (num_components + cfg.num_prefix_tokens, num_components + cfg.num_prefix_tokens * 2)
+        num_components += 2 * cfg.num_prefix_tokens  # prefix key, value
+    if cfg.use_lora: # TODO: fix lora.
         q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
         if q_rank is not None:
             num_components += 2  # q, k, v
@@ -149,7 +151,7 @@ class Hypernet(nn.Module):
 
         if cfg.use_adapter:
             self.adapter_down_gen = SimpleLinear(
-                output_dim=cfg.emb_dim * cfg.adapter_size,
+                output_dim=cfg.emb_dim,
                 act_fn="linear",
                 dropout_rate=cfg.dropout_rate,
                 dtype=cfg.dtype,
@@ -157,7 +159,7 @@ class Hypernet(nn.Module):
                 name="adapter_down_mlp",
             )
             self.adapter_up_gen = SimpleLinear(
-                output_dim=cfg.emb_dim * cfg.adapter_size,
+                output_dim=cfg.emb_dim,
                 act_fn="linear",
                 dropout_rate=cfg.dropout_rate,
                 dtype=cfg.dtype,
@@ -182,7 +184,7 @@ class Hypernet(nn.Module):
             )
         if cfg.use_prefix:
             self.prefix_key_gen = SimpleLinear(
-                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                output_dim=cfg.num_heads * cfg.head_dim,
                 act_fn="linear",
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
@@ -190,7 +192,7 @@ class Hypernet(nn.Module):
                 dropout_rate=cfg.dropout_rate,
             )
             self.prefix_value_gen = SimpleLinear(
-                output_dim=cfg.num_prefix_tokens * cfg.num_heads * cfg.head_dim,
+                output_dim=cfg.num_heads * cfg.head_dim,
                 act_fn="linear",
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
@@ -348,7 +350,9 @@ class Hypernet(nn.Module):
         def generate_parameter(param_gen, inputs, component_id, shape):
             assert component_id in self.component_2_id, "component name not found"
             if cfg.layer_embedding_method == "component":
-                inputs = inputs[:, :, self.component_2_id[component_id]]
+                start, end = self.component_2_id[component_id]
+                # reshape to collapse the components into one blob
+                inputs = inputs[:, :, start:end]
             parameters = param_gen(inputs, deterministic=deterministic)
             parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             return parameters
