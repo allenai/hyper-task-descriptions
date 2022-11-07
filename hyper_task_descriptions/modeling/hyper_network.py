@@ -50,6 +50,8 @@ class HyperT5Config(T5Config):
     use_instructions: bool = True  # if false, we use a single learnt embedding as input to hnet
     use_adapter: bool = True
     adapter_size: int = 64
+    use_prompt: bool = True
+    num_prompt_tokens: int = 100
     use_prefix: bool = True
     num_prefix_tokens: int = 30
     use_lora: bool = False
@@ -76,7 +78,10 @@ def create_component_id_dict(cfg: HyperT5Config):
         component_2_id["prefix_key"] = (num_components, num_components + cfg.num_prefix_tokens)
         component_2_id["prefix_value"] = (num_components + cfg.num_prefix_tokens, num_components + cfg.num_prefix_tokens * 2)
         num_components += 2 * cfg.num_prefix_tokens  # prefix key, value
-    if cfg.use_lora: # TODO: fix lora.
+    if cfg.use_prompt:
+        component_2_id["prompt"] = (num_components, num_components + cfg.num_prompt_tokens)
+        num_components += cfg.num_prompt_tokens
+    if cfg.use_lora:  # TODO: fix lora.
         q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
         if q_rank is not None:
             num_components += 2  # q, k, v
@@ -197,6 +202,15 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="prefix_value_mlp",
+                dropout_rate=cfg.dropout_rate,
+            )
+        if cfg.use_prompt:
+            self.prompt_gen = SimpleLinear(
+                output_dim=cfg.emb_dim,
+                act_fn="linear",
+                dtype=cfg.dtype,
+                kernel_axes=("mlp", "embed"),
+                name="prompt_mlp",
                 dropout_rate=cfg.dropout_rate,
             )
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
@@ -408,6 +422,13 @@ class Hypernet(nn.Module):
                 "prefix_value",
                 (bsz, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim),
             )
+        if cfg.use_prompt:
+            generated_parameter_dict["prompt"] = generate_parameter(
+                self.prompt_gen,
+                sum_embeds,
+                "prompt",
+                (bsz, total_layers, cfg.num_prompt_tokens, cfg.emb_dim),
+            )[:, 0]   # no layers since prompt is l1 only
         if cfg.use_lora:
             if self.q_rank:
                 generated_parameter_dict["lora_qa"] = generate_parameter(
@@ -735,8 +756,21 @@ class HyperEncoder(nn.Module):
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x.astype(cfg.dtype)
 
+        # append prompt
+        if cfg.use_prompt:
+            prompt = adaptations["prompt"]
+            x = jnp.concatenate([prompt, x], axis=1)
+            bsz = x.shape[0]
+            encoder_input_tokens = jnp.concatenate(
+                [jnp.ones((bsz, prompt.shape[1]), dtype=cfg.dtype), encoder_input_tokens],
+                axis=1
+            )
+            encoder_mask = layers.make_attention_mask(
+                encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
+            )
+
         for lyr in range(cfg.num_encoder_layers):
-            layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items()}
+            layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items() if 'prompt' not in k}
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(
                 x,
@@ -912,6 +946,14 @@ class HyperTransformer(nn.Module):
     ):
         """Applies Transformer decoder-branch on encoded-input and target."""
         cfg = self.config
+
+        if cfg.use_prompt:
+            prompt = adaptations.pop("prompt")
+            bsz = encoded.shape[0]
+            encoder_input_tokens = jnp.concatenate(
+                [jnp.ones((bsz, prompt.shape[1]), dtype=cfg.dtype), encoder_input_tokens],
+                axis=1
+            )
 
         # Make padding attention masks.
         if decode:
