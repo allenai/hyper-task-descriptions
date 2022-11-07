@@ -757,7 +757,7 @@ class HyperEncoder(nn.Module):
         x = x.astype(cfg.dtype)
 
         # append prompt
-        if cfg.use_prompt:
+        if cfg.use_prompt and not hyper:
             prompt = adaptations["prompt"]
             x = jnp.concatenate([prompt, x], axis=1)
             bsz = x.shape[0]
