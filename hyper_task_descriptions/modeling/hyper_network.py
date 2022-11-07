@@ -824,7 +824,7 @@ class HyperDecoder(nn.Module):
 
             # grab adaptations - note that adapters only need one as no c-a to worry abt
             layer_adaptations = {
-                k: v[:, lyr : lyr + 2] for k, v in adaptations.items() if "adapter" not in k
+                k: v[:, lyr : lyr + 2] for k, v in adaptations.items() if "adapter" not in k and "prompt" not in k
             }
             layer_adaptations_ada = {k: v[:, lyr] for k, v in adaptations.items() if "adapter" in k}
             # I would use |=, but maintaining compat with older python
@@ -948,7 +948,7 @@ class HyperTransformer(nn.Module):
         cfg = self.config
 
         if cfg.use_prompt:
-            prompt = adaptations.pop("prompt")
+            prompt = adaptations["prompt"]
             bsz = encoded.shape[0]
             encoder_input_tokens = jnp.concatenate(
                 [jnp.ones((bsz, prompt.shape[1]), dtype=cfg.dtype), encoder_input_tokens],
