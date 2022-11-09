@@ -50,7 +50,7 @@ class HyperT5Config(T5Config):
     use_instructions: bool = True  # if false, we use a single learnt embedding as input to hnet
     use_adapter: bool = True
     adapter_size: int = 64
-    use_prompt: bool = True
+    use_prompt: bool = False
     num_prompt_tokens: int = 100
     use_prefix: bool = True
     num_prefix_tokens: int = 30
