@@ -18,9 +18,7 @@ optimizers.MultiOptimizer:
   traversals_and_optimizers = ((@hyper/traverse_util.ModelParamTraversal(),
                                 @hyper/adafactor.Adafactor()),
                                 (@roberta/traverse_util.ModelParamTraversal(),
-                                @roberta/adafactor.Adafactor()),
-                                (@t5/traverse_util.ModelParamTraversal(),
-                                @t5/adafactor.Adafactor()),)
+                                @roberta/adafactor.Adafactor()))
 
 # MultiOptimizer will match any parameter with a flattened name that
 # matches *any* of the regular expressions in the list.
