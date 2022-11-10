@@ -4,5 +4,5 @@ hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
 hyper_network.HyperT5Config:
   use_adapter = True
   use_prefix = True
-  use_instruction_embedding = True
+  use_instruction_embedding = False
   use_linear = False
