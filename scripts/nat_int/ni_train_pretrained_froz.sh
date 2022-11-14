@@ -19,7 +19,7 @@ python3 -m t5x.train \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
-  --gin_file="partial_train_adafactor_dual.gin" \
+  --gin_file="partial_train_adafactor.gin" \
   --gin_file="restore_frozen_under.gin" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
   --gin.USE_CACHED_TASKS=True \
