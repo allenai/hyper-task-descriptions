@@ -6,7 +6,7 @@
 flake8==4.0.1
 
 # Static type checking
-mypy==0.971
+mypy==0.991
 
 # Automatic code formatting
 # promptsource specifies these, so we have to match
