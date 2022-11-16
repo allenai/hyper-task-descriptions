@@ -106,6 +106,7 @@ def create_component_id_dict(cfg: HyperT5Config):
 
 class Hypernet(nn.Module):
     encoder: nn.Module
+    decoder: nn.Module
     config: HyperT5Config
     shared_embedding: nn.Module
 
@@ -125,7 +126,7 @@ class Hypernet(nn.Module):
             name="hyperattn",
         )
 
-        if cfg.layer_embedding_method == "component":
+        if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
             layer_embed_components *= self.num_components
         self.embedder = jnp.asarray(
             param_with_axes(
@@ -142,6 +143,7 @@ class Hypernet(nn.Module):
                 "concat",
                 "layer",
                 "component",
+                "decoder",
             ], "Invalid layer embedding method"
 
         if cfg.use_instruction_embedding:
@@ -342,6 +344,26 @@ class Hypernet(nn.Module):
                 sum_embeds = self.attn(
                     layer_embeds, seq_output, mask=mask, deterministic=deterministic
                 )
+            elif cfg.layer_embedding_method == "decoder":
+                seq_output = output * attn_mask[:, :, None]
+                layer_embeds = self.embedder[None, :, :].repeat(
+                    encoder_input_tokens.shape[0], axis=0
+                )
+                enc_dec_mask = layers.make_attention_mask(
+                    jnp.ones((layer_embeds.shape[0], layer_embeds.shape[1])),
+                    encoder_input_tokens,
+                    dtype=cfg.dtype,
+                )
+                sum_embeds = self.decoder(
+                    seq_output,
+                    hyper=True,
+                    hyper_embeds=layer_embeds,
+                    decoder_input_tokens=None,
+                    decoder_mask=None,  # we allow the decoder to see the whole sequence.
+                    encoder_decoder_mask=enc_dec_mask,
+                    deterministic=deterministic,
+                    decode=False,
+                )
             else:  # else = use concat
                 # layer embeds - repeat in batch, length dim
                 sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
@@ -363,7 +385,7 @@ class Hypernet(nn.Module):
         # choose our specific input to the hypernet. feel free to customize.
         def generate_parameter(param_gen, inputs, component_id, shape):
             assert component_id in self.component_2_id, "component name not found"
-            if cfg.layer_embedding_method == "component":
+            if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
                 start, end = self.component_2_id[component_id]
                 # reshape to collapse the components into one blob
                 inputs = inputs[:, :, start:end]
@@ -619,6 +641,7 @@ class HyperDecoderLayer(nn.Module):
         deterministic=False,
         decode=False,
         max_decode_length=None,
+        hyper=False,
     ):
         cfg = self.config
         q_rank, k_rank, v_rank, o_rank = (x and cfg.use_lora for x in cfg.lora_ranks)
@@ -653,10 +676,11 @@ class HyperDecoderLayer(nn.Module):
             lora_vb=lora_vb[:, 0] if v_rank else None,
             lora_oa=lora_oa[:, 0] if o_rank else None,
             lora_ob=lora_ob[:, 0] if o_rank else None,
-            prefix_key=prefix_key[:, 0] if cfg.use_prefix else None,
-            prefix_value=prefix_value[:, 0] if cfg.use_prefix else None,
+            prefix_key=prefix_key[:, 0] if cfg.use_prefix and prefix_key is not None else None,
+            prefix_value=prefix_value[:, 0] if cfg.use_prefix and prefix_value is not None else None,
             deterministic=deterministic,
             decode=decode,
+            use_gen=not hyper,
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
@@ -684,9 +708,10 @@ class HyperDecoderLayer(nn.Module):
             lora_vb=lora_vb[:, 1] if v_rank else None,
             lora_oa=lora_oa[:, 1] if o_rank else None,
             lora_ob=lora_ob[:, 1] if o_rank else None,
-            prefix_key=prefix_key[:, 1] if cfg.use_prefix else None,
-            prefix_value=prefix_value[:, 1] if cfg.use_prefix else None,
+            prefix_key=prefix_key[:, 1] if cfg.use_prefix and prefix_key is not None else None,
+            prefix_value=prefix_value[:, 1] if cfg.use_prefix and prefix_value is not None else None,
             deterministic=deterministic,
+            use_gen=not hyper,
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         y = y + x
@@ -702,7 +727,7 @@ class HyperDecoderLayer(nn.Module):
         )(lz, deterministic=deterministic)
         z = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(z, deterministic=deterministic)
         # adapter block
-        if cfg.use_adapter:
+        if cfg.use_adapter and not hyper:
             adapter_z = (
                 lax.batch_matmul(lz, adapter_wd)
                 + adapter_bd[
@@ -800,9 +825,12 @@ class HyperDecoder(nn.Module):
         deterministic=False,
         decode=False,
         max_decode_length=None,
+        hyper=False,
+        hyper_embeds=None,
     ):
         cfg = self.config
-        assert decoder_input_tokens.ndim == 2  # [batch, len]
+        if not hyper:
+            assert decoder_input_tokens.ndim == 2  # [batch, len]
         rel_emb = layers.RelativePositionBiases(
             num_buckets=32,
             max_distance=128,
@@ -813,9 +841,12 @@ class HyperDecoder(nn.Module):
         )
 
         # [batch, length] -> [batch, length, emb_dim]
-        y = self.shared_embedding(decoder_input_tokens.astype("int32"))
-        y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
-        y = y.astype(cfg.dtype)
+        if not hyper:
+            y = self.shared_embedding(decoder_input_tokens.astype("int32"))
+            y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
+            y = y.astype(cfg.dtype)
+        else:
+            y = hyper_embeds
 
         for lyr in range(
             cfg.num_encoder_layers, cfg.num_encoder_layers + cfg.num_decoder_layers * 2, 2
@@ -843,10 +874,13 @@ class HyperDecoder(nn.Module):
                 deterministic=deterministic,
                 decode=decode,
                 max_decode_length=max_decode_length,
+                hyper=hyper
             )
 
-        y = layers.LayerNorm(dtype=cfg.dtype, name="decoder_norm")(y)
-        y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
+        yd = layers.LayerNorm(dtype=cfg.dtype, name="decoder_norm")(y)
+        y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(yd, deterministic=deterministic)
+        if hyper:
+            return y
 
         # [batch, length, emb_dim] -> [batch, length, vocab_size]
         if cfg.logits_via_embedding:
@@ -892,7 +926,7 @@ class HyperTransformer(nn.Module):
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)
         self.hyper = Hypernet(
-            encoder=self.encoder, config=cfg, shared_embedding=self.shared_embedding
+            encoder=self.encoder, decoder=self.decoder, config=cfg, shared_embedding=self.shared_embedding
         )
 
     def encode(
