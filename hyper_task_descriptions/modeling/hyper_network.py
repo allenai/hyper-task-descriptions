@@ -104,6 +104,41 @@ def create_component_id_dict(cfg: HyperT5Config):
     return num_components, component_2_id
 
 
+def create_component_id_dict_coarse(cfg: HyperT5Config):
+    num_components = 0
+    component_2_id = {}
+    if cfg.use_adapter:
+        num_components += 4
+        component_2_id["adapter_wd"] = 0
+        component_2_id["adapter_wu"] = 1
+        component_2_id["adapter_bd"] = 2
+        component_2_id["adapter_bu"] = 3
+    if cfg.use_prefix:
+        num_components += 2  # prefix key, value
+        component_2_id["prefix_key"] = num_components - 2
+        component_2_id["prefix_value"] = num_components - 1
+    if cfg.use_lora:
+        q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
+        if q_rank is not None:
+            num_components += 2  # q, k, v
+            component_2_id["lora_qa"] = num_components - 2
+            component_2_id["lora_qb"] = num_components - 1
+        if k_rank is not None:
+            num_components += 2
+            component_2_id["lora_ka"] = num_components - 2
+            component_2_id["lora_kb"] = num_components - 1
+        if v_rank is not None:
+            num_components += 2
+            component_2_id["lora_va"] = num_components - 2
+            component_2_id["lora_vb"] = num_components - 1
+        if o_rank is not None:
+            num_components += 2
+            component_2_id["lora_oa"] = num_components - 2
+            component_2_id["lora_ob"] = num_components - 1
+    if num_components == 0:
+        num_components += 1  # avoid div by zero error in init
+    return num_components, component_2_id
+
 class Hypernet(nn.Module):
     encoder: nn.Module
     decoder: nn.Module
@@ -115,6 +150,8 @@ class Hypernet(nn.Module):
         cfg = self.config
         # setup embeddings - enc attn, dec attn, cross attn
         self.num_components, self.component_2_id = create_component_id_dict(cfg)
+        if cfg.layer_embedding_method == "decoder":
+            self.num_components, self.component_2_id = create_component_id_dict_coarse(cfg)
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
 
         self.attn = layers.MultiHeadDotProductAttention(
@@ -157,8 +194,12 @@ class Hypernet(nn.Module):
             )
 
         if cfg.use_adapter:
+            if cfg.layer_embedding_method == 'decoder':
+                output_dim = cfg.emb_dim * cfg.adapter_size
+            else:
+                output_dim = cfg.emb_dim
             self.adapter_down_gen = SimpleLinear(
-                output_dim=cfg.emb_dim,
+                output_dim=output_dim,
                 act_fn="linear",
                 dropout_rate=cfg.dropout_rate,
                 dtype=cfg.dtype,
@@ -166,7 +207,7 @@ class Hypernet(nn.Module):
                 name="adapter_down_mlp",
             )
             self.adapter_up_gen = SimpleLinear(
-                output_dim=cfg.emb_dim,
+                output_dim=output_dim,
                 act_fn="linear",
                 dropout_rate=cfg.dropout_rate,
                 dtype=cfg.dtype,
@@ -190,8 +231,12 @@ class Hypernet(nn.Module):
                 dropout_rate=cfg.dropout_rate,
             )
         if cfg.use_prefix:
+            if cfg.layer_embedding_method == 'decoder':
+                output_dim = cfg.num_heads * cfg.head_dim * cfg.num_prefix_tokens
+            else:
+                output_dim = cfg.num_heads * cfg.head_dim
             self.prefix_key_gen = SimpleLinear(
-                output_dim=cfg.num_heads * cfg.head_dim,
+                output_dim=output_dim,
                 act_fn="linear",
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
@@ -199,7 +244,7 @@ class Hypernet(nn.Module):
                 dropout_rate=cfg.dropout_rate,
             )
             self.prefix_value_gen = SimpleLinear(
-                output_dim=cfg.num_heads * cfg.head_dim,
+                output_dim=output_dim,
                 act_fn="linear",
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
@@ -385,10 +430,12 @@ class Hypernet(nn.Module):
         # choose our specific input to the hypernet. feel free to customize.
         def generate_parameter(param_gen, inputs, component_id, shape):
             assert component_id in self.component_2_id, "component name not found"
-            if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
+            if cfg.layer_embedding_method == "component":
                 start, end = self.component_2_id[component_id]
                 # reshape to collapse the components into one blob
                 inputs = inputs[:, :, start:end]
+            elif cfg.layer_embedding_method == "decoder":
+                inputs = inputs[:, :, self.component_2_id[component_id]]
             parameters = param_gen(inputs, deterministic=deterministic)
             parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             return parameters
