@@ -29,7 +29,8 @@ python3 -m t5x.train \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=$4 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/$2/model/$3\"
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\"
+#\"gs://hamishi-us-bucket/$2/model/$3\"
 
 echo "Training done. Now evaluating all checkpoints..."
 
