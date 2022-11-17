@@ -437,13 +437,15 @@ class Hypernet(nn.Module):
                 inputs = inputs[:, :, start:end]
             elif cfg.layer_embedding_method == "decoder":
                 inputs = inputs[:, :, self.component_2_id[component_id]]
+            inputs = nn.gelu(inputs)
             parameters = param_gen(inputs, deterministic=deterministic)
             #import pdb; pdb.set_trace()
             if not cfg.hn_norm:
                 parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             else:
                 # inspired by polytropon
-                parameters = (parameters / parameters.sum(-1)[:, :, :, None]).reshape(shape)
+                parameters = (parameters / (parameters.sum(-1)[:, :, :, None] + 1e-6)).reshape(shape)
+            self.sow("intermediates", f"{component_id}_params", parameters)
             return parameters
 
         if cfg.use_instruction_embedding:
@@ -628,6 +630,7 @@ class HyperEncoderLayer(nn.Module):
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
+        self.sow("intermediates", "enc_selfatt_act", x)
 
         # MLP block.
         lx = layers.LayerNorm(dtype=cfg.dtype, name="pre_mlp_layer_norm")(x)
@@ -640,6 +643,7 @@ class HyperEncoderLayer(nn.Module):
             name="mlp",
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
+        self.sow("intermediates", "transformer_state", y)
         # adapter block
         if cfg.use_adapter and not hyper:
             adapter_y = (
@@ -661,6 +665,7 @@ class HyperEncoderLayer(nn.Module):
         # final residual connection
         # TODO: scaled add?
         y = y + x
+        self.sow("intermediates", "enc_ffn_act", y)
         return y
 
 
@@ -737,6 +742,7 @@ class HyperDecoderLayer(nn.Module):
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
+        self.sow("intermediates", "dec_selfatt_act", x)
 
         # Encoder-Decoder block.
         y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
@@ -768,6 +774,7 @@ class HyperDecoderLayer(nn.Module):
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         y = y + x
+        self.sow("intermediates", "dec_crossatt_act", y)
 
         # MLP block.
         lz = layers.LayerNorm(dtype=cfg.dtype, name="pre_mlp_layer_norm")(y)
@@ -789,6 +796,7 @@ class HyperDecoderLayer(nn.Module):
                 ]
             )
             adapter_z = nn.gelu(adapter_z)
+            self.sow("intermediates", "adapter_activations", adapter_z)
             adapter_z = (
                 lax.batch_matmul(adapter_z, adapter_wu)
                 + adapter_bu[
@@ -800,6 +808,7 @@ class HyperDecoderLayer(nn.Module):
             # TODO: scaled add?
             z = z + adapter_z
         z = z + y
+        self.sow("intermediates", "dec_ffn_act", z)
         return z
 
 

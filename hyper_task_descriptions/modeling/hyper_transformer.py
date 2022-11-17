@@ -749,7 +749,37 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             cosine_loss=cos_loss,
             cosine_truth=cosine_truth,
         )
+        if "intermediates" in mod_vars:
+            for name in mod_vars["intermediates"]["hyper"]:
+                if name != "features":
+                    metrics.update(self._compute_mean_std(mod_vars["intermediates"]["hyper"][name][0], name))
+            # encoder run twice, take second run.
+            for layer in mod_vars["intermediates"]["encoder"]:
+                for name in mod_vars["intermediates"]["encoder"][layer]:
+                    metrics.update(
+                        self._compute_mean_std(mod_vars["intermediates"]["encoder"][layer][name][1], f"{layer}_{name}")
+                    )
+            for layer in mod_vars["intermediates"]["decoder"]:
+                for name in mod_vars["intermediates"]["decoder"][layer]:
+                    metrics.update(
+                        self._compute_mean_std(mod_vars["intermediates"]["decoder"][layer][name][0], f"{layer}_{name}")
+                    )
         return loss, metrics
+
+    def _compute_mean_std(
+        self,
+        values: jnp.ndarray,
+        name: str,
+    ):
+        bsz = values.shape[0]
+        values = values.reshape(bsz, -1)
+        mean = jnp.mean(values, axis=1)
+        std = jnp.std(values, axis=1)
+        # return the average of the means and stds per batch item
+        return {
+            f"means/{name}_mean": metrics_lib.AveragePerStep(total=mean.mean()),
+            f"stds/{name}_std": metrics_lib.AveragePerStep(total=std.mean()),
+        }
 
     def _compute_metrics(
         self,
