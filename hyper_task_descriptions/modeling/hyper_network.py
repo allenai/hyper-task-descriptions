@@ -443,7 +443,7 @@ class Hypernet(nn.Module):
                 parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             else:
                 # inspired by polytropon
-                parameters = (parameters / parameters.sum(-1)).reshape(shape)
+                parameters = (parameters / parameters.sum(-1)[:, :, :, None]).reshape(shape)
             return parameters
 
         if cfg.use_instruction_embedding:
