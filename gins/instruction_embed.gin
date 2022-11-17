@@ -6,4 +6,5 @@ hyper_network.HyperT5Config:
   use_prefix = True
   use_instruction_embedding = False
   use_linear = False
-  layer_embedding_method = "decoder"
+  #layer_embedding_method = "decoder"
+  hnet_norm = True

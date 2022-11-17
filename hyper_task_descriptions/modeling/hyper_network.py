@@ -58,6 +58,7 @@ class HyperT5Config(T5Config):
     lora_ranks: tuple = (None, None, None, None)
     use_instruction_embedding: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
+    hn_norm: bool = False
 
 
 # create our component id dict
@@ -437,7 +438,12 @@ class Hypernet(nn.Module):
             elif cfg.layer_embedding_method == "decoder":
                 inputs = inputs[:, :, self.component_2_id[component_id]]
             parameters = param_gen(inputs, deterministic=deterministic)
-            parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
+            #import pdb; pdb.set_trace()
+            if not cfg.hn_norm:
+                parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
+            else:
+                # inspired by polytropon
+                parameters = (parameters / parameters.sum(-1)).reshape(shape)
             return parameters
 
         if cfg.use_instruction_embedding:
