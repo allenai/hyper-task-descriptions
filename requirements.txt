@@ -9,6 +9,6 @@ tensorflow==2.9.0 # 2.9 has tpu issues
 #tensorflow-macos==2.9.0
 tensorflow-text==2.9.0
 # for caching only
-apache-beam==2.41.0
+apache-beam==2.43.0
 # for ni-int
 rouge-score
