@@ -33,7 +33,7 @@ optimizers.MultiOptimizer:
 hyper/learning_rate_adafactor.Adafactor:
   multiply_by_parameter_scale = False
   step_offset = 1100000
-  learning_rate = 1e-5
+  learning_rate = 1e-1
 hyper/traverse_util.ModelParamTraversal:
   filter_fn = @hyper/hyper_utils.match_any()
 hyper/hyper_utils.match_any.regexes = [".*/hyper/.*_mlp.*"]
