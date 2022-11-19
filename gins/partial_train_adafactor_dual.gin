@@ -36,7 +36,7 @@ hyper/learning_rate_adafactor.Adafactor:
   learning_rate = 1e-1
 hyper/traverse_util.ModelParamTraversal:
   filter_fn = @hyper/hyper_utils.match_any()
-hyper/hyper_utils.match_any.regexes = [".*/hyper/.*_mlp.*"]
+hyper/hyper_utils.match_any.regexes = [".*hyper.*"]
 # hyper encoder - state is fresh so reset step
 # nuked
 # nothing special for this one
@@ -44,4 +44,4 @@ t5/learning_rate_adafactor.Adafactor:
   learning_rate = 1e-3
 t5/traverse_util.ModelParamTraversal:
   filter_fn = @t5/hyper_utils.inverse_match_any()
-t5/hyper_utils.inverse_match_any.regexes = [".*/hyper/.*_mlp.*"]
+t5/hyper_utils.inverse_match_any.regexes = [".*/hyper.*"]
