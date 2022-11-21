@@ -202,7 +202,7 @@ class Hypernet(nn.Module):
             self.adapter_down_gen = SimpleLinear(
                 output_dim=output_dim,
                 act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.0,
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="adapter_down_mlp",
@@ -210,7 +210,7 @@ class Hypernet(nn.Module):
             self.adapter_up_gen = SimpleLinear(
                 output_dim=output_dim,
                 act_fn="linear",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.0,
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="adapter_up_mlp",
@@ -221,7 +221,7 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="adapter_bias_down_mlp",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.0,
             )
             self.adapter_bias_up_gen = SimpleLinear(
                 output_dim=cfg.emb_dim,
@@ -229,7 +229,7 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="adapter_bias_up_mlp",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.0,
             )
         if cfg.use_prefix:
             if cfg.layer_embedding_method == 'decoder':
@@ -242,7 +242,7 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="prefix_key_mlp",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.0,
             )
             self.prefix_value_gen = SimpleLinear(
                 output_dim=output_dim,
@@ -250,7 +250,7 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="prefix_value_mlp",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.0,
             )
         if cfg.use_prompt:
             self.prompt_gen = SimpleLinear(
@@ -259,7 +259,7 @@ class Hypernet(nn.Module):
                 dtype=cfg.dtype,
                 kernel_axes=("mlp", "embed"),
                 name="prompt_mlp",
-                dropout_rate=cfg.dropout_rate,
+                dropout_rate=0.0,
             )
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
         if cfg.use_lora:
@@ -267,7 +267,7 @@ class Hypernet(nn.Module):
                 self.lora_qa_gen = SimpleLinear(
                     output_dim=cfg.emb_dim * self.q_rank,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("embed", "joined_kv"),
                     kernel_init=nn.initializers.normal(0.01),
@@ -277,7 +277,7 @@ class Hypernet(nn.Module):
                 self.lora_qb_gen = SimpleLinear(
                     output_dim=self.q_rank * cfg.num_heads * cfg.head_dim,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("embed", "joined_kv"),
                     kernel_init=nn.initializers.zeros,
@@ -288,7 +288,7 @@ class Hypernet(nn.Module):
                 self.lora_ka_gen = SimpleLinear(
                     output_dim=cfg.emb_dim * self.k_rank,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("embed", "joined_kv"),
                     kernel_init=nn.initializers.normal(0.01),
@@ -298,7 +298,7 @@ class Hypernet(nn.Module):
                 self.lora_kb_gen = SimpleLinear(
                     output_dim=self.k_rank * cfg.num_heads * cfg.head_dim,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("embed", "joined_kv"),
                     kernel_init=nn.initializers.zeros,
@@ -309,7 +309,7 @@ class Hypernet(nn.Module):
                 self.lora_va_gen = SimpleLinear(
                     output_dim=cfg.emb_dim * self.v_rank,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("embed", "joined_kv"),
                     kernel_init=nn.initializers.normal(0.01),
@@ -319,7 +319,7 @@ class Hypernet(nn.Module):
                 self.lora_vb_gen = SimpleLinear(
                     output_dim=self.v_rank * cfg.num_heads * cfg.head_dim,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("embed", "joined_kv"),
                     kernel_init=nn.initializers.zeros,
@@ -330,7 +330,7 @@ class Hypernet(nn.Module):
                 self.lora_oa_gen = SimpleLinear(
                     output_dim=cfg.num_heads * cfg.head_dim * self.o_rank,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("joined_kv", "embed"),
                     kernel_init=nn.initializers.normal(0.01),
@@ -340,7 +340,7 @@ class Hypernet(nn.Module):
                 self.lora_ob_gen = SimpleLinear(
                     output_dim=self.o_rank * cfg.emb_dim,
                     act_fn="linear",
-                    dropout_rate=cfg.dropout_rate,
+                    dropout_rate=0.0,
                     dtype=cfg.dtype,
                     kernel_axes=("embed", "joined_kv"),
                     kernel_init=nn.initializers.zeros,
