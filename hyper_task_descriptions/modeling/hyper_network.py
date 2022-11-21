@@ -389,7 +389,7 @@ class Hypernet(nn.Module):
                 )
                 sum_embeds = self.attn(
                     layer_embeds, seq_output, mask=mask, deterministic=deterministic
-                ) + layer_embeds
+                )
             elif cfg.layer_embedding_method == "decoder":
                 seq_output = output * attn_mask[:, :, None]
                 layer_embeds = self.embedder[None, :, :].repeat(
