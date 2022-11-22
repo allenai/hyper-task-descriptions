@@ -164,7 +164,7 @@ class Hypernet(nn.Module):
             name="hyperattn",
         )
         if not cfg.use_instructions:
-            layer_embed_components = 16
+            self.num_components = 16
 
         if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
             layer_embed_components *= self.num_components
