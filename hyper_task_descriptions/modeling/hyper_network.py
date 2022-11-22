@@ -163,12 +163,12 @@ class Hypernet(nn.Module):
             float32_logits=cfg.float32_attention_logits,
             name="hyperattn",
         )
+        if not cfg.use_instructions:
+            layer_embed_components = 16
 
         if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
             layer_embed_components *= self.num_components
         # to make sure compat with partitioning.
-        if not cfg.use_instructions:
-            layer_embed_components = 16
         self.embedder = jnp.asarray(
             param_with_axes(
                 "component_embedding",
