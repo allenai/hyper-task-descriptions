@@ -11,7 +11,7 @@ MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 # for your first run, you will probably need to run all these calls :(
 python3 -m t5x.train \
   --gin_search_paths=gins \
-  --gin_file="hyper_xl.gin" \
+  --gin_file="hyper_xxl.gin" \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adafactor.gin" \
   --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
@@ -27,7 +27,7 @@ python3 -m t5x.train \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1101000 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\" \
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xxl/checkpoint_1100000/\" \
 
 echo "Training done. Now evaluating all checkpoints..."
 # gsutil -m cp -r ${MODEL_DIR} gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model
@@ -36,7 +36,7 @@ echo "Training done. Now evaluating all checkpoints..."
 EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval/"
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_search_paths="gins" \
-    --gin_file="hyper_xl.gin" \
+    --gin_file="hyper_xxl.gin" \
     --gin_file="ni_eval.gin" \
     --gin.hyper_network.HyperT5Config.hyperencoder_model=\"google/t5-base-lm-adapt\" \
     --gin.hyper_network.HyperT5Config.use_adapter=False \
