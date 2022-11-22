@@ -20,7 +20,7 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_instructions=False \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.trainer.Trainer.num_microbatches=16 \
+  --gin.trainer.Trainer.num_microbatches=32 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
