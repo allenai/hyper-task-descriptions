@@ -20,13 +20,14 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_instructions=False \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
   --gin.USE_CACHED_TASKS=True \
+  --gin.utils.create_learning_rate_scheduler.base_learning_rate=\"1e-5\" \
   --gin.trainer.Trainer.num_microbatches=8 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=1001000 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_xl/checkpoint_1000000/\" \
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\" \
 
 echo "Training done. Now evaluating all checkpoints..."
 # gsutil -m cp -r ${MODEL_DIR} gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model
