@@ -711,7 +711,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
     ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, metrics_lib.MetricsMap]]:
         """"""
         logits, mod_vars = self._compute_logits(params, batch, dropout_rng, mutable="intermediates")
-        if "intermediates" in mod_vars:
+        if "intermediates" in mod_vars and self.module.config.use_instructions:
             # note we should only have one hypernet feature (hypernet called once)
             hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
             # construct the contrastive loss truth
@@ -749,7 +749,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             cosine_loss=cos_loss,
             cosine_truth=cosine_truth,
         )
-        if "intermediates" in mod_vars:
+        if "intermediates" in mod_vars and self.module.config.use_instructions:
             for name in mod_vars["intermediates"]["hyper"]:
                 if name != "features":
                     metrics.update(self._compute_mean_std(mod_vars["intermediates"]["hyper"][name][0], name))
