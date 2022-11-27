@@ -19,7 +19,6 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_instructions=False \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.utils.create_learning_rate_scheduler.base_learning_rate=0.00001 \
   --gin.trainer.Trainer.num_microbatches=32 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
