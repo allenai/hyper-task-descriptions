@@ -15,7 +15,7 @@
 """T5.1.1 Transformer model.
 Altered to include hypernet stuff.
 """
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Tuple
 
 import jax.numpy as jnp
 from flax import linen as nn
@@ -26,7 +26,7 @@ from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
 from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.layers import SimpleLinear
+from hyper_task_descriptions.modeling.layers import SimpleLinear, MlpBlock
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
@@ -47,6 +47,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 class HyperT5Config(T5Config):
     hyperencoder_model: str = "google/t5-large-lm-adapt"
     layer_embedding_method: str = "component"  # concat, layer, component
+    hypernet_activations: Tuple[str,] = ("gelu",)
     use_instructions: bool = True  # if false, we use a single learnt embedding as input to hnet
     use_adapter: bool = True
     adapter_size: int = 64
@@ -141,8 +142,8 @@ def create_component_id_dict_coarse(cfg: HyperT5Config):
     return num_components, component_2_id
 
 class Hypernet(nn.Module):
-    encoder: nn.Module
-    decoder: nn.Module
+    underlying_encoder: nn.Module
+    underlying_decoder: nn.Module
     config: HyperT5Config
     shared_embedding: nn.Module
 
@@ -151,8 +152,6 @@ class Hypernet(nn.Module):
         cfg = self.config
         # setup embeddings - enc attn, dec attn, cross attn
         self.num_components, self.component_2_id = create_component_id_dict(cfg)
-        if cfg.layer_embedding_method == "decoder":
-            self.num_components, self.component_2_id = create_component_id_dict_coarse(cfg)
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
 
         self.attn = layers.MultiHeadDotProductAttention(
@@ -165,6 +164,13 @@ class Hypernet(nn.Module):
         )
         if not cfg.use_instructions:
             self.num_components = 16
+
+        if cfg.layer_embedding_method == "decoder":
+            self.encoder = HyperEncoder(cfg, self.shared_embedding, name="hyper_encoder")
+            self.decoder = HyperDecoder(cfg, self.shared_embedding, name="hyper_decoder")
+        else:
+            self.encoder = self.underlying_encoder
+            self.decoder = self.underlying_decoder
 
         if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
             layer_embed_components *= self.num_components
@@ -197,158 +203,48 @@ class Hypernet(nn.Module):
                 name="instruction_embed",
             )
 
+        def hypernetwork(output, name):
+            return MlpBlock(
+                intermediate_dim=cfg.emb_dim,  # same size as model
+                output_dim=output,
+                activations=cfg.hypernet_activations,
+                intermediate_dropout_rate=0.0,
+                dtype=cfg.dtype,
+                name=name,
+            )
+
         if cfg.use_adapter:
-            if cfg.layer_embedding_method == 'decoder':
-                output_dim = cfg.emb_dim * cfg.adapter_size
-            else:
-                output_dim = cfg.emb_dim
-            self.adapter_down_gen = SimpleLinear(
-                output_dim=output_dim,
-                act_fn="linear",
-                dropout_rate=0.0,
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
-                name="adapter_down_mlp",
-            )
-            self.adapter_up_gen = SimpleLinear(
-                output_dim=output_dim,
-                act_fn="linear",
-                dropout_rate=0.0,
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
-                name="adapter_up_mlp",
-            )
-            self.adapter_bias_down_gen = SimpleLinear(
-                output_dim=cfg.adapter_size,
-                act_fn="linear",
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
-                name="adapter_bias_down_mlp",
-                dropout_rate=0.0,
-            )
-            self.adapter_bias_up_gen = SimpleLinear(
-                output_dim=cfg.emb_dim,
-                act_fn="linear",
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
-                name="adapter_bias_up_mlp",
-                dropout_rate=0.0,
-            )
+            output_dim = cfg.emb_dim
+            self.adapter_down_norm = layers.LayerNorm(name="adapter_down_norm")
+            self.adapter_down_gen = hypernetwork(output_dim, "adapter_down")
+            self.adapter_up_norm = layers.LayerNorm(name="adapter_up_norm")
+            self.adapter_up_gen = hypernetwork(output_dim, "adapter_up")
+            self.adapter_bias_down_norm = layers.LayerNorm(name="adapter_bias_down_norm")
+            self.adapter_bias_down_gen = hypernetwork(cfg.adapter_size, "adapter_bias_down")
+            self.adapter_bias_up_norm = layers.LayerNorm(name="adapter_bias_up_norm")
+            self.adapter_bias_up_gen = hypernetwork(cfg.emb_dim, "adapter_bias_up")
         if cfg.use_prefix:
-            if cfg.layer_embedding_method == 'decoder':
-                output_dim = cfg.num_heads * cfg.head_dim * cfg.num_prefix_tokens
-            else:
-                output_dim = cfg.num_heads * cfg.head_dim
-            self.prefix_key_gen = SimpleLinear(
-                output_dim=output_dim,
-                act_fn="linear",
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
-                name="prefix_key_mlp",
-                dropout_rate=0.0,
-            )
-            self.prefix_value_gen = SimpleLinear(
-                output_dim=output_dim,
-                act_fn="linear",
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
-                name="prefix_value_mlp",
-                dropout_rate=0.0,
-            )
+            output_dim = cfg.num_heads * cfg.head_dim
+            self.prefix_key_norm = layers.LayerNorm(name="prefix_key_norm")
+            self.prefix_key_gen = hypernetwork(output_dim, "prefix_key")
+            self.prefix_value_norm = layers.LayerNorm(name="prefix_value_norm")
+            self.prefix_value_gen = hypernetwork(output_dim, "prefix_value")
         if cfg.use_prompt:
-            self.prompt_gen = SimpleLinear(
-                output_dim=cfg.emb_dim,
-                act_fn="linear",
-                dtype=cfg.dtype,
-                kernel_axes=("mlp", "embed"),
-                name="prompt_mlp",
-                dropout_rate=0.0,
-            )
+            self.prompt_gen = hypernetwork(cfg.emb_dim, "prompt")
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
         if cfg.use_lora:
             if self.q_rank:
-                self.lora_qa_gen = SimpleLinear(
-                    output_dim=cfg.emb_dim * self.q_rank,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("embed", "joined_kv"),
-                    kernel_init=nn.initializers.normal(0.01),
-                    name="lora_qa_gen",
-                )
-
-                self.lora_qb_gen = SimpleLinear(
-                    output_dim=self.q_rank * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("embed", "joined_kv"),
-                    kernel_init=nn.initializers.zeros,
-                    name="lora_qb_gen",
-                )
-
+                self.lora_qa_gen = hypernetwork(cfg.emb_dim * self.q_rank, "lora_qa")
+                self.lora_qb_gen = hypernetwork(self.q_rank * cfg.num_heads * cfg.head_dim, "lora_qb")
             if self.k_rank:
-                self.lora_ka_gen = SimpleLinear(
-                    output_dim=cfg.emb_dim * self.k_rank,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("embed", "joined_kv"),
-                    kernel_init=nn.initializers.normal(0.01),
-                    name="lora_ka_gen",
-                )
-
-                self.lora_kb_gen = SimpleLinear(
-                    output_dim=self.k_rank * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("embed", "joined_kv"),
-                    kernel_init=nn.initializers.zeros,
-                    name="lora_kb_gen",
-                )
-
+                self.lora_ka_gen = hypernetwork(cfg.emb_dim * self.k_rank, "lora_ka")
+                self.lora_kb_gen = hypernetwork(self.k_rank * cfg.num_heads * cfg.head_dim, "lora_kb")
             if self.v_rank:
-                self.lora_va_gen = SimpleLinear(
-                    output_dim=cfg.emb_dim * self.v_rank,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("embed", "joined_kv"),
-                    kernel_init=nn.initializers.normal(0.01),
-                    name="lora_va_gen",
-                )
-
-                self.lora_vb_gen = SimpleLinear(
-                    output_dim=self.v_rank * cfg.num_heads * cfg.head_dim,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("embed", "joined_kv"),
-                    kernel_init=nn.initializers.zeros,
-                    name="lora_vb_gen",
-                )
-
+                self.lora_va_gen = hypernetwork(cfg.emb_dim * self.v_rank, "lora_va")
+                self.lora_vb_gen = hypernetwork(self.v_rank * cfg.num_heads * cfg.head_dim, "lora_vb")
             if self.o_rank:
-                self.lora_oa_gen = SimpleLinear(
-                    output_dim=cfg.num_heads * cfg.head_dim * self.o_rank,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("joined_kv", "embed"),
-                    kernel_init=nn.initializers.normal(0.01),
-                    name="lora_oa_gen",
-                )
-
-                self.lora_ob_gen = SimpleLinear(
-                    output_dim=self.o_rank * cfg.emb_dim,
-                    act_fn="linear",
-                    dropout_rate=0.0,
-                    dtype=cfg.dtype,
-                    kernel_axes=("embed", "joined_kv"),
-                    kernel_init=nn.initializers.zeros,
-                    name="lora_ob_gen",
-                )
+                self.lora_oa_gen = hypernetwork(cfg.emb_dim * self.o_rank, "lora_oa")
+                self.lora_ob_gen = hypernetwork(self.o_rank * cfg.head_dim, "lora_ob")
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -432,23 +328,18 @@ class Hypernet(nn.Module):
         generated_parameter_dict = {}
 
         # choose our specific input to the hypernet. feel free to customize.
-        def generate_parameter(param_gen, inputs, component_id, shape):
+        def generate_parameter(param_gen, layer_norm, inputs, component_id, shape):
             assert component_id in self.component_2_id, "component name not found"
-            if cfg.layer_embedding_method == "component":
+            if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
                 start, end = self.component_2_id[component_id]
                 # reshape to collapse the components into one blob
                 inputs = inputs[:, :, start:end]
-            elif cfg.layer_embedding_method == "decoder":
-                inputs = inputs[:, :, self.component_2_id[component_id]]
-            inputs = nn.gelu(inputs)
-            parameters = param_gen(inputs, deterministic=deterministic)
-            #import pdb; pdb.set_trace()
+            parameters = param_gen(layer_norm(inputs), deterministic=deterministic)
             if not cfg.hn_norm:
                 parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             else:
                 # inspired by polytropon
                 parameters = (parameters / (parameters.sum(-1)[:, :, :, None] + 1e-6)).reshape(shape)
-            self.sow("intermediates", f"{component_id}_params", parameters)
             return parameters
 
         if cfg.use_instruction_embedding:
@@ -465,6 +356,7 @@ class Hypernet(nn.Module):
             # adapter weight down
             generated_parameter_dict["adapter_wd"] = generate_parameter(
                 self.adapter_down_gen,
+                self.adapter_down_norm,
                 sum_embeds,
                 "adapter_wd",
                 (bsz, total_layers, cfg.emb_dim, cfg.adapter_size),
@@ -472,6 +364,7 @@ class Hypernet(nn.Module):
             # adapter weight up
             generated_parameter_dict["adapter_wu"] = generate_parameter(
                 self.adapter_up_gen,
+                self.adapter_up_norm,
                 sum_embeds,
                 "adapter_wu",
                 (bsz, total_layers, cfg.adapter_size, cfg.emb_dim),
@@ -479,18 +372,20 @@ class Hypernet(nn.Module):
             # adapter bias down
             generated_parameter_dict["adapter_bd"] = generate_parameter(
                 self.adapter_bias_down_gen,
+                self.adapter_bias_down_norm,
                 sum_embeds,
                 "adapter_bd",
                 (bsz, total_layers, cfg.adapter_size),
             )
             # adapter bias up
             generated_parameter_dict["adapter_bu"] = generate_parameter(
-                self.adapter_bias_up_gen, sum_embeds, "adapter_bu", (-1, total_layers, cfg.emb_dim)
+                self.adapter_bias_up_gen, self.adapter_bias_up_norm, sum_embeds, "adapter_bu", (-1, total_layers, cfg.emb_dim)
             )
         if cfg.use_prefix:
             # prefix key
             generated_parameter_dict["prefix_key"] = generate_parameter(
                 self.prefix_key_gen,
+                self.prefix_key_norm,
                 sum_embeds,
                 "prefix_key",
                 (bsz, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim),
@@ -498,6 +393,7 @@ class Hypernet(nn.Module):
             # prefix value
             generated_parameter_dict["prefix_value"] = generate_parameter(
                 self.prefix_value_gen,
+                self.prefix_value_norm,
                 sum_embeds,
                 "prefix_value",
                 (bsz, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim),
@@ -633,7 +529,6 @@ class HyperEncoderLayer(nn.Module):
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
         x = x + inputs
-        self.sow("intermediates", "enc_selfatt_act", x)
 
         # MLP block.
         lx = layers.LayerNorm(dtype=cfg.dtype, name="pre_mlp_layer_norm")(x)
@@ -646,7 +541,6 @@ class HyperEncoderLayer(nn.Module):
             name="mlp",
         )(lx, deterministic=deterministic)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
-        self.sow("intermediates", "transformer_state", y)
         # adapter block
         if cfg.use_adapter and not hyper:
             adapter_y = (
@@ -668,7 +562,6 @@ class HyperEncoderLayer(nn.Module):
         # final residual connection
         # TODO: scaled add?
         y = y + x
-        self.sow("intermediates", "enc_ffn_act", y)
         return y
 
 
@@ -711,41 +604,44 @@ class HyperDecoderLayer(nn.Module):
         l = max_decode_length if decode and max_decode_length else inputs.shape[-2]  # noqa: E741
         decoder_bias = self.relative_embedding(l, l, False)
 
-        # inputs: embedded inputs to the decoder with shape [batch, length, emb_dim]
-        x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
+        # no self-attention in hyperdecoder (costly)
+        if not hyper:
+            # inputs: embedded inputs to the decoder with shape [batch, length, emb_dim]
+            x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
 
-        # Self-attention block
-        x = LoraMultiHeadDotProductAttentionWithPrefix(
-            num_heads=cfg.num_heads,
-            dtype=cfg.dtype,
-            head_dim=cfg.head_dim,
-            dropout_rate=cfg.dropout_rate,
-            float32_logits=cfg.float32_attention_logits,
-            name="self_attention",
-            use_prefix=cfg.use_prefix,
-            lora_ranks=cfg.lora_ranks,
-        )(
-            x,
-            x,
-            decoder_mask,
-            decoder_bias,
-            lora_qa=lora_qa[:, 0] if q_rank else None,
-            lora_qb=lora_qb[:, 0] if q_rank else None,
-            lora_ka=lora_ka[:, 0] if k_rank else None,
-            lora_kb=lora_kb[:, 0] if k_rank else None,
-            lora_va=lora_va[:, 0] if v_rank else None,
-            lora_vb=lora_vb[:, 0] if v_rank else None,
-            lora_oa=lora_oa[:, 0] if o_rank else None,
-            lora_ob=lora_ob[:, 0] if o_rank else None,
-            prefix_key=prefix_key[:, 0] if cfg.use_prefix and prefix_key is not None else None,
-            prefix_value=prefix_value[:, 0] if cfg.use_prefix and prefix_value is not None else None,
-            deterministic=deterministic,
-            decode=decode,
-            use_gen=not hyper,
-        )
-        x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
-        x = x + inputs
-        self.sow("intermediates", "dec_selfatt_act", x)
+            # Self-attention block
+            x = LoraMultiHeadDotProductAttentionWithPrefix(
+                num_heads=cfg.num_heads,
+                dtype=cfg.dtype,
+                head_dim=cfg.head_dim,
+                dropout_rate=cfg.dropout_rate,
+                float32_logits=cfg.float32_attention_logits,
+                name="self_attention",
+                use_prefix=cfg.use_prefix,
+                lora_ranks=cfg.lora_ranks,
+            )(
+                x,
+                x,
+                decoder_mask,
+                decoder_bias,
+                lora_qa=lora_qa[:, 0] if q_rank else None,
+                lora_qb=lora_qb[:, 0] if q_rank else None,
+                lora_ka=lora_ka[:, 0] if k_rank else None,
+                lora_kb=lora_kb[:, 0] if k_rank else None,
+                lora_va=lora_va[:, 0] if v_rank else None,
+                lora_vb=lora_vb[:, 0] if v_rank else None,
+                lora_oa=lora_oa[:, 0] if o_rank else None,
+                lora_ob=lora_ob[:, 0] if o_rank else None,
+                prefix_key=prefix_key[:, 0] if cfg.use_prefix and prefix_key is not None else None,
+                prefix_value=prefix_value[:, 0] if cfg.use_prefix and prefix_value is not None else None,
+                deterministic=deterministic,
+                decode=decode,
+                use_gen=not hyper,
+            )
+            x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
+            x = x + inputs
+        else:
+            x = inputs
 
         # Encoder-Decoder block.
         y = layers.LayerNorm(dtype=cfg.dtype, name="pre_cross_attention_layer_norm")(x)
@@ -777,7 +673,6 @@ class HyperDecoderLayer(nn.Module):
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         y = y + x
-        self.sow("intermediates", "dec_crossatt_act", y)
 
         # MLP block.
         lz = layers.LayerNorm(dtype=cfg.dtype, name="pre_mlp_layer_norm")(y)
@@ -799,7 +694,6 @@ class HyperDecoderLayer(nn.Module):
                 ]
             )
             adapter_z = nn.gelu(adapter_z)
-            self.sow("intermediates", "adapter_activations", adapter_z)
             adapter_z = (
                 lax.batch_matmul(adapter_z, adapter_wu)
                 + adapter_bu[
@@ -811,7 +705,6 @@ class HyperDecoderLayer(nn.Module):
             # TODO: scaled add?
             z = z + adapter_z
         z = z + y
-        self.sow("intermediates", "dec_ffn_act", z)
         return z
 
 
@@ -988,10 +881,11 @@ class HyperTransformer(nn.Module):
                 None,
             ), "lora_ranks must be None if not using lora"
 
+        
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)
         self.hyper = Hypernet(
-            encoder=self.encoder, decoder=self.decoder, config=cfg, shared_embedding=self.shared_embedding
+            underlying_encoder=self.encoder, underlying_decoder=self.decoder, config=cfg, shared_embedding=self.shared_embedding
         )
 
     def encode(

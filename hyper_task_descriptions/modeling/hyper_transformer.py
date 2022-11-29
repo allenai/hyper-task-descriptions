@@ -749,21 +749,6 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             cosine_loss=cos_loss,
             cosine_truth=cosine_truth,
         )
-        if "intermediates" in mod_vars and self.module.config.use_instructions:
-            for name in mod_vars["intermediates"]["hyper"]:
-                if name != "features":
-                    metrics.update(self._compute_mean_std(mod_vars["intermediates"]["hyper"][name][0], name))
-            # encoder run twice, take second run.
-            for layer in mod_vars["intermediates"]["encoder"]:
-                for name in mod_vars["intermediates"]["encoder"][layer]:
-                    metrics.update(
-                        self._compute_mean_std(mod_vars["intermediates"]["encoder"][layer][name][1], f"{layer}_{name}")
-                    )
-            for layer in mod_vars["intermediates"]["decoder"]:
-                for name in mod_vars["intermediates"]["decoder"][layer]:
-                    metrics.update(
-                        self._compute_mean_std(mod_vars["intermediates"]["decoder"][layer][name][0], f"{layer}_{name}")
-                    )
         return loss, metrics
 
     def _compute_mean_std(
