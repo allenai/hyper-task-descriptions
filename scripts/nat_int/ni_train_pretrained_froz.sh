@@ -19,17 +19,29 @@ python3 -m t5x.train \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
+<<<<<<<< HEAD:scripts/nat_int/ni_train_pretrained_froz.sh
   --gin_file="partial_train_adafactor_dual.gin" \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=16 \
+========
+  --gin_file="partial_train_adafactor.gin" \
+  --gin_file="full_restore.gin" \
+  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
+  --gin.USE_CACHED_TASKS=True \
+  --gin.trainer.Trainer.num_microbatches=8 \
+>>>>>>>> 15ba926e6af2364b80850490e0073d0d0b737950:scripts/nat_int/ni_train_pretrained.sh
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=$4 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
+<<<<<<<< HEAD:scripts/nat_int/ni_train_pretrained_froz.sh
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\"
 #\"gs://hamishi-us-bucket/$2/model/$3\"
+========
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/$2/model/$3\"
+>>>>>>>> 15ba926e6af2364b80850490e0073d0d0b737950:scripts/nat_int/ni_train_pretrained.sh
 
 echo "Training done. Now evaluating all checkpoints..."
 

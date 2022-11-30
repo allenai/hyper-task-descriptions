@@ -31,6 +31,7 @@ python3 -m t5x.train \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/$2/model/$3\"
 
+
 echo "Training done. Now evaluating all checkpoints..."
 
 EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval/"

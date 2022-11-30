@@ -472,7 +472,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         adaptations = self.module.apply(
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
-        if self.module.config.use_instruction_embedding:
+        if self.module.config.use_fusion_in_decoder:
             instruction_embedding = adaptations.pop("instruction_embedding")
             #adaptations["hyper_encoder_input_tokens"] = hyper_inputs
 
@@ -500,7 +500,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             enable_dropout=False,
             method=self.module.encode,
         )
-        if self.module.config.use_instruction_embedding:
+        if self.module.config.use_fusion_in_decoder:
             encoded = jnp.concatenate([instruction_embedding, encoded], axis=1)
             inputs = jnp.concatenate([hyper_inputs, inputs], axis=1)
         encoded_inputs = decoding.flat_batch_beam_expand(
