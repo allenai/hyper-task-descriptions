@@ -474,7 +474,7 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
         )
         if self.module.config.use_fusion_in_decoder:
             instruction_embedding = adaptations.pop("instruction_embedding")
-            #adaptations["hyper_encoder_input_tokens"] = hyper_inputs
+            # adaptations["hyper_encoder_input_tokens"] = hyper_inputs
 
         batch_adaptions = {
             a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None

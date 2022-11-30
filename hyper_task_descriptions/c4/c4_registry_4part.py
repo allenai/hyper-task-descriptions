@@ -65,7 +65,9 @@ def pack_hypertune(ds, sequence_length, pad_id=0):
             dtype=tf.int32,
         )
         # '1' as eos to mark end of first part of input
-        hyper_inputs = tf.concat([example["targets"][:split_point_1], [1], example["targets"][split_point_3:]], axis=0)
+        hyper_inputs = tf.concat(
+            [example["targets"][:split_point_1], [1], example["targets"][split_point_3:]], axis=0
+        )
         inputs = example["targets"][split_point_1:split_point_2]
         targets = example["targets"][split_point_2:split_point_3]
 
