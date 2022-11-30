@@ -173,7 +173,7 @@ smmap==5.0.0
 ssh-import-id==5.10
 streamlit==0.82.0
 t5 @ git+https://github.com/google-research/text-to-text-transfer-transformer.git@733428af1c961e09ea0b7292ad9ac9e0e001f8a5
-t5x @ git+https://github.com/google-research/t5x@3282da46b4a7e46bc17b96cdb6673a4dd812a1b6#egg=t5x --no-deps
+t5x @ git+https://github.com/google-research/t5x@3282da46b4a7e46bc17b96cdb6673a4dd812a1b6#egg=t5x
 tabulate==0.9.0
 tenacity==8.1.0
 tensorboard==2.10.1
