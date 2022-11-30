@@ -210,11 +210,6 @@ tqdm==4.64.1
 transformers==4.23.1
 Twisted==18.9.0
 typing-extensions==4.4.0
-tzdata==2022.6
-tzlocal==4.2
-ubuntu-advantage-tools==20.3
-ufw==0.36
-unattended-upgrades==0.1
 uritemplate==3.0.1
 urllib3==1.26.4
 validators==0.20.0
