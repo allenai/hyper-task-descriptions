@@ -1,8 +1,8 @@
 ################################
 ###### Core dependencies #######
 ################################
-t5 @ git+https://github.com/google-research/text-to-text-transfer-transformer.git
-git+https://github.com/google-research/t5x.git
+t5 @ git+https://github.com/google-research/text-to-text-transfer-transformer.git@2ce1574a0c2f5ed65a08e87cc38ad8ceb222b239
+git+https://github.com/google-research/t5x.git@89f5a616d5031e99915b5c065302dacefeb049b8
 promptsource
 transformers==4.21.3
 tensorflow==2.9.0 # 2.9 has tpu issues
