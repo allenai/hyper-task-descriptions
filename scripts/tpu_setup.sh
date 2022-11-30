@@ -1,23 +1,10 @@
 export PYTHONPATH=${PYTHONPATH}:${PWD}
 # setup t5x (important)
-git clone --branch=main https://github.com/google-research/t5x # TODO: pin to specific commit.
+git clone --branch=main https://github.com/google-research/t5x@3282da46b4a7e46bc17b96cdb6673a4dd812a1b6
 cd t5x
 python3 -m pip install -e '.[tpu]' -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 # install promptsource, and fix the seqio dependency
-python3 -m pip install promptsource
-# i use a new feature in t5.data
-python3 -m pip uninstall -y t5
-python3 -m pip install -U git+https://github.com/google-research/text-to-text-transfer-transformer.git
-# use a compatible version of optax
-python3 -m pip uninstall -y optax
-python3 -m pip install -U optax==0.1.2
-# custom fixed seqio
-python3 -m pip uninstall -y seqio seqio-nightly
-python3 -m pip install git+https://github.com/hamishivi/seqio.git
-
-# I've had some issues with tensorflow. these versions seem to work
-python3 -m pip install -U tensorflow==2.10.0
-python3 -m pip install -U tensorflow-text==2.10.0
+python3 -m pip install -r requirements.txt
 echo "----- ALL DEPENDENCIES INSTALLED -----"
 # next, we cache the tokenizers / HF splits used so we don't have to load them later.
 # This can take ~15 minutes.
