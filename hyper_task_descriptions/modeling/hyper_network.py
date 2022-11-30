@@ -345,7 +345,10 @@ class Hypernet(nn.Module):
                 start, end = self.component_2_id[component_id]
                 # reshape to collapse the components into one blob
                 inputs = inputs[:, :, start:end]
-            parameters = param_gen(layer_norm(inputs), deterministic=deterministic)
+            # layernorm for hypertune
+            if cfg.layer_embedding_method == "decoder":
+                inputs = layer_norm(inputs)
+            parameters = param_gen(inputs, deterministic=deterministic)
             parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             return parameters
 

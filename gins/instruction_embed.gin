@@ -6,4 +6,3 @@ hyper_network.HyperT5Config:
   use_prefix = True
   use_fusion_in_decoder = True
   use_linear = False
-  hn_norm = False

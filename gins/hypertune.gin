@@ -4,6 +4,7 @@ hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
 hyper_network.HyperT5Config:
   use_adapter = False
   use_prefix = True
+  use_fusion_in_decoder = False
   layer_embedding_method = "decoder"
 
 # we restore hypernetwork weights from pretrained model
