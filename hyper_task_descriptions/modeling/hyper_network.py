@@ -61,7 +61,6 @@ class HyperT5Config(T5Config):
     lora_ranks: tuple = (None, None, None, None)
     use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
-    hn_norm: bool = False
 
 
 # create our component id dict
@@ -347,13 +346,7 @@ class Hypernet(nn.Module):
                 # reshape to collapse the components into one blob
                 inputs = inputs[:, :, start:end]
             parameters = param_gen(layer_norm(inputs), deterministic=deterministic)
-            if not cfg.hn_norm:
-                parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
-            else:
-                # inspired by polytropon
-                parameters = (parameters / (parameters.sum(-1)[:, :, :, None] + 1e-6)).reshape(
-                    shape
-                )
+            parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
             return parameters
 
         if cfg.use_fusion_in_decoder:
