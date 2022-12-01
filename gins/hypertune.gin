@@ -17,8 +17,8 @@ utils.RestoreCheckpointConfig:
   assignment_map = (
       # for some reason, we get non-partitioned dict entries. this hacks this by mapping
       # them to none. I suspect this means the hypernet has its optimizer states reset...
-      ('(.*)/param_states/hyper_encoder/(.*)/(scale|kernel|rel_embedding)$', None),
-      ('(.*)/param_states/hyper_decoder/(.*)/(scale|kernel|rel_embedding)$', None),
+      ('(.*)/param_states/(encoder|hyper_encoder)/(.*)/(scale|kernel|rel_embedding)$', None),
+      ('(.*)/param_states/(decoder|hyper_decoder)/(.*)/(scale|kernel|rel_embedding)$', None),
       # regular restore, using groups
       ('(.*)/(hyper/hyper_encoder|encoder)/(.*)', r'\1/encoder/\3'),
       ('(.*)/(hyper/hyper_decoder|decoder)/(.*)', r'\1/decoder/\3'),
