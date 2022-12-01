@@ -32,9 +32,12 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_search_paths="gins" \
     --gin_file="hyper_xl.gin" \
     --gin_file="instruction_embed.gin" \
-    --gin_file="hypertune.gin" \
     --gin_file="ni_eval.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
+    --gin.hyper_network.HyperT5Config.use_adapter=False \
+    --gin.hyper_network.HyperT5Config.use_prefix=True \
+    --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
+    --gin.hyper_network.HyperT5Config.layer_embedding_method=\"decoder\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
     --gin.utils.DatasetConfig.split=\"test\" \
