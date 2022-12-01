@@ -83,7 +83,7 @@ def pack_hypertune(ds, sequence_length, pad_id=0):
 
 seqio.TaskRegistry.add(
     "c4_pretrain",
-    source=seqio.TfdsDataSource(tfds_name="c4/en:3.0.1", splits=["train", "validation"]),
+    source=seqio.TfdsDataSource(tfds_name="c4/en:3.1.0", splits=["train", "validation"]),
     preprocessors=[
         functools.partial(
             preprocessors.rekey,
