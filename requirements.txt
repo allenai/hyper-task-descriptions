@@ -134,7 +134,6 @@ pyasn1-modules==0.2.8
 pybcj==1.0.1
 pycryptodomex==3.15.0
 pydeck==0.8.0b4
-pyflakes==2.5.0
 Pygments==2.13.0
 PyGObject==3.36.0
 PyHamcrest==1.9.0
