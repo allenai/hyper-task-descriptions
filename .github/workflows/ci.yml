@@ -78,7 +78,7 @@ jobs:
         run: |
           test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
           . .venv/bin/activate
-          pip install -e .[dev]
+          pip install --no-deps -e .[dev]
           echo "----- ALL DEPENDENCIES INSTALLED -----"
           # next, we cache the tokenizers / HF splits used so we don't have to load them later.
           # This can take ~15 minutes.
