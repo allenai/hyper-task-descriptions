@@ -109,6 +109,7 @@ def create_component_id_dict(cfg: HyperT5Config):
         num_components += 1  # avoid div by zero error in init
     return num_components, component_2_id
 
+
 class Hypernet(nn.Module):
     underlying_encoder: nn.Module
     underlying_decoder: nn.Module
@@ -206,23 +207,17 @@ class Hypernet(nn.Module):
                 self.lora_qa_norm = layers.LayerNorm(name="lora_qa_norm")
                 self.lora_qa_gen = hypernetwork(cfg.emb_dim, "lora_qa")
                 self.lora_qb_norm = layers.LayerNorm(name="lora_qb_norm")
-                self.lora_qb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "lora_qb"
-                )
+                self.lora_qb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_qb")
             if self.k_rank:
                 self.lora_ka_norm = layers.LayerNorm(name="lora_ka_norm")
                 self.lora_ka_gen = hypernetwork(cfg.emb_dim, "lora_ka")
                 self.lora_kb_norm = layers.LayerNorm(name="lora_kb_norm")
-                self.lora_kb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "lora_kb"
-                )
+                self.lora_kb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_kb")
             if self.v_rank:
                 self.lora_va_norm = layers.LayerNorm(name="lora_va_norm")
                 self.lora_va_gen = hypernetwork(cfg.emb_dim, "lora_va")
                 self.lora_vb_norm = layers.LayerNorm(name="lora_vb_norm")
-                self.lora_vb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "lora_vb"
-                )
+                self.lora_vb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_vb")
             if self.o_rank:
                 self.lora_oa_norm = layers.LayerNorm(name="lora_oa_norm")
                 self.lora_oa_gen = hypernetwork(cfg.emb_dim, "lora_oa")
