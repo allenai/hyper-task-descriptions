@@ -541,6 +541,7 @@ class HyperEncoderLayer(nn.Module):
             prefix_key=prefix_key,
             prefix_value=prefix_value,
             deterministic=deterministic,
+            use_prefix=cfg.use_prefix,
             use_gen=not hyper,
         )
         x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(x, deterministic=deterministic)
@@ -654,6 +655,7 @@ class HyperDecoderLayer(nn.Module):
                 else None,
                 deterministic=deterministic,
                 decode=decode,
+                use_prefix=cfg.use_prefix,
                 use_gen=not hyper,
             )
             x = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(
@@ -691,6 +693,7 @@ class HyperDecoderLayer(nn.Module):
             if cfg.use_prefix and prefix_value is not None
             else None,
             deterministic=deterministic,
+            use_prefix=cfg.use_prefix,
             use_gen=not hyper,
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
