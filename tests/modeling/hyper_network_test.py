@@ -46,10 +46,10 @@ class NetworkTest(parameterized.TestCase):
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
-        self.assertAlmostEqual(loss, 15.012905, delta=0.05)
+        self.assertAlmostEqual(loss, 15.268721, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
-        np.testing.assert_array_equal(predicted, [[3, 3, 3], [2, 6, 5]])
+        np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
-        np.testing.assert_allclose(scores["scores"], [-3.662391, -2.95831], rtol=1e-3)
+        np.testing.assert_allclose(scores["scores"], [-3.501333, -2.825637], rtol=1e-3)

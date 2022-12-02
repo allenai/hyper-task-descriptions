@@ -90,61 +90,24 @@ def create_component_id_dict(cfg: HyperT5Config):
     if cfg.use_lora:  # TODO: fix lora.
         q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
         if q_rank is not None:
-            num_components += q_rank * 2
             component_2_id["lora_qa"] = (num_components, num_components + q_rank)
             component_2_id["lora_qb"] = (num_components + q_rank, num_components + q_rank * 2)
+            num_components += q_rank * 2
         if k_rank is not None:
-            num_components += k_rank * 2
             component_2_id["lora_ka"] = (num_components, num_components + k_rank)
             component_2_id["lora_kb"] = (num_components + k_rank, num_components + k_rank * 2)
+            num_components += k_rank * 2
         if v_rank is not None:
-            num_components += v_rank * 2
             component_2_id["lora_va"] = (num_components, num_components + v_rank)
             component_2_id["lora_vb"] = (num_components + v_rank, num_components + v_rank * 2)
+            num_components += v_rank * 2
         if o_rank is not None:
-            num_components += o_rank * 2
             component_2_id["lora_oa"] = (num_components, num_components + o_rank)
             component_2_id["lora_ob"] = (num_components + o_rank, num_components + o_rank * 2)
+            num_components += o_rank * 2
     if num_components == 0:
         num_components += 1  # avoid div by zero error in init
     return num_components, component_2_id
-
-
-def create_component_id_dict_coarse(cfg: HyperT5Config):
-    num_components = 0
-    component_2_id = {}
-    if cfg.use_adapter:
-        num_components += 4
-        component_2_id["adapter_wd"] = 0
-        component_2_id["adapter_wu"] = 1
-        component_2_id["adapter_bd"] = 2
-        component_2_id["adapter_bu"] = 3
-    if cfg.use_prefix:
-        num_components += 2  # prefix key, value
-        component_2_id["prefix_key"] = num_components - 2
-        component_2_id["prefix_value"] = num_components - 1
-    if cfg.use_lora:
-        q_rank, k_rank, v_rank, o_rank = cfg.lora_ranks
-        if q_rank is not None:
-            num_components += 2  # q, k, v
-            component_2_id["lora_qa"] = num_components - 2
-            component_2_id["lora_qb"] = num_components - 1
-        if k_rank is not None:
-            num_components += 2
-            component_2_id["lora_ka"] = num_components - 2
-            component_2_id["lora_kb"] = num_components - 1
-        if v_rank is not None:
-            num_components += 2
-            component_2_id["lora_va"] = num_components - 2
-            component_2_id["lora_vb"] = num_components - 1
-        if o_rank is not None:
-            num_components += 2
-            component_2_id["lora_oa"] = num_components - 2
-            component_2_id["lora_ob"] = num_components - 1
-    if num_components == 0:
-        num_components += 1  # avoid div by zero error in init
-    return num_components, component_2_id
-
 
 class Hypernet(nn.Module):
     underlying_encoder: nn.Module
@@ -235,27 +198,36 @@ class Hypernet(nn.Module):
             self.prefix_value_norm = layers.LayerNorm(name="prefix_value_norm")
             self.prefix_value_gen = hypernetwork(output_dim, "prefix_value")
         if cfg.use_prompt:
+            self.prompt_norm = layers.LayerNorm(name="prompt_norm")
             self.prompt_gen = hypernetwork(cfg.emb_dim, "prompt")
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
         if cfg.use_lora:
             if self.q_rank:
-                self.lora_qa_gen = hypernetwork(cfg.emb_dim * self.q_rank, "lora_qa")
+                self.lora_qa_norm = layers.LayerNorm(name="lora_qa_norm")
+                self.lora_qa_gen = hypernetwork(cfg.emb_dim, "lora_qa")
+                self.lora_qb_norm = layers.LayerNorm(name="lora_qb_norm")
                 self.lora_qb_gen = hypernetwork(
-                    self.q_rank * cfg.num_heads * cfg.head_dim, "lora_qb"
+                    cfg.num_heads * cfg.head_dim, "lora_qb"
                 )
             if self.k_rank:
-                self.lora_ka_gen = hypernetwork(cfg.emb_dim * self.k_rank, "lora_ka")
+                self.lora_ka_norm = layers.LayerNorm(name="lora_ka_norm")
+                self.lora_ka_gen = hypernetwork(cfg.emb_dim, "lora_ka")
+                self.lora_kb_norm = layers.LayerNorm(name="lora_kb_norm")
                 self.lora_kb_gen = hypernetwork(
-                    self.k_rank * cfg.num_heads * cfg.head_dim, "lora_kb"
+                    cfg.num_heads * cfg.head_dim, "lora_kb"
                 )
             if self.v_rank:
-                self.lora_va_gen = hypernetwork(cfg.emb_dim * self.v_rank, "lora_va")
+                self.lora_va_norm = layers.LayerNorm(name="lora_va_norm")
+                self.lora_va_gen = hypernetwork(cfg.emb_dim, "lora_va")
+                self.lora_vb_norm = layers.LayerNorm(name="lora_vb_norm")
                 self.lora_vb_gen = hypernetwork(
-                    self.v_rank * cfg.num_heads * cfg.head_dim, "lora_vb"
+                    cfg.num_heads * cfg.head_dim, "lora_vb"
                 )
             if self.o_rank:
-                self.lora_oa_gen = hypernetwork(cfg.emb_dim * self.o_rank, "lora_oa")
-                self.lora_ob_gen = hypernetwork(self.o_rank * cfg.head_dim, "lora_ob")
+                self.lora_oa_norm = layers.LayerNorm(name="lora_oa_norm")
+                self.lora_oa_gen = hypernetwork(cfg.emb_dim, "lora_oa")
+                self.lora_ob_norm = layers.LayerNorm(name="lora_ob_norm")
+                self.lora_ob_gen = hypernetwork(cfg.head_dim, "lora_ob")
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -415,6 +387,7 @@ class Hypernet(nn.Module):
         if cfg.use_prompt:
             generated_parameter_dict["prompt"] = generate_parameter(
                 self.prompt_gen,
+                self.prompt_norm,
                 sum_embeds,
                 "prompt",
                 (bsz, total_layers, cfg.num_prompt_tokens, cfg.emb_dim),
@@ -425,12 +398,14 @@ class Hypernet(nn.Module):
             if self.q_rank:
                 generated_parameter_dict["lora_qa"] = generate_parameter(
                     self.lora_qa_gen,
+                    self.lora_qa_norm,
                     sum_embeds,
                     "lora_qa",
                     (bsz, total_layers, cfg.emb_dim, self.q_rank),
                 )
                 generated_parameter_dict["lora_qb"] = generate_parameter(
                     self.lora_qb_gen,
+                    self.lora_qb_norm,
                     sum_embeds,
                     "lora_qb",
                     (bsz, total_layers, self.q_rank, cfg.num_heads, cfg.head_dim),
@@ -438,12 +413,14 @@ class Hypernet(nn.Module):
             if self.k_rank:
                 generated_parameter_dict["lora_ka"] = generate_parameter(
                     self.lora_ka_gen,
+                    self.lora_ka_norm,
                     sum_embeds,
                     "lora_ka",
                     (bsz, total_layers, cfg.emb_dim, self.k_rank),
                 )
                 generated_parameter_dict["lora_kb"] = generate_parameter(
                     self.lora_kb_gen,
+                    self.lora_kb_norm,
                     sum_embeds,
                     "lora_kb",
                     (bsz, total_layers, self.k_rank, cfg.num_heads, cfg.head_dim),
@@ -451,12 +428,14 @@ class Hypernet(nn.Module):
             if self.v_rank:
                 generated_parameter_dict["lora_va"] = generate_parameter(
                     self.lora_va_gen,
+                    self.lora_va_norm,
                     sum_embeds,
                     "lora_va",
                     (bsz, total_layers, cfg.emb_dim, self.v_rank),
                 )
                 generated_parameter_dict["lora_vb"] = generate_parameter(
                     self.lora_vb_gen,
+                    self.lora_vb_norm,
                     sum_embeds,
                     "lora_vb",
                     (bsz, total_layers, self.v_rank, cfg.num_heads, cfg.head_dim),
@@ -464,12 +443,14 @@ class Hypernet(nn.Module):
             if self.o_rank:
                 generated_parameter_dict["lora_oa"] = generate_parameter(
                     self.lora_oa_gen,
+                    self.lora_oa_norm,
                     sum_embeds,
                     "lora_oa",
                     (bsz, total_layers, cfg.num_heads, cfg.head_dim, self.o_rank),
                 )
                 generated_parameter_dict["lora_ob"] = generate_parameter(
                     self.lora_ob_gen,
+                    self.lora_ob_norm,
                     sum_embeds,
                     "lora_ob",
                     (bsz, total_layers, self.o_rank, cfg.emb_dim),
