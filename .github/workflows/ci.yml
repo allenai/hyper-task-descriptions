@@ -79,16 +79,6 @@ jobs:
           test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
           . .venv/bin/activate
           pip install -e .[dev]
-          pip install git+https://github.com/google-research/t5x.git@89f5a616d5031e99915b5c065302dacefeb049b8
-          # install promptsource, and fix the seqio dependency
-          pip install promptsource
-          pip uninstall -y t5
-          pip install git+https://github.com/google-research/text-to-text-transfer-transformer.git@2ce1574a0c2f5ed65a08e87cc38ad8ceb222b239
-          # custom fixed seqio
-          pip uninstall -y seqio seqio-nightly
-          pip install git+https://github.com/hamishivi/seqio.git
-          pip install tensorflow==2.9.0
-          pip install tensorflow-text==2.9.0
           echo "----- ALL DEPENDENCIES INSTALLED -----"
           # next, we cache the tokenizers / HF splits used so we don't have to load them later.
           # This can take ~15 minutes.
