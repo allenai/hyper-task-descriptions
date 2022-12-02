@@ -4,6 +4,7 @@
 
 # Checks style, syntax, and other useful errors.
 flake8==6.0.0
+pyflakes==3.0.1
 
 # Static type checking
 mypy==0.971
