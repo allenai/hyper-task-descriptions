@@ -48,7 +48,7 @@ etils==0.9.0
 exceptiongroup==1.0.0
 filelock==3.0.12
 flatbuffers==22.10.26
-flax @ git+https://github.com/google/flax@05988d1e119b112273aa0a0828c33c742243d951
+git+https://github.com/google/flax@05988d1e119b112273aa0a0828c33c742243d951#egg=flax
 fonttools==4.38.0
 frozenlist==1.3.1
 fsspec==2022.10.0
@@ -113,7 +113,7 @@ oauth2client==4.1.3
 oauthlib==3.1.0
 opt-einsum==3.3.0
 optax==0.1.2
-orbax @ git+https://github.com/google/orbax@53a728befec4288e36a84e67232bb5aed368cb3b
+git+https://github.com/google/orbax@53a728befec4288e36a84e67232bb5aed368cb3b#egg=orbax
 packaging==20.9
 pandas==1.5.1
 pathspec==0.10.1
@@ -163,15 +163,15 @@ scikit-learn==1.1.3
 scipy>=1.6.3
 SecretStorage==2.3.1
 sentencepiece==0.1.97
-seqio @ git+https://github.com/hamishivi/seqio.git@21e2f883437ba587c99b2f8331f948ca626f2878
+git+https://github.com/hamishivi/seqio.git@21e2f883437ba587c99b2f8331f948ca626f2878#egg=seqio
 service-identity==18.1.0
 simplejson==3.16.0
 six==1.16.0
 smmap==5.0.0
 ssh-import-id==5.10
 streamlit==0.82.0
-t5 @ git+https://github.com/google-research/text-to-text-transfer-transformer.git@733428af1c961e09ea0b7292ad9ac9e0e001f8a5
-t5x @ git+https://github.com/google-research/t5x@3282da46b4a7e46bc17b96cdb6673a4dd812a1b6#egg=t5x
+git+https://github.com/google-research/text-to-text-transfer-transformer.git@733428af1c961e09ea0b7292ad9ac9e0e001f8a5#egg=t5
+git+https://github.com/google-research/t5x@3282da46b4a7e46bc17b96cdb6673a4dd812a1b6#egg=t5x
 tabulate==0.9.0
 tenacity==8.1.0
 tensorboard==2.10.1
