@@ -71,7 +71,7 @@ jobs:
           path: .venv
           key: ${{ env.CACHE_PREFIX }}-${{ env.WEEK_NUMBER }}-${{ runner.os }}-${{ env.RUNNER_ARCH }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('dev-requirements.txt') }}
           restore-keys: |
-            ${{ env.CACHE_PREFIX }}-${{ env.WEEK_NUMBER }}-${{ runner.os }}-${{ env.RUNNER_ARCH }}-${{ env.PYTHON_VERSION }}-cache
+            ${{ env.CACHE_PREFIX }}-${{ env.WEEK_NUMBER }}-${{ runner.os }}-${{ env.RUNNER_ARCH }}-${{ env.PYTHON_VERSION }}
 
       - name: Setup virtual environment (no cache hit)
         if: steps.virtualenv-cache.outputs.cache-hit != 'true'
@@ -79,6 +79,8 @@ jobs:
           test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
           . .venv/bin/activate
           pip install --no-deps -e .[dev]
+          pip install -r requirements.txt --no-deps
+          pip install -r dev-requirements.txt --no-deps
 
       - name: Setup virtual environment (cache hit)
         if: steps.virtualenv-cache.outputs.cache-hit == 'true'
@@ -86,6 +88,8 @@ jobs:
           test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
           . .venv/bin/activate
           pip install --no-deps -e .[dev]
+          pip install -r requirements.txt --no-deps
+          pip install -r dev-requirements.txt --no-deps
 
       - name: Show environment info
         run: |
