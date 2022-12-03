@@ -19,8 +19,9 @@ python3 -m t5x.train \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
+  --gin_file="train_only_hnet.gin" \
   --gin_file="hypertune.gin" \
-  --gin_file="restore_frozen_under.gin" \
+  --gin_file="full_restore.gin" \
   --gin.utils.create_learning_rate_scheduler.step_offset=$3 \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
