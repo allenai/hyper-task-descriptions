@@ -28,7 +28,7 @@ python3 -m t5x.train \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=$4 \
-  --gin.partitioning.PjitPartitioner.num_partitions=8 \
+  --gin.partitioning.PjitPartitioner.num_partitions=16 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_xl/checkpoint_1100000/\"
 
 
