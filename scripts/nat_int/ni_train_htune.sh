@@ -22,7 +22,6 @@ python3 -m t5x.train \
   --gin_file="train_only_hnet.gin" \
   --gin_file="hypertune.gin" \
   --gin_file="full_restore.gin" \
-  --gin.utils.create_learning_rate_scheduler.step_offset=$3 \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=16 \
