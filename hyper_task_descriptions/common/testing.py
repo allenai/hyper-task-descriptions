@@ -66,6 +66,7 @@ def get_test_model(
     use_lora=False,
     lora_ranks=(None, None, None, None),
     use_prefix=False,
+    use_adapter=False,
 ):
     import seqio
     from t5x import adafactor
@@ -93,6 +94,7 @@ def get_test_model(
         use_lora=use_lora,
         lora_ranks=lora_ranks,
         use_prefix=use_prefix,
+        use_adapter=use_adapter,
         use_instructions=use_instructions,
         hyperencoder_model="google/t5-small-lm-adapt",
     )

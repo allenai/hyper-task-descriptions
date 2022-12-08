@@ -299,6 +299,8 @@ class NetworkTest(parameterized.TestCase):
             num_decoder_layers=1,
             lora_ranks=(None, None, None, None),
             use_lora=False,
+            use_adapter=False,
+            use_prefix=False,
             use_instructions=False,
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
@@ -309,13 +311,13 @@ class NetworkTest(parameterized.TestCase):
         assert "lora_a" not in params["encoder"]["layers_0"]["attention"]["out"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
-        self.assertAlmostEqual(loss, 15.191198, delta=0.05)
+        self.assertAlmostEqual(loss, 15.268721, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
         np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
-        np.testing.assert_allclose(scores["scores"], [-3.43138, -2.780487], rtol=1e-3)
+        np.testing.assert_allclose(scores["scores"], [-3.501333, -2.825637], rtol=1e-3)
 
         # Sanity check
         vmodel = get_vanilla_test_model(
@@ -368,32 +370,32 @@ class NetworkTest(parameterized.TestCase):
         )
         params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
 
-        assert "lora_qa_gen" in params["hyper"]
-        assert "lora_va_gen" in params["hyper"]
+        assert "lora_qa" in params["hyper"]
+        assert "lora_va" in params["hyper"]
         if use_prefix:
-            assert "prefix_value_mlp" in params["hyper"]
-            assert "prefix_key_mlp" in params["hyper"]
+            assert "prefix_value" in params["hyper"]
+            assert "prefix_key" in params["hyper"]
         else:
-            assert "prefix_value_mlp" not in params["hyper"]
-            assert "prefix_key_mlp" not in params["hyper"]
+            assert "prefix_value" not in params["hyper"]
+            assert "prefix_key" not in params["hyper"]
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         if use_prefix:
-            self.assertAlmostEqual(loss, 15.097386, delta=0.05)
+            self.assertAlmostEqual(loss, 15.374477, delta=0.05)
         else:
-            self.assertAlmostEqual(loss, 15.479643, delta=0.05)
+            self.assertAlmostEqual(loss, 15.293617, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
         if use_prefix:
-            np.testing.assert_array_equal(predicted, [[9, 3, 3], [2, 6, 5]])
+            np.testing.assert_array_equal(predicted, [[9, 3, 3], [2, 6, 1]])
         else:
             np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
         if use_prefix:
-            np.testing.assert_allclose(scores["scores"], [-3.39137, -2.973788], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.740325, -3.203531], rtol=1e-3)
         else:
-            np.testing.assert_allclose(scores["scores"], [-3.436732, -2.862548], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.492951, -2.82867], rtol=1e-3)
 
 
 # if __name__ == "__main__":

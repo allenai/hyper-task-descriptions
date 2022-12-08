@@ -11,6 +11,5 @@ hyper_network.HyperT5Config:
   num_decoder_layers = 24
   head_dim = 64
   mlp_dim = 10240
-  adapter_size = 64
-  num_prefix_tokens = 15
-
+  adapter_size = 512
+  num_prefix_tokens = 30

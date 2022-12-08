@@ -10,9 +10,9 @@ python3 -m t5x.train \
   --gin_search_paths=gins \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
-  --gin_file="ni_train.gin" \
-  --gin_file="partial_train_adafactor.gin" \
-  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
+  --gin_file="ni_train_mixed.gin" \
+  --gin_file="partial_train_adafactor_dual.gin" \
+  --gin.MIXTURE_OR_TASK_NAME=\"c4_ni\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=16 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \

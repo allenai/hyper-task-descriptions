@@ -516,7 +516,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
 
         # Back to the original inputs dimensions.
 
-        o_rank = self.lora_ranks[3]
+        o_rank = lora_ranks[3]
         if o_rank:
             out = LoraDenseGeneral(
                 features=inputs_q.shape[-1],  # output dim is set to the input dim.

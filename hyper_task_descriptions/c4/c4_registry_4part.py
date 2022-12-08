@@ -36,28 +36,41 @@ words_path = os.path.join(
 words = [line.strip() for line in open(words_path, "r").readlines()]
 
 
-def pack_prefix_lm_encoder_decoder_random_inputs(ds, sequence_length, pad_id=0):
+def pack_hypertune(ds, sequence_length, pad_id=0):
     """Setup example for prefix lm. no packing becuz im lazy"""
 
-    @seqio.utils.map_over_dataset(num_seeds=2)
+    @seqio.utils.map_over_dataset(num_seeds=3)
     def create_example(example, seeds):
+        # we split the target into 4 parts:
+        # a -> hypernet
+        # b (short) -> encoder
+        # c (short) -> decoder
+        # d -> hypernet again.
+        # currently using random lengths
         split_point_1 = tf.random.stateless_uniform(
-            (), minval=1, maxval=example["targets"].shape[0] - 2, seed=seeds[0], dtype=tf.int32
+            (), minval=1, maxval=example["targets"].shape[0] - 4, seed=seeds[0], dtype=tf.int32
         )
         split_point_2 = tf.random.stateless_uniform(
             (),
             minval=split_point_1,
-            maxval=example["targets"].shape[0] - 2,
-            seed=seeds[0],
+            maxval=example["targets"].shape[0] - 3,
+            seed=seeds[1],
             dtype=tf.int32,
         )
-        hyper_inputs = example["targets"][:split_point_1]
+        split_point_3 = tf.random.stateless_uniform(
+            (),
+            minval=split_point_2,
+            maxval=example["targets"].shape[0] - 2,
+            seed=seeds[2],
+            dtype=tf.int32,
+        )
+        # '1' as eos to mark end of first part of input
+        hyper_inputs = tf.concat(
+            [example["targets"][:split_point_1], [1], example["targets"][split_point_3:]], axis=0
+        )
         inputs = example["targets"][split_point_1:split_point_2]
-        targets = example["targets"][split_point_2:]
+        targets = example["targets"][split_point_2:split_point_3]
 
-        # inputs = t5_vocab._encode_tf(random.choice(words))
-        # We want the length _after_ tokenization to be sequence_length['inputs']
-        # inputs = t5_vocab._encode_tf(' '.join(random.choices(words, k=sequence_length['inputs'] // 4)))
         return {
             "inputs": inputs,
             "hyper_inputs": hyper_inputs,
@@ -68,7 +81,6 @@ def pack_prefix_lm_encoder_decoder_random_inputs(ds, sequence_length, pad_id=0):
     return create_example(ds)
 
 
-# only compatible when we use the T5 encoder as our hypernetwork
 seqio.TaskRegistry.add(
     "c4_pretrain",
     source=seqio.TfdsDataSource(tfds_name="c4/en:3.1.0", splits=["train", "validation"]),
@@ -84,7 +96,7 @@ seqio.TaskRegistry.add(
         seqio.preprocessors.tokenize,
         seqio.CacheDatasetPlaceholder(),
         preprocessors.targets_for_prefix_lm_objective,
-        pack_prefix_lm_encoder_decoder_random_inputs,
+        pack_hypertune,
         seqio.preprocessors.append_eos,
     ],
     output_features={

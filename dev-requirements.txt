@@ -3,7 +3,10 @@
 ####################################
 
 # Checks style, syntax, and other useful errors.
-flake8==4.0.1
+flake8==6.0.0
+pyflakes==3.0.1
+pycodestyle==2.10.0
+mccabe==0.7.0
 
 # Static type checking
 mypy==0.971
