@@ -61,6 +61,7 @@ class HyperT5Config(T5Config):
     lora_ranks: tuple = (None, None, None, None)
     use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
+    hnet_layernorm: bool = False
 
 
 # create our component id dict
@@ -313,7 +314,7 @@ class Hypernet(nn.Module):
                 # reshape to collapse the components into one blob
                 inputs = inputs[:, :, start:end]
             # layernorm for hypertune
-            if cfg.layer_embedding_method == "decoder":
+            if cfg.layer_embedding_method == "decoder" or cfg.hnet_layernorm:
                 inputs = layer_norm(inputs)
             parameters = param_gen(inputs, deterministic=deterministic)
             parameters = parameters.reshape(shape) / jnp.sqrt(inputs.shape[-1])
