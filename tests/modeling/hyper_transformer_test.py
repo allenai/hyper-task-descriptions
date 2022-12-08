@@ -10,7 +10,6 @@ import tensorflow as tf
 from absl.testing import parameterized
 from flax import traverse_util
 from seqio.test_utils import assert_dataset, create_default_dataset
-from t5x import decoding
 
 from hyper_task_descriptions.common.testing import (
     HyperTaskDescriptionsTestCase,
@@ -22,6 +21,7 @@ from hyper_task_descriptions.modeling.hyper_transformer import (
     HyperEncDecFeatureConverter,
     HyperEncoderDecoderModel,
 )
+from t5x import decoding
 
 BATCH_SIZE, ENCODER_LEN, MAX_DECODE_LEN, EMBED_DIM, HYPER_ENCODER_LEN = 2, 3, 4, 5, 6
 

@@ -65,11 +65,12 @@ def get_test_model(
     use_instructions=True,
     use_lora=False,
     lora_ranks=(None, None, None, None),
+    use_ia3=False,
+    ia3_ranks=(None, None, None, None),
     use_prefix=False,
     use_adapter=False,
 ):
     import seqio
-    from t5x import adafactor
 
     from hyper_task_descriptions.modeling.hyper_network import (
         HyperT5Config,
@@ -78,6 +79,7 @@ def get_test_model(
     from hyper_task_descriptions.modeling.hyper_transformer import (
         HyperEncoderDecoderModel,
     )
+    from t5x import adafactor
 
     config = HyperT5Config(
         num_encoder_layers=num_encoder_layers,
@@ -93,6 +95,8 @@ def get_test_model(
         num_prefix_tokens=num_prefix_tokens,
         use_lora=use_lora,
         lora_ranks=lora_ranks,
+        use_ia3=use_ia3,
+        ia3_ranks=ia3_ranks,
         use_prefix=use_prefix,
         use_adapter=use_adapter,
         use_instructions=use_instructions,
@@ -115,6 +119,7 @@ def get_vanilla_test_model(
     num_decoder_layers=2,
 ):
     import seqio
+
     from t5x import adafactor
     from t5x.examples.t5.network import T5Config, Transformer
     from t5x.models import EncoderDecoderModel

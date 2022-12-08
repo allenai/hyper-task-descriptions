@@ -24,6 +24,8 @@ import jax.numpy as jnp
 from flax import linen as nn
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
+from typing_extensions import TypeAlias
+
 from t5x.examples.t5.layers import (
     DenseGeneral,
     _convert_to_activation_function,
@@ -32,7 +34,6 @@ from t5x.examples.t5.layers import (
     dot_product_attention,
     dynamic_vector_slice_in_dim,
 )
-from typing_extensions import TypeAlias
 
 # from flax.linen.partitioning import param_with_axes, with_sharding_constraint
 param_with_axes = nn_partitioning.param_with_axes

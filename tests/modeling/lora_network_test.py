@@ -2,8 +2,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from absl.testing import parameterized
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config, Transformer
 
 from hyper_task_descriptions.common.testing import (
     get_test_model,
@@ -17,6 +15,8 @@ from hyper_task_descriptions.modeling.hyper_network import (
     HyperT5Config,
     HyperTransformer,
 )
+from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config, Transformer
 
 
 class NetworkTest(parameterized.TestCase):
@@ -372,6 +372,10 @@ class NetworkTest(parameterized.TestCase):
 
         assert "lora_qa" in params["hyper"]
         assert "lora_va" in params["hyper"]
+
+        # Check initialization
+        assert params["hyper"]["lora_qb"]["wi"]["kernel"].sum() == 0
+
         if use_prefix:
             assert "prefix_value" in params["hyper"]
             assert "prefix_key" in params["hyper"]
@@ -393,9 +397,65 @@ class NetworkTest(parameterized.TestCase):
             np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
         if use_prefix:
-            np.testing.assert_allclose(scores["scores"], [-3.740325, -3.203531], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.765547, -3.206083], rtol=1e-3)
         else:
-            np.testing.assert_allclose(scores["scores"], [-3.492951, -2.82867], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.501333, -2.825637], rtol=1e-3)
+
+    def test_t5_1_1_hyper_lora_ia3(self):
+        np.random.seed(0)
+        batch_size, max_decode_len, input_len, hyper_input_len = 2, 3, 4, 5
+        batch = {
+            "encoder_input_tokens": np.random.randint(3, 10, size=(batch_size, input_len)),
+            "hyper_encoder_input_tokens": np.random.randint(
+                3, 10, size=(batch_size, hyper_input_len)
+            ),
+            "decoder_input_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
+            "decoder_target_tokens": np.random.randint(3, 10, size=(batch_size, max_decode_len)),
+        }
+        model = get_test_model(
+            emb_dim=13,
+            head_dim=16,
+            num_heads=8,
+            mlp_dim=32,
+            vocab_size=10,
+            num_encoder_layers=1,
+            num_decoder_layers=1,
+            num_prefix_tokens=1,
+            use_lora=True,
+            lora_ranks=(
+                4,
+                None,
+                4,
+                None,
+            ),
+            use_ia3=True,
+            ia3_ranks=(
+                None,
+                4,
+                4,
+                None,
+            ),
+            use_prefix=False,
+            use_adapter=False,
+        )
+        params = model.get_initial_variables(jax.random.PRNGKey(42), self.input_shapes)["params"]
+
+        assert "lora_qa" in params["hyper"]
+        assert "lora_va" in params["hyper"]
+        assert "ia3_ka" in params["hyper"]
+        assert "ia3_va" in params["hyper"]
+
+        assert "prefix_value" not in params["hyper"]
+        assert "prefix_key" not in params["hyper"]
+
+        loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
+        self.assertAlmostEqual(loss, 15.304657, delta=0.05)
+
+        predicted, scores = model.predict_batch_with_aux(params, batch)
+        # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
+        np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
+        # scores.shape = 2 (batch_size) (best option)
+        np.testing.assert_allclose(scores["scores"], [-3.501333, -2.825637], rtol=1e-4)
 
 
 # if __name__ == "__main__":

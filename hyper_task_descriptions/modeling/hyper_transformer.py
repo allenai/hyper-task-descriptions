@@ -27,11 +27,6 @@ from flax.core import scope as flax_scope
 
 # from flax.core.frozen_dict import freeze, unfreeze
 from seqio import FeatureConverter, non_padding_position, utils
-from t5x import decoding, losses
-from t5x import metrics as metrics_lib
-from t5x import optimizers
-from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
-from t5x.utils import override_params_axes_names
 
 # from transformers import FlaxT5EncoderModel
 from typing_extensions import TypeAlias
@@ -39,6 +34,11 @@ from typing_extensions import TypeAlias
 from hyper_task_descriptions.modeling.lora_partitioning import lora_axes_names_override
 from hyper_task_descriptions.modeling.losses import cosine_similarity_loss
 from hyper_task_descriptions.modeling.t5_partitioning import t5_axes_names_override
+from t5x import decoding, losses
+from t5x import metrics as metrics_lib
+from t5x import optimizers
+from t5x.models import DecodeFnCallable, EncoderDecoderModel, compute_base_metrics
+from t5x.utils import override_params_axes_names
 
 Array: TypeAlias = Union[np.ndarray, jnp.ndarray, jax.pxla.ShardedDeviceArray, tf.Tensor]
 if TYPE_CHECKING:
