@@ -4,16 +4,9 @@ from __gin__ import dynamic_registration
 from t5x import adafactor
 from t5x import optimizers
 from hyper_task_descriptions import utils as hyper_utils
-from hyper_task_descriptions import learning_rate_adafactor
 from flax import traverse_util
 
 # gin that allows partial training based on regex matching.
-
-# general defaults.
-learning_rate_adafactor.Adafactor:
-  decay_rate = 0.8
-  step_offset = 0
-  logical_factor_rules = @adafactor.standard_logical_factor_rules()
 
 # ------------------- Partial loading ------------------------------------------------
 OPTIMIZER = @optimizers.MultiOptimizer()
@@ -23,25 +16,13 @@ OPTIMIZER = @optimizers.MultiOptimizer()
 # for how to create multiple specialised instances of the same class.
 optimizers.MultiOptimizer:
   traversals_and_optimizers = ((@hyper/traverse_util.ModelParamTraversal(),
-                                @hyper/learning_rate_adafactor.Adafactor()),
-                                (@t5/traverse_util.ModelParamTraversal(),
-                                @t5/learning_rate_adafactor.Adafactor()),)
+                                @hyper/adafactor.Adafactor()),)
 
 # MultiOptimizer will match any parameter with a flattened name that
 # matches *any* of the regular expressions in the list.
 # hyper - we turn off param scaling, offset the step
-hyper/learning_rate_adafactor.Adafactor:
-  multiply_by_parameter_scale = True
+hyper/adafactor.Adafactor:
   step_offset = 1100000
-  learning_rate = 1e-3
 hyper/traverse_util.ModelParamTraversal:
   filter_fn = @hyper/hyper_utils.match_any()
 hyper/hyper_utils.match_any.regexes = [".*hyper.*"]
-# hyper encoder - state is fresh so reset step
-# nuked
-# nothing special for this one
-t5/learning_rate_adafactor.Adafactor:
-  learning_rate = 1e-3
-t5/traverse_util.ModelParamTraversal:
-  filter_fn = @t5/hyper_utils.inverse_match_any()
-t5/hyper_utils.inverse_match_any.regexes = [".*/hyper.*"]

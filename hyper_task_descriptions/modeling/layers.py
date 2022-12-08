@@ -103,6 +103,7 @@ class MlpBlock(nn.Module):
     """
 
     intermediate_dim: int = 2048
+    output_dim: Optional[int] = None  # by default we preserve the input dim
     activations: Sequence[Union[str, Callable]] = ("relu",)
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "truncated_normal")
     intermediate_dropout_rate: float = 0.1
@@ -139,7 +140,7 @@ class MlpBlock(nn.Module):
         # x = with_sharding_constraint(x, ('batch', 'length', 'mlp'))
 
         output = DenseGeneral(
-            inputs.shape[-1],
+            inputs.shape[-1] if self.output_dim is None else self.output_dim,
             dtype=self.dtype,
             kernel_init=self.kernel_init,
             kernel_axes=("mlp", "embed"),

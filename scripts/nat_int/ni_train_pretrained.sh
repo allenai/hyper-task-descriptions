@@ -19,17 +19,17 @@ python3 -m t5x.train \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
-  --gin_file="partial_train_adafactor.gin" \
   --gin_file="full_restore.gin" \
-  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
+  --gin.MIXTURE_OR_TASK_NAME=\"natural_instruction_positive_example_hyper\" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.trainer.Trainer.num_microbatches=8 \
+  --gin.trainer.Trainer.num_microbatches=16 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=$4 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
   --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/$2/model/$3\"
+
 
 echo "Training done. Now evaluating all checkpoints..."
 
@@ -39,7 +39,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="hyper_xl.gin" \
     --gin_file="instruction_embed.gin" \
     --gin_file="ni_eval.gin" \
-    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
+    --gin.MIXTURE_OR_TASK_NAME=\"natural_instruction_positive_example_hyper\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
     --gin.utils.DatasetConfig.split=\"test\" \

@@ -473,8 +473,8 @@ class HyperEncoderDecoderModel(EncoderDecoderModel):
             {"params": params}, hyper_inputs, enable_dropout=False, method=self.module.hyperencode
         )
         if self.module.config.use_fusion_in_decoder:
-            instruction_embedding = adaptations["instruction_embedding"]
-            adaptations["hyper_encoder_input_tokens"] = hyper_inputs
+            instruction_embedding = adaptations.pop("instruction_embedding")
+            # adaptations["hyper_encoder_input_tokens"] = hyper_inputs
 
         batch_adaptions = {
             a_name: decoding.flat_batch_beam_expand(a, num_decodes) if a is not None else None
@@ -711,7 +711,7 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
     ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, metrics_lib.MetricsMap]]:
         """"""
         logits, mod_vars = self._compute_logits(params, batch, dropout_rng, mutable="intermediates")
-        if "intermediates" in mod_vars:
+        if "intermediates" in mod_vars and self.module.config.use_instructions:
             # note we should only have one hypernet feature (hypernet called once)
             hypernet_feats = mod_vars["intermediates"]["hyper"]["features"][0]
             # construct the contrastive loss truth
@@ -750,6 +750,21 @@ class HyperEncoderDecoderContrastiveModel(HyperEncoderDecoderModel):
             cosine_truth=cosine_truth,
         )
         return loss, metrics
+
+    def _compute_mean_std(
+        self,
+        values: jnp.ndarray,
+        name: str,
+    ):
+        bsz = values.shape[0]
+        values = values.reshape(bsz, -1)
+        mean = jnp.mean(values, axis=1)
+        std = jnp.std(values, axis=1)
+        # return the average of the means and stds per batch item
+        return {
+            f"means/{name}_mean": metrics_lib.AveragePerStep(total=mean.mean()),
+            f"stds/{name}_std": metrics_lib.AveragePerStep(total=std.mean()),
+        }
 
     def _compute_metrics(
         self,
