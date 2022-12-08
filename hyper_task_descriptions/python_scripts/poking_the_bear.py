@@ -6,9 +6,8 @@ import argparse
 
 import jax
 from jax import numpy as jnp
-from transformers import AutoTokenizer, FlaxT5EncoderModel, T5EncoderModel
-
 from t5x import checkpoints
+from transformers import AutoTokenizer, FlaxT5EncoderModel, T5EncoderModel
 
 
 def extract_roberta_model(t5x_checkpoint_path, flax_dump_folder_path):

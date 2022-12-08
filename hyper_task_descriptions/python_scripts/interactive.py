@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from flax import traverse_util
+from t5x import optimizers, partitioning, utils
 
 from hyper_task_descriptions import learning_rate_adafactor
 from hyper_task_descriptions import utils as hyper_utils
@@ -16,7 +17,6 @@ from hyper_task_descriptions.modeling.hyper_network import (
 from hyper_task_descriptions.modeling.hyper_transformer import (
     HyperEncoderDecoderContrastiveModel,
 )
-from t5x import optimizers, partitioning, utils
 
 # You'll need permissions to access the checkpoint
 checkpoint_path = "checkpoint_1109000"

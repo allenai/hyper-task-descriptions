@@ -7,9 +7,6 @@ import numpy as np
 from flax import linen as nn
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
-from typing_extensions import TypeAlias
-
-from hyper_task_descriptions.modeling.layers import Initializer
 from t5x.examples.t5.layers import (
     DenseGeneral,
     _canonicalize_tuple,
@@ -19,6 +16,9 @@ from t5x.examples.t5.layers import (
     dot_product_attention,
     dynamic_vector_slice_in_dim,
 )
+from typing_extensions import TypeAlias
+
+from hyper_task_descriptions.modeling.layers import Initializer
 
 param_with_axes = nn_partitioning.param_with_axes
 with_sharding_constraint = nn_partitioning.with_sharding_constraint

@@ -22,14 +22,14 @@ from flax import linen as nn
 from flax import struct
 from flax.linen import partitioning as nn_partitioning
 from jax import lax
+from t5x.examples.t5 import layers
+from t5x.examples.t5.network import T5Config
 from typing_extensions import TypeAlias
 
 from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
-from t5x.examples.t5 import layers
-from t5x.examples.t5.network import T5Config
 
 param_with_axes = nn_partitioning.param_with_axes
 with_sharding_constraint = nn_partitioning.with_sharding_constraint
