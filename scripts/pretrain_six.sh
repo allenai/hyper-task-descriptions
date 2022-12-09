@@ -9,6 +9,7 @@ python3 -m t5x.train \
   --gin_file="instruction_embed.gin" \
   --gin_file="pretrain_6part.gin" \
   --gin_file="partial_train_adafactor.gin" \
+  --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=8 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
