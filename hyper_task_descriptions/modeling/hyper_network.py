@@ -59,6 +59,8 @@ class HyperT5Config(T5Config):
     num_prefix_tokens: int = 30
     use_lora: bool = False
     lora_ranks: tuple = (None, None, None, None)
+    use_ia3: bool = False
+    ia3_ranks: tuple = (None, None, None, None)
     use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
     hnet_layernorm: bool = False
@@ -106,6 +108,37 @@ def create_component_id_dict(cfg: HyperT5Config):
             component_2_id["lora_oa"] = (num_components, num_components + o_rank)
             component_2_id["lora_ob"] = (num_components + o_rank, num_components + o_rank * 2)
             num_components += o_rank * 2
+
+    if cfg.use_ia3:  # TODO: fix lora.
+        q_ia3_rank, k_ia3_rank, v_ia3_rank, o_ia3_rank = cfg.ia3_ranks
+        if q_ia3_rank is not None:
+            component_2_id["ia3_qa"] = (num_components, num_components + q_ia3_rank)
+            component_2_id["ia3_qb"] = (
+                num_components + q_ia3_rank,
+                num_components + q_ia3_rank * 2,
+            )
+            num_components += q_ia3_rank * 2
+        if k_ia3_rank is not None:
+            component_2_id["ia3_ka"] = (num_components, num_components + k_ia3_rank)
+            component_2_id["ia3_kb"] = (
+                num_components + k_ia3_rank,
+                num_components + k_ia3_rank * 2,
+            )
+            num_components += k_ia3_rank * 2
+        if v_ia3_rank is not None:
+            component_2_id["ia3_va"] = (num_components, num_components + v_ia3_rank)
+            component_2_id["ia3_vb"] = (
+                num_components + v_ia3_rank,
+                num_components + v_ia3_rank * 2,
+            )
+            num_components += v_ia3_rank * 2
+        if o_ia3_rank is not None:
+            component_2_id["ia3_oa"] = (num_components, num_components + o_ia3_rank)
+            component_2_id["ia3_ob"] = (
+                num_components + o_ia3_rank,
+                num_components + o_ia3_rank * 2,
+            )
+            num_components += o_ia3_rank * 2
     if num_components == 0:
         num_components += 1  # avoid div by zero error in init
     return num_components, component_2_id
@@ -173,7 +206,7 @@ class Hypernet(nn.Module):
                 name="instruction_embed",
             )
 
-        def hypernetwork(output, name):
+        def hypernetwork(output, name, **kwargs):
             return MlpBlock(
                 intermediate_dim=cfg.emb_dim,  # same size as model
                 output_dim=output,
@@ -181,6 +214,7 @@ class Hypernet(nn.Module):
                 intermediate_dropout_rate=0.0,
                 dtype=cfg.dtype,
                 name=name,
+                **kwargs,
             )
 
         if cfg.use_adapter:
@@ -202,28 +236,69 @@ class Hypernet(nn.Module):
         if cfg.use_prompt:
             self.prompt_norm = layers.LayerNorm(name="prompt_norm")
             self.prompt_gen = hypernetwork(cfg.emb_dim, "prompt")
+
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
         if cfg.use_lora:
             if self.q_rank:
                 self.lora_qa_norm = layers.LayerNorm(name="lora_qa_norm")
                 self.lora_qa_gen = hypernetwork(cfg.emb_dim, "lora_qa")
                 self.lora_qb_norm = layers.LayerNorm(name="lora_qb_norm")
-                self.lora_qb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_qb")
+                self.lora_qb_gen = hypernetwork(
+                    cfg.num_heads * cfg.head_dim, "lora_qb", kernel_init=nn.initializers.zeros
+                )
             if self.k_rank:
                 self.lora_ka_norm = layers.LayerNorm(name="lora_ka_norm")
                 self.lora_ka_gen = hypernetwork(cfg.emb_dim, "lora_ka")
                 self.lora_kb_norm = layers.LayerNorm(name="lora_kb_norm")
-                self.lora_kb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_kb")
+                self.lora_kb_gen = hypernetwork(
+                    cfg.num_heads * cfg.head_dim, "lora_kb", kernel_init=nn.initializers.zeros
+                )
             if self.v_rank:
                 self.lora_va_norm = layers.LayerNorm(name="lora_va_norm")
                 self.lora_va_gen = hypernetwork(cfg.emb_dim, "lora_va")
                 self.lora_vb_norm = layers.LayerNorm(name="lora_vb_norm")
-                self.lora_vb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_vb")
+                self.lora_vb_gen = hypernetwork(
+                    cfg.num_heads * cfg.head_dim, "lora_vb", kernel_init=nn.initializers.zeros
+                )
             if self.o_rank:
                 self.lora_oa_norm = layers.LayerNorm(name="lora_oa_norm")
                 self.lora_oa_gen = hypernetwork(cfg.emb_dim, "lora_oa")
                 self.lora_ob_norm = layers.LayerNorm(name="lora_ob_norm")
-                self.lora_ob_gen = hypernetwork(cfg.head_dim, "lora_ob")
+                self.lora_ob_gen = hypernetwork(
+                    cfg.head_dim, "lora_ob", kernel_init=nn.initializers.zeros
+                )
+
+        # TODO: ia3 b params need to be with initializers ones.
+        self.q_ia3_rank, self.k_ia3_rank, self.v_ia3_rank, self.o_ia3_rank = cfg.ia3_ranks
+        if cfg.use_ia3:
+            if self.q_ia3_rank:
+                self.ia3_qa_norm = layers.LayerNorm(name="ia3_qa_norm")
+                self.ia3_qa_gen = hypernetwork(cfg.emb_dim, "ia3_qa")
+                self.ia3_qb_norm = layers.LayerNorm(name="ia3_qb_norm")
+                self.ia3_qb_gen = hypernetwork(
+                    cfg.num_heads * cfg.head_dim, "ia3_qb", kernel_init=nn.initializers.ones
+                )
+            if self.k_ia3_rank:
+                self.ia3_ka_norm = layers.LayerNorm(name="ia3_ka_norm")
+                self.ia3_ka_gen = hypernetwork(cfg.emb_dim, "ia3_ka")
+                self.ia3_kb_norm = layers.LayerNorm(name="ia3_kb_norm")
+                self.ia3_kb_gen = hypernetwork(
+                    cfg.num_heads * cfg.head_dim, "ia3_kb", kernel_init=nn.initializers.ones
+                )
+            if self.v_ia3_rank:
+                self.ia3_va_norm = layers.LayerNorm(name="ia3_va_norm")
+                self.ia3_va_gen = hypernetwork(cfg.emb_dim, "ia3_va")
+                self.ia3_vb_norm = layers.LayerNorm(name="ia3_vb_norm")
+                self.ia3_vb_gen = hypernetwork(
+                    cfg.num_heads * cfg.head_dim, "ia3_vb", kernel_init=nn.initializers.ones
+                )
+            if self.o_ia3_rank:
+                self.ia3_oa_norm = layers.LayerNorm(name="ia3_oa_norm")
+                self.ia3_oa_gen = hypernetwork(cfg.emb_dim, "ia3_oa")
+                self.ia3_ob_norm = layers.LayerNorm(name="ia3_ob_norm")
+                self.ia3_ob_gen = hypernetwork(
+                    cfg.head_dim, "ia3_ob", kernel_init=nn.initializers.ones
+                )
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -452,6 +527,68 @@ class Hypernet(nn.Module):
                     (bsz, total_layers, self.o_rank, cfg.emb_dim),
                 )
 
+        if cfg.use_ia3:
+            if self.q_ia3_rank:
+                generated_parameter_dict["ia3_qa"] = generate_parameter(
+                    self.ia3_qa_gen,
+                    self.ia3_qa_norm,
+                    sum_embeds,
+                    "ia3_qa",
+                    (bsz, total_layers, cfg.emb_dim, self.q_ia3_rank),
+                )
+                generated_parameter_dict["ia3_qb"] = generate_parameter(
+                    self.ia3_qb_gen,
+                    self.ia3_qb_norm,
+                    sum_embeds,
+                    "ia3_qb",
+                    (bsz, total_layers, self.q_ia3_rank, cfg.num_heads, cfg.head_dim),
+                )
+            if self.k_ia3_rank:
+                generated_parameter_dict["ia3_ka"] = generate_parameter(
+                    self.ia3_ka_gen,
+                    self.ia3_ka_norm,
+                    sum_embeds,
+                    "ia3_ka",
+                    (bsz, total_layers, cfg.emb_dim, self.k_ia3_rank),
+                )
+                generated_parameter_dict["ia3_kb"] = generate_parameter(
+                    self.ia3_kb_gen,
+                    self.ia3_kb_norm,
+                    sum_embeds,
+                    "ia3_kb",
+                    (bsz, total_layers, self.k_ia3_rank, cfg.num_heads, cfg.head_dim),
+                )
+            if self.v_ia3_rank:
+                generated_parameter_dict["ia3_va"] = generate_parameter(
+                    self.ia3_va_gen,
+                    self.ia3_va_norm,
+                    sum_embeds,
+                    "ia3_va",
+                    (bsz, total_layers, cfg.emb_dim, self.v_ia3_rank),
+                )
+                generated_parameter_dict["ia3_vb"] = generate_parameter(
+                    self.ia3_vb_gen,
+                    self.ia3_vb_norm,
+                    sum_embeds,
+                    "ia3_vb",
+                    (bsz, total_layers, self.v_ia3_rank, cfg.num_heads, cfg.head_dim),
+                )
+            if self.o_ia3_rank:
+                generated_parameter_dict["ia3_oa"] = generate_parameter(
+                    self.ia3_oa_gen,
+                    self.ia3_oa_norm,
+                    sum_embeds,
+                    "ia3_oa",
+                    (bsz, total_layers, cfg.num_heads, cfg.head_dim, self.o_ia3_rank),
+                )
+                generated_parameter_dict["ia3_ob"] = generate_parameter(
+                    self.ia3_ob_gen,
+                    self.ia3_ob_norm,
+                    sum_embeds,
+                    "ia3_ob",
+                    (bsz, total_layers, self.o_ia3_rank, cfg.emb_dim),
+                )
+
         return generated_parameter_dict
 
 
@@ -479,6 +616,14 @@ class HyperEncoderLayer(nn.Module):
         lora_vb=None,
         lora_oa=None,
         lora_ob=None,
+        ia3_qa=None,
+        ia3_qb=None,
+        ia3_ka=None,
+        ia3_kb=None,
+        ia3_va=None,
+        ia3_vb=None,
+        ia3_oa=None,
+        ia3_ob=None,
         encoder_mask=None,
         deterministic=False,
         hyper=False,
@@ -502,6 +647,7 @@ class HyperEncoderLayer(nn.Module):
             name="attention",
             use_prefix=cfg.use_prefix,
             lora_ranks=cfg.lora_ranks,
+            ia3_ranks=cfg.ia3_ranks,
         )(
             x,
             x,
@@ -515,6 +661,14 @@ class HyperEncoderLayer(nn.Module):
             lora_vb=lora_vb,
             lora_oa=lora_oa,
             lora_ob=lora_ob,
+            ia3_qa=ia3_qa,
+            ia3_qb=ia3_qb,
+            ia3_ka=ia3_ka,
+            ia3_kb=ia3_kb,
+            ia3_va=ia3_va,
+            ia3_vb=ia3_vb,
+            ia3_oa=ia3_oa,
+            ia3_ob=ia3_ob,
             prefix_key=prefix_key,
             prefix_value=prefix_value,
             deterministic=deterministic,
@@ -584,6 +738,14 @@ class HyperDecoderLayer(nn.Module):
         lora_vb=None,
         lora_oa=None,
         lora_ob=None,
+        ia3_qa=None,
+        ia3_qb=None,
+        ia3_ka=None,
+        ia3_kb=None,
+        ia3_va=None,
+        ia3_vb=None,
+        ia3_oa=None,
+        ia3_ob=None,
         decoder_mask=None,
         encoder_decoder_mask=None,
         deterministic=False,
@@ -593,6 +755,7 @@ class HyperDecoderLayer(nn.Module):
     ):
         cfg = self.config
         q_rank, k_rank, v_rank, o_rank = (x and cfg.use_lora for x in cfg.lora_ranks)
+        q_ia3_rank, k_ia3_rank, v_ia3_rank, o_ia3_rank = (x and cfg.use_ia3 for x in cfg.ia3_ranks)
 
         # Relative position embedding as attention biases.
         l = max_decode_length if decode and max_decode_length else inputs.shape[-2]  # noqa: E741
@@ -613,6 +776,7 @@ class HyperDecoderLayer(nn.Module):
                 name="self_attention",
                 use_prefix=cfg.use_prefix,
                 lora_ranks=cfg.lora_ranks,
+                ia3_ranks=cfg.ia3_ranks,
             )(
                 x,
                 x,
@@ -626,6 +790,14 @@ class HyperDecoderLayer(nn.Module):
                 lora_vb=lora_vb[:, 0] if v_rank else None,
                 lora_oa=lora_oa[:, 0] if o_rank else None,
                 lora_ob=lora_ob[:, 0] if o_rank else None,
+                ia3_qa=ia3_qa[:, 0] if q_ia3_rank else None,
+                ia3_qb=ia3_qb[:, 0] if q_ia3_rank else None,
+                ia3_ka=ia3_ka[:, 0] if k_ia3_rank else None,
+                ia3_kb=ia3_kb[:, 0] if k_ia3_rank else None,
+                ia3_va=ia3_va[:, 0] if v_ia3_rank else None,
+                ia3_vb=ia3_vb[:, 0] if v_ia3_rank else None,
+                ia3_oa=ia3_oa[:, 0] if o_ia3_rank else None,
+                ia3_ob=ia3_ob[:, 0] if o_ia3_rank else None,
                 prefix_key=prefix_key[:, 0] if cfg.use_prefix and prefix_key is not None else None,
                 prefix_value=prefix_value[:, 0]
                 if cfg.use_prefix and prefix_value is not None
@@ -665,6 +837,14 @@ class HyperDecoderLayer(nn.Module):
             lora_vb=lora_vb[:, 1] if v_rank else None,
             lora_oa=lora_oa[:, 1] if o_rank else None,
             lora_ob=lora_ob[:, 1] if o_rank else None,
+            ia3_qa=ia3_qa[:, 1] if q_ia3_rank else None,
+            ia3_qb=ia3_qb[:, 1] if q_ia3_rank else None,
+            ia3_ka=ia3_ka[:, 1] if k_ia3_rank else None,
+            ia3_kb=ia3_kb[:, 1] if k_ia3_rank else None,
+            ia3_va=ia3_va[:, 1] if v_ia3_rank else None,
+            ia3_vb=ia3_vb[:, 1] if v_ia3_rank else None,
+            ia3_oa=ia3_oa[:, 1] if o_ia3_rank else None,
+            ia3_ob=ia3_ob[:, 1] if o_ia3_rank else None,
             prefix_key=prefix_key[:, 1] if cfg.use_prefix and prefix_key is not None else None,
             prefix_value=prefix_value[:, 1]
             if cfg.use_prefix and prefix_value is not None
@@ -885,6 +1065,14 @@ class HyperTransformer(nn.Module):
                 None,
                 None,
             ), "lora_ranks must be None if not using lora"
+
+        if not cfg.use_ia3:
+            assert cfg.ia3_ranks == (
+                None,
+                None,
+                None,
+                None,
+            ), "ia3_ranks must be None if not using ia3"
 
         self.encoder = HyperEncoder(config=cfg, shared_embedding=self.shared_embedding)
         self.decoder = HyperDecoder(config=cfg, shared_embedding=self.shared_embedding)

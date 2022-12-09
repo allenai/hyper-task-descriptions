@@ -27,7 +27,29 @@ with_sharding_constraint = nn_partitioning.with_sharding_constraint
 NumArray: TypeAlias = jnp.ndarray
 
 
-def efficient_lora_linear(
+def lora_ia3_kernel(
+    A: NumArray,
+    B: NumArray,
+) -> NumArray:
+    a_contract_axis = _normalize_axes(_canonicalize_tuple((-1,)), A.ndim)
+    b_contract_axis = _normalize_axes(_canonicalize_tuple((0,)), B.ndim)
+    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((), ()))
+    lora_ia3_kernel = lax.dot_general(A, B, ab_dimension_numbers)
+    return lora_ia3_kernel
+
+
+def batch_lora_ia3_kernel(
+    A: NumArray,
+    B: NumArray,
+) -> NumArray:
+    a_contract_axis = _normalize_axes((-1,), A.ndim)
+    b_contract_axis = _normalize_axes((1,), B.ndim)
+    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((0,), (0,)))
+    lora_ia3_kernel = lax.dot_general(A, B, ab_dimension_numbers)
+    return lora_ia3_kernel
+
+
+def ia3_linear(
     inputs: NumArray,
     kernel: NumArray,
     lora_a: NumArray,
@@ -42,12 +64,96 @@ def efficient_lora_linear(
     contract_ind = tuple(range(0, len(axis)))
     dimension_numbers = ((axis, contract_ind), ((), ()))
 
-    a_contract_axis = _normalize_axes(_canonicalize_tuple((-1,)), lora_a.ndim)
-    b_contract_axis = _normalize_axes(_canonicalize_tuple((0,)), lora_b.ndim)
-    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((), ()))
-    lora_kernel = lax.dot_general(lora_a, lora_b, ab_dimension_numbers)
-    new_kernel = kernel + lora_kernel * (alpha / rank)
+    lora_kernel = lora_ia3_kernel(lora_a, lora_b)
+    new_kernel = kernel * lora_kernel * (alpha / rank)
     output = lax.dot_general(inputs, new_kernel, dimension_numbers=dimension_numbers)
+    return output
+
+
+def batch_ia3_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: NumArray,
+    lora_b: NumArray,
+    alpha: int,
+    rank: int,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+    axis = _normalize_axes(axis, inputs.ndim)
+    contract_ind = tuple(range(1, 1 + len(axis)))
+    dimension_numbers = ((axis, contract_ind), ((0,), (0,)))
+
+    lora_kernel = batch_lora_ia3_kernel(lora_a, lora_b)
+    new_kernel = kernel * lora_kernel * (alpha / rank)
+    output = lax.dot_general(inputs, new_kernel, dimension_numbers=dimension_numbers)
+
+    return output
+
+
+def lora_ia3_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: Optional[NumArray] = None,
+    lora_b: Optional[NumArray] = None,
+    ia3_a: Optional[NumArray] = None,
+    ia3_b: Optional[NumArray] = None,
+    alpha: int = 1,
+    rank: int = 0,
+    ia3_rank: int = 0,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+    axis = _normalize_axes(axis, inputs.ndim)
+    contract_ind = tuple(range(0, len(axis)))
+    dimension_numbers = ((axis, contract_ind), ((), ()))
+
+    if ia3_rank > 0:
+        ia3_kernel = lora_ia3_kernel(ia3_a, ia3_b)
+        kernel = kernel * ia3_kernel * (alpha / ia3_rank)
+
+    if rank > 0:
+        lora_kernel = lora_ia3_kernel(lora_a, lora_b)
+        kernel = kernel + lora_kernel * (alpha / rank)
+
+    output = lax.dot_general(inputs, kernel, dimension_numbers=dimension_numbers)
+    return output
+
+
+def batch_lora_ia3_linear(
+    inputs: NumArray,
+    kernel: NumArray,
+    lora_a: Optional[NumArray] = None,
+    lora_b: Optional[NumArray] = None,
+    ia3_a: Optional[NumArray] = None,
+    ia3_b: Optional[NumArray] = None,
+    alpha: int = 1,
+    rank: int = 0,
+    ia3_rank: int = 0,
+    axis: Union[Iterable[int], int] = -1,
+) -> NumArray:
+
+    axis = _canonicalize_tuple(axis)
+    axis = _normalize_axes(axis, inputs.ndim)
+
+    if rank > 0 or ia3_rank > 0:
+        contract_ind = tuple(range(1, 1 + len(axis)))
+        dimension_numbers = ((axis, contract_ind), ((0,), (0,)))
+    else:
+        contract_ind = tuple(range(0, len(axis)))
+        dimension_numbers = ((axis, contract_ind), ((), ()))  # type: ignore
+
+    if ia3_rank > 0:
+        ia3_kernel = batch_lora_ia3_kernel(ia3_a, ia3_b)
+        kernel = kernel * ia3_kernel * (alpha / ia3_rank)
+
+    if rank > 0:
+        lora_kernel = batch_lora_ia3_kernel(lora_a, lora_b)
+        kernel = kernel + (lora_kernel * (alpha / rank))
+
+    output = lax.dot_general(inputs, kernel, dimension_numbers=dimension_numbers)
     return output
 
 
@@ -66,46 +172,9 @@ def lora_linear(
     contract_ind = tuple(range(0, len(axis)))
     dimension_numbers = ((axis, contract_ind), ((), ()))
 
-    # Linear computation: output = W0x
-    output = lax.dot_general(inputs, kernel, dimension_numbers)
-    # output = output + bias
-
-    # Lora addition: output += BAx
-    x = lax.dot_general(inputs, lora_a, dimension_numbers=dimension_numbers)
-
-    b_axis = _normalize_axes((-1,), x.ndim)
-    b_contract_ind = tuple(range(0, len(b_axis)))
-    b_dimension_numbers = ((b_axis, b_contract_ind), ((), ()))
-    x = lax.dot_general(x, lora_b, dimension_numbers=b_dimension_numbers)
-
-    output = output + x * (alpha / rank)
-
-    return output
-
-
-def efficient_batch_lora_linear(
-    inputs: NumArray,
-    kernel: NumArray,
-    lora_a: NumArray,
-    lora_b: NumArray,
-    alpha: int,
-    rank: int,
-    axis: Union[Iterable[int], int] = -1,
-) -> NumArray:
-
-    axis = _canonicalize_tuple(axis)
-
-    a_contract_axis = _normalize_axes((-1,), lora_a.ndim)
-    b_contract_axis = _normalize_axes((1,), lora_b.ndim)
-    ab_dimension_numbers = ((a_contract_axis, b_contract_axis), ((0,), (0,)))
-    lora_kernel = lax.dot_general(lora_a, lora_b, ab_dimension_numbers)
-    lora_axis = _normalize_axes(axis, inputs.ndim)
-    lora_contract_ind = tuple(range(1, 1 + len(lora_axis)))
-    lora_dimension_numbers = ((lora_axis, lora_contract_ind), ((0,), (0,)))
-
+    lora_kernel = lora_ia3_kernel(lora_a, lora_b)
     new_kernel = kernel + lora_kernel * (alpha / rank)
-    output = lax.dot_general(inputs, new_kernel, dimension_numbers=lora_dimension_numbers)
-
+    output = lax.dot_general(inputs, new_kernel, dimension_numbers=dimension_numbers)
     return output
 
 
@@ -120,30 +189,13 @@ def batch_lora_linear(
 ) -> NumArray:
 
     axis = _canonicalize_tuple(axis)
-    k_axis = _normalize_axes(axis, inputs.ndim)
-    contract_ind = tuple(range(0, len(k_axis)))
-    dimension_numbers = ((k_axis, contract_ind), ((), ()))
+    axis = _normalize_axes(axis, inputs.ndim)
+    contract_ind = tuple(range(1, 1 + len(axis)))
+    dimension_numbers = ((axis, contract_ind), ((0,), (0,)))
 
-    # Linear computation: output = W0x
-    output = lax.dot_general(inputs, kernel, dimension_numbers)
-    # output = output + bias
-
-    # Lora addition: output += BAx
-    a_axis = _normalize_axes(axis, inputs.ndim)
-    a_contract_ind = tuple(range(1, 1 + len(a_axis)))  # _normalize_axes((-2,), lora_a.ndim)
-    a_dimension_numbers = ((a_axis, a_contract_ind), ((0,), (0,)))
-
-    x = lax.dot_general(inputs, lora_a, dimension_numbers=a_dimension_numbers)
-
-    b_axis = _normalize_axes((-1,), x.ndim)
-    # b_contract_ind = tuple(range(0, len(b_axis)))
-    b_contract_ind = tuple(
-        range(1, 1 + len(b_axis))
-    )  # _normalize_axes((-3,), lora_b.ndim) #tuple(range(lora_b.ndim-1, len(b_axis)))
-    b_dimension_numbers = ((b_axis, b_contract_ind), ((0,), (0,)))
-    x = lax.dot_general(x, lora_b, dimension_numbers=b_dimension_numbers)
-
-    output = output + x * (alpha / rank)
+    lora_kernel = batch_lora_ia3_kernel(lora_a, lora_b)
+    new_kernel = kernel + lora_kernel * (alpha / rank)
+    output = lax.dot_general(inputs, new_kernel, dimension_numbers=dimension_numbers)
 
     return output
 
@@ -165,7 +217,8 @@ class LoraDenseGeneral(nn.Module):
     """
 
     features: Union[Iterable[int], int]
-    rank: int
+    rank: int = 0
+    ia3_rank: int = 0
     alpha: int = 1
     axis: Union[Iterable[int], int] = -1
     dtype: jnp.dtype = jnp.float32
@@ -176,7 +229,12 @@ class LoraDenseGeneral(nn.Module):
 
     @nn.compact
     def __call__(
-        self, inputs: NumArray, lora_a: Optional[NumArray] = None, lora_b: Optional[NumArray] = None
+        self,
+        inputs: NumArray,
+        lora_a: Optional[NumArray] = None,
+        lora_b: Optional[NumArray] = None,
+        ia3_a: Optional[NumArray] = None,
+        ia3_b: Optional[NumArray] = None,
     ) -> NumArray:
         """Applies a linear transformation to the inputs along multiple dimensions.
         Args:
@@ -199,24 +257,27 @@ class LoraDenseGeneral(nn.Module):
         kernel = jnp.reshape(kernel, kernel_shape)
 
         # CHANGE from t5x
-        assert self.rank > 0
 
         if self.manual_lora:
-            lora_a_shape = tuple([inputs.shape[ax] for ax in axis]) + tuple([self.rank])
-            lora_a_param_shape = (np.prod([inputs.shape[ax] for ax in axis]), self.rank)
-            lora_a = param_with_axes(
-                "lora_a", self.lora_a_init, lora_a_param_shape, axes=self.kernel_axes
-            )
-            lora_a = jnp.asarray(lora_a, self.dtype)
-            lora_a = jnp.reshape(lora_a, lora_a_shape)
+            if self.rank > 0:
+                lora_a_shape = tuple([inputs.shape[ax] for ax in axis]) + tuple([self.rank])
+                lora_a_param_shape = (np.prod([inputs.shape[ax] for ax in axis]), self.rank)
+                lora_a = param_with_axes(
+                    "lora_a", self.lora_a_init, lora_a_param_shape, axes=self.kernel_axes
+                )
+                lora_a = jnp.asarray(lora_a, self.dtype)
+                lora_a = jnp.reshape(lora_a, lora_a_shape)
 
-            lora_b_shape = tuple([self.rank]) + features
-            lora_b_param_shape = (self.rank, np.prod(features))
-            lora_b = param_with_axes("lora_b", nn.initializers.zeros, lora_b_param_shape)
-            lora_b = jnp.asarray(lora_b, self.dtype)
-            lora_b = jnp.reshape(lora_b, lora_b_shape)
+                lora_b_shape = tuple([self.rank]) + features
+                lora_b_param_shape = (self.rank, np.prod(features))
+                lora_b = param_with_axes("lora_b", nn.initializers.zeros, lora_b_param_shape)
+                lora_b = jnp.asarray(lora_b, self.dtype)
+                lora_b = jnp.reshape(lora_b, lora_b_shape)
 
-            return efficient_lora_linear(
+            # TODO: not doing manual ia3 right now, as we don't use this flag anyway.
+            # Adding it should be straightforward.
+
+            return lora_ia3_linear(
                 inputs,
                 kernel,
                 lora_a=lora_a,
@@ -226,14 +287,16 @@ class LoraDenseGeneral(nn.Module):
                 axis=self.axis,
             )
         else:
-
-            return efficient_batch_lora_linear(
+            return batch_lora_ia3_linear(
                 inputs,
                 kernel,
                 lora_a,
                 lora_b,
+                ia3_a,
+                ia3_b,
                 self.alpha,
                 self.rank,
+                self.ia3_rank,
                 self.axis,
             )
 
@@ -260,6 +323,7 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
     kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "normal")
     float32_logits: bool = False  # computes logits in float32 for stability.
     lora_ranks: Tuple[Any, Any, Any, Any] = (4, None, 4, None)
+    ia3_ranks: Tuple[Any, Any, Any, Any] = (None, None, None, None)
     use_prefix: bool = False
 
     @nn.compact
@@ -277,6 +341,14 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         lora_vb: Optional[NumArray] = None,
         lora_oa: Optional[NumArray] = None,
         lora_ob: Optional[NumArray] = None,
+        ia3_qa: Optional[NumArray] = None,
+        ia3_qb: Optional[NumArray] = None,
+        ia3_ka: Optional[NumArray] = None,
+        ia3_kb: Optional[NumArray] = None,
+        ia3_va: Optional[NumArray] = None,
+        ia3_vb: Optional[NumArray] = None,
+        ia3_oa: Optional[NumArray] = None,
+        ia3_ob: Optional[NumArray] = None,
         prefix_key: Optional[NumArray] = None,
         prefix_value: Optional[NumArray] = None,
         use_prefix: bool = False,
@@ -317,7 +389,6 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         """
         lora_projection = functools.partial(
             LoraDenseGeneral,
-            # rank=self.rank,
             axis=-1,
             features=(self.num_heads, self.head_dim),
             kernel_axes=("embed", "joined_kv"),
@@ -348,6 +419,50 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
         # Project inputs_q to multi-headed q/k/v
         # dimensions are then [batch, length, num_heads, head_dim]
 
+        # TODO: not using ia3 right now.
+        """
+        q_rank = self.lora_ranks[0] or 0
+        q_ia3_rank = self.ia3_ranks[0] or 0
+        q_projection = functools.partial(
+            lora_projection, kernel_init=query_init, name="query", rank=q_rank, ia3_rank=q_ia3_rank
+        )
+        query = q_projection()(inputs_q, lora_a=lora_qa, lora_b=lora_qb, ia3_a=ia3_qa, ia3_b=ia3_qb)
+
+        k_rank = self.lora_ranks[1] or 0
+        k_ia3_rank = self.ia3_ranks[1] or 0
+        k_projection = functools.partial(
+            lora_projection,
+            kernel_init=self.kernel_init,
+            name="key",
+            rank=k_rank,
+            ia3_rank=k_ia3_rank,
+        )
+        key = k_projection()(
+            inputs_kv,
+            lora_a=lora_ka,
+            lora_b=lora_kb,
+            ia3_a=ia3_ka,
+            ia3_b=ia3_kb,
+        )
+
+
+        v_rank = self.lora_ranks[2] or 0
+        v_ia3_rank = self.ia3_ranks[2] or 0
+        v_projection = functools.partial(
+            lora_projection,
+            kernel_init=self.kernel_init,
+            name="value",
+            rank=v_rank,
+            ia3_rank=v_ia3_rank,
+        )
+        value = v_projection()(
+            inputs_kv,
+            lora_a=lora_va,
+            lora_b=lora_vb,
+            ia3_a=ia3_va,
+            ia3_b=ia3_vb,
+        )
+        """
         q_rank = lora_ranks[0]
         if q_rank:
             query = lora_projection(kernel_init=query_init, name="query", rank=q_rank)(
@@ -516,25 +631,19 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
 
         # Back to the original inputs dimensions.
 
-        o_rank = lora_ranks[3]
-        if o_rank:
-            out = LoraDenseGeneral(
-                features=inputs_q.shape[-1],  # output dim is set to the input dim.
-                axis=(-2, -1),
-                rank=o_rank,
-                kernel_init=self.kernel_init,
-                kernel_axes=("joined_kv", "embed"),
-                dtype=self.dtype,
-                name="out",
-                manual_lora=self.manual_lora,
-            )(x, lora_a=lora_oa, lora_b=lora_ob)
-        else:
-            out = DenseGeneral(
-                features=inputs_q.shape[-1],  # output dim is set to the input dim.
-                axis=(-2, -1),
-                kernel_init=self.kernel_init,
-                kernel_axes=("joined_kv", "embed"),
-                dtype=self.dtype,
-                name="out",
-            )(x)
+        o_rank = self.lora_ranks[3] or 0
+        o_ia3_rank = self.ia3_ranks[3] or 0
+        # if o_rank:
+        out = LoraDenseGeneral(
+            features=inputs_q.shape[-1],  # output dim is set to the input dim.
+            axis=(-2, -1),
+            rank=o_rank,
+            ia3_rank=o_ia3_rank,
+            kernel_init=self.kernel_init,
+            kernel_axes=("joined_kv", "embed"),
+            dtype=self.dtype,
+            name="out",
+            manual_lora=self.manual_lora,
+        )(x, lora_a=lora_oa, lora_b=lora_ob, ia3_a=ia3_oa, ia3_b=ia3_ob)
+
         return out

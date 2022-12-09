@@ -65,6 +65,8 @@ def get_test_model(
     use_instructions=True,
     use_lora=False,
     lora_ranks=(None, None, None, None),
+    use_ia3=False,
+    ia3_ranks=(None, None, None, None),
     use_prefix=False,
     use_adapter=False,
 ):
@@ -93,6 +95,8 @@ def get_test_model(
         num_prefix_tokens=num_prefix_tokens,
         use_lora=use_lora,
         lora_ranks=lora_ranks,
+        use_ia3=use_ia3,
+        ia3_ranks=ia3_ranks,
         use_prefix=use_prefix,
         use_adapter=use_adapter,
         use_instructions=use_instructions,
