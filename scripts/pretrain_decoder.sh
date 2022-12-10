@@ -9,7 +9,7 @@ python3 -m t5x.train \
   --gin_file="instruction_embed.gin" \
   --gin_file="pretrain.gin" \
   --gin_file="partial_train_adafactor.gin" \
-  --gin_file="hypertune.gin"
+  --gin_file="hypertune.gin" \
   --gin.hyper_network.HyperT5Config.use_adapter=True \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=8 \
