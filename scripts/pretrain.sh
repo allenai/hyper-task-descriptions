@@ -9,7 +9,6 @@ python3 -m t5x.train \
   --gin_file="instruction_embed.gin" \
   --gin_file="pretrain_4part.gin" \
   --gin_file="partial_train_adafactor_dual.gin" \
-  --gin_file="train_only_hnet.gin" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=8 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
