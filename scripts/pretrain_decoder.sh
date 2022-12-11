@@ -9,7 +9,7 @@ python3 -m t5x.train \
   --gin_file="instruction_embed.gin" \
   --gin_file="pretrain.gin" \
   --gin_file="partial_train_adafactor.gin" \
-  --gin_file="hypertune.gin" \
+  --gin_file="hypertune_full_train.gin" \
   --gin.hyper_network.HyperT5Config.use_adapter=True \
   --gin.hyper_network.HyperT5Config.adapter_size=64 \
   --gin.USE_CACHED_TASKS=True \
