@@ -13,7 +13,7 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_adapter=True \
   --gin.hyper_network.HyperT5Config.adapter_size=64 \
   --gin.USE_CACHED_TASKS=True \
-  --gin.trainer.Trainer.num_microbatches=32 \
+  --gin.trainer.Trainer.num_microbatches=64 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
