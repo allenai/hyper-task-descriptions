@@ -11,7 +11,7 @@ python3 -m t5x.train \
   --gin_file="partial_train_adafactor.gin" \
   --gin_file="hypertune_full_train.gin" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.trainer.Trainer.num_microbatches=32 \
+  --gin.trainer.Trainer.num_microbatches=64 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
