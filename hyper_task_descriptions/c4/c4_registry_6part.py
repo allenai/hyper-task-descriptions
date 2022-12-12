@@ -67,14 +67,14 @@ def pack_hypertune(ds, sequence_length, pad_id=0):
         )
         split_point_4 = tf.random.stateless_uniform(
             (),
-            minval=split_point_2,
+            minval=split_point_3,
             maxval=example["targets"].shape[0] - 3,
             seed=seeds[3],
             dtype=tf.int32,
         )
         split_point_5 = tf.random.stateless_uniform(
             (),
-            minval=split_point_2,
+            minval=split_point_4,
             maxval=example["targets"].shape[0] - 2,
             seed=seeds[4],
             dtype=tf.int32,
@@ -97,8 +97,6 @@ def pack_hypertune(ds, sequence_length, pad_id=0):
             ], axis=0
         )
         targets = example["targets"][split_point_4:split_point_5]
-
-        example["targets"][split_point_2:split_point_3]
 
         return {
             "inputs": inputs,
