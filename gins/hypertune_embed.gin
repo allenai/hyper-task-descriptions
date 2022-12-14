@@ -1,0 +1,12 @@
+from __gin__ import dynamic_registration
+
+from t5x import utils
+from hyper_task_descriptions.modeling import hyper_network
+
+# hypertune: decoder in hypernet
+hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  use_adapter = False
+  use_prefix = True
+  use_fusion_in_decoder = False
+  layer_embedding_method = "decoder"
