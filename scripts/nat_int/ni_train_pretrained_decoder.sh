@@ -19,12 +19,12 @@ python3 -m t5x.train \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
-  --gin_file="train_only_hnet.gin" \
   --gin_file="hypertune.gin" \
   --gin_file="full_restore.gin" \
+  --gin_file="train_only_hnet.gin" 
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
-  --gin.trainer.Trainer.num_microbatches=32 \
+  --gin.trainer.Trainer.num_microbatches=64 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
   --gin.BATCH_SIZE=1024 \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
