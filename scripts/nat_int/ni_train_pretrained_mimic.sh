@@ -41,7 +41,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="ni_eval.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_split_mimic_def\" \
     --gin.USE_CACHED_TASKS=True \
-    --gin.utils.DatasetConfig.batch_size=512 \
+    --gin.utils.DatasetConfig.batch_size=256 \
     --gin.utils.DatasetConfig.split=\"test\" \
     --gin.partitioning.PjitPartitioner.num_partitions=8 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
