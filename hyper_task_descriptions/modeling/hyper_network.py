@@ -62,6 +62,7 @@ class HyperT5Config(T5Config):
     use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
     hnet_layernorm: bool = False
+    per_layer_hnet: bool = False
 
 
 # create our component id dict
@@ -123,6 +124,9 @@ class Hypernet(nn.Module):
         # setup embeddings - enc attn, dec attn, cross attn
         self.num_components, self.component_2_id = create_component_id_dict(cfg)
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
+        # here, we use the hypernet for generate per-layer values
+        if cfg.per_layer_hnet:
+            layer_embed_components = 1
 
         self.attn = layers.MultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
@@ -174,6 +178,8 @@ class Hypernet(nn.Module):
             )
 
         def hypernetwork(output, name):
+            if cfg.per_layer_hnet:
+                output *= cfg.num_encoder_layers + 2 * cfg.num_decoder_layers
             return MlpBlock(
                 intermediate_dim=cfg.emb_dim,  # same size as model
                 output_dim=output,
@@ -300,8 +306,12 @@ class Hypernet(nn.Module):
             sum_embeds = self.embedder[None, :].repeat(encoder_input_tokens.shape[0], axis=0)
         # at this point, sum embeds should be [batch, layers, num_comp, feats]
         # (or at least reshape-able to it). Note num_comp = 1 for concat or layer methods.
+        if cfg.per_layer_hnet:
+            sum_embeds_layers = 1
+        else:
+            sum_embeds_layers = total_layers
         sum_embeds = sum_embeds.reshape(
-            encoder_input_tokens.shape[0], total_layers, self.num_components, -1
+            encoder_input_tokens.shape[0], sum_embeds_layers, self.num_components, -1
         )
 
         generated_parameter_dict = {}
