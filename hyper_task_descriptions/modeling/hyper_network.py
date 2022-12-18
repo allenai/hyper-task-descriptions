@@ -136,7 +136,7 @@ class Hypernet(nn.Module):
             self.num_components = 16
 
         if cfg.layer_embedding_method == "decoder":
-            self.encoder = HyperEncoder(cfg, self.shared_embedding, name="hyper_encoder")
+            self.encoder = self.underlying_encoder #  TODO: revert back to hypertune
             self.decoder = HyperDecoder(cfg, self.shared_embedding, name="hyper_decoder")
         else:
             self.encoder = self.underlying_encoder
