@@ -148,6 +148,8 @@ class Hypernet(nn.Module):
 
         if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
             layer_embed_components *= self.num_components
+        while layer_embed_components % 16 != 0:
+            layer_embed_components += 1
         # to make sure compat with partitioning.
         self.embedder = jnp.asarray(
             param_with_axes(
