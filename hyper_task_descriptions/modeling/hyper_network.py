@@ -267,7 +267,7 @@ class Hypernet(nn.Module):
 
             elif cfg.layer_embedding_method == "component":
                 seq_output = output * attn_mask[:, :, None]  # to prevent padding annoying us.
-                layer_embeds = self.embedder[None, :, :].repeat(
+                layer_embeds = self.embedder[None, :self.true_layer_embed, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
                 mask = layers.make_attention_mask(
