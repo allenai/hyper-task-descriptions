@@ -149,8 +149,9 @@ class Hypernet(nn.Module):
         if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
             layer_embed_components *= self.num_components
         self.true_layer_embed = layer_embed_components
-        while layer_embed_components % 16 != 0:
-            layer_embed_components += 1
+        if cfg.layer_embedding_method == "decoder":
+            while layer_embed_components % 16 != 0:
+                layer_embed_components += 1
         
         # to make sure compat with partitioning.
         self.embedder = jnp.asarray(
@@ -267,7 +268,7 @@ class Hypernet(nn.Module):
 
             elif cfg.layer_embedding_method == "component":
                 seq_output = output * attn_mask[:, :, None]  # to prevent padding annoying us.
-                layer_embeds = self.embedder[None, :self.true_layer_embed, :].repeat(
+                layer_embeds = self.embedder[None, :, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
                 mask = layers.make_attention_mask(
