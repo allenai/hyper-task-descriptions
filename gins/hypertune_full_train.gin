@@ -10,7 +10,7 @@ hyper_network.HyperT5Config:
   use_prefix = True
   use_fusion_in_decoder = True
   layer_embedding_method = "decoder"
-  per_layer_hnet = True
+  per_layer_hnet = False
 
 # we restore hypernetwork weights from pretrained model
 utils.RestoreCheckpointConfig:
