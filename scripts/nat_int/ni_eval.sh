@@ -3,9 +3,10 @@
 
 # name of experiment folder
 EXPERIMENT_NAME=$1
+CHECKPOINT=$2
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model/checkpoint_${CHECKPOINT}"
 EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval/"
 
 EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval/"
@@ -21,5 +22,5 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.utils.DatasetConfig.split=\"test\" \
     --gin.partitioning.PjitPartitioner.num_partitions=16 \
     --gin.CHECKPOINT_PATH=\"$MODEL_DIR\" \
-    --gin.utils.RestoreCheckpointConfig.mode=\"all\" \
+    --gin.utils.RestoreCheckpointConfig.mode=\"specific\" \
     --gin.EVAL_OUTPUT_DIR=\"$EVAL_OUTPUT_DIR\"
