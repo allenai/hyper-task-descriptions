@@ -101,7 +101,7 @@ ml-collections==0.1.1
 mock==4.0.3
 more-itertools==4.2.0
 msgpack==1.0.4
-multidict==6.0.2
+multidict==6.0.4
 multiprocess==0.70.13
 multivolumefile==0.2.3
 mypy-extensions==0.4.3
