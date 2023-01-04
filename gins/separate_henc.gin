@@ -1,0 +1,19 @@
+from __gin__ import dynamic_registration
+
+from t5x import utils
+from hyper_task_descriptions.modeling import hyper_network
+
+# hypertune: decoder in hypernet
+hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+    share_hnet_encoder = False
+
+# we restore hypernetwork weights from pretrained model
+utils.RestoreCheckpointConfig:
+  fallback_to_scratch = True
+  assignment_map = (
+      # we map encoder values in the checkpoint to hyperencoder and regular encoder weights
+      ('(.*)/(hyper/hyper_encoder|encoder)/(.*)', r'\1/encoder/\3'),
+      # the non-t5 bits of hypernet need to be initialised from scratch
+      ('.*hyper/[^h].*', None),
+    )

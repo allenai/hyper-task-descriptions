@@ -63,6 +63,7 @@ class HyperT5Config(T5Config):
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
     hnet_layernorm: bool = False
     per_layer_hnet: bool = False
+    share_hnet_encoder: bool = True
 
 
 # create our component id dict
@@ -139,11 +140,14 @@ class Hypernet(nn.Module):
         if not cfg.use_instructions:
             self.num_components = 16
 
+        if cfg.share_hnet_encoder:
+            self.encoder = self.underlying_encoder
+        else:
+            self.encoder = HyperEncoder(cfg, self.shared_embedding, name="hyper_encoder")
+
         if cfg.layer_embedding_method == "decoder":
-            self.encoder = self.underlying_encoder #  TODO: revert back to hypertune
             self.decoder = HyperDecoder(cfg, self.shared_embedding, name="hyper_decoder")
         else:
-            self.encoder = self.underlying_encoder
             self.decoder = self.underlying_decoder
 
         if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
