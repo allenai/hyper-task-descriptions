@@ -64,6 +64,7 @@ class HyperT5Config(T5Config):
     hnet_layernorm: bool = False
     per_layer_hnet: bool = False
     share_hnet_encoder: bool = True
+    use_tanh_prefix: bool = False
 
 
 # create our component id dict
@@ -186,7 +187,7 @@ class Hypernet(nn.Module):
                 name="instruction_embed",
             )
 
-        def hypernetwork(output, name):
+        def hypernetwork(output, name, activations=cfg.hypernet_activations):
             if cfg.per_layer_hnet:
                 output *= cfg.num_encoder_layers + 2 * cfg.num_decoder_layers
             return MlpBlock(
@@ -209,11 +210,15 @@ class Hypernet(nn.Module):
             self.adapter_bias_up_norm = layers.LayerNorm(name="adapter_bias_up_norm")
             self.adapter_bias_up_gen = hypernetwork(cfg.emb_dim, "adapter_bias_up")
         if cfg.use_prefix:
+            if cfg.use_tanh_prefix:
+                activations = ("tanh",)
+            else:
+                activations = cfg.hypernet_activations
             output_dim = cfg.num_heads * cfg.head_dim
             self.prefix_key_norm = layers.LayerNorm(name="prefix_key_norm")
-            self.prefix_key_gen = hypernetwork(output_dim, "prefix_key")
+            self.prefix_key_gen = hypernetwork(output_dim, "prefix_key", activations=activations)
             self.prefix_value_norm = layers.LayerNorm(name="prefix_value_norm")
-            self.prefix_value_gen = hypernetwork(output_dim, "prefix_value")
+            self.prefix_value_gen = hypernetwork(output_dim, "prefix_value", activations=activations)
         if cfg.use_prompt:
             self.prompt_norm = layers.LayerNorm(name="prompt_norm")
             self.prompt_gen = hypernetwork(cfg.emb_dim, "prompt")
