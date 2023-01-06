@@ -311,14 +311,14 @@ class Hypernet(nn.Module):
                 )
             elif cfg.layer_embedding_method == "concat":
                 # layer embeds - repeat in batch, length dim
-                sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
+                mean_seq = mean_seq[:, None].repeat(total_layers, axis=1)
                 layer_embs = self.embedder[
                     None,
                     :,
-                ].repeat(sum_embeds.shape[0], axis=0)
+                ].repeat(mean_seq.shape[0], axis=0)
                 sum_embeds = jnp.concatenate([mean_seq, layer_embs], axis=-1)
             else:  # else = use no layer embeds. we mean pool the sequence.
-                sum_embeds = sum_embeds[:, None].mean(2).repeat(total_layers, axis=1)
+                sum_embeds = mean_seq.repeat(total_layers, axis=1)
         else:  # no instructions - directly generated.
             sum_embeds = self.embedder[None, :].repeat(encoder_input_tokens.shape[0], axis=0)
         # at this point, sum embeds should be [batch, layers, num_comp, feats]
