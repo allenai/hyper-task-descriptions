@@ -225,16 +225,22 @@ class Hypernet(nn.Module):
             else:
                 activations = cfg.hypernet_activations
             output_dim = cfg.num_heads * cfg.head_dim
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.num_heads * cfg.head_dim * cfg.num_prefix_tokens
             self.prefix_key_norm = layers.LayerNorm(name="prefix_key_norm")
             self.prefix_key_gen = hypernetwork(output_dim, "prefix_key", activations=activations)
             self.prefix_value_norm = layers.LayerNorm(name="prefix_value_norm")
             self.prefix_value_gen = hypernetwork(output_dim, "prefix_value", activations=activations)
         if cfg.use_prompt:
+            output_dim = cfg.emb_dim
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.emb_dim * cfg.num_prompt_tokens
             self.prompt_norm = layers.LayerNorm(name="prompt_norm")
-            self.prompt_gen = hypernetwork(cfg.emb_dim, "prompt")
+            self.prompt_gen = hypernetwork(output_dim, "prompt")
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
         if cfg.use_lora:
             if self.q_rank:
+                # TODO: lora for hypter style. currently errors out.
                 self.lora_qa_norm = layers.LayerNorm(name="lora_qa_norm")
                 self.lora_qa_gen = hypernetwork(cfg.emb_dim, "lora_qa")
                 self.lora_qb_norm = layers.LayerNorm(name="lora_qb_norm")
