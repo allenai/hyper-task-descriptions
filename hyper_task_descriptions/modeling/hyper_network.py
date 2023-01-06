@@ -345,6 +345,8 @@ class Hypernet(nn.Module):
         # choose our specific input to the hypernet. feel free to customize.
         def generate_parameter(param_gen, layer_norm, inputs, component_id, shape):
             assert component_id in self.component_2_id, "component name not found"
+            if cfg.layer_embedding_method == "none":
+                inputs = inputs[:, 0, :, 0]  # convert into somthing simple.
             if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
                 start, end = self.component_2_id[component_id]
                 # reshape to collapse the components into one blob
