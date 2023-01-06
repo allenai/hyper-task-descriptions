@@ -128,7 +128,7 @@ class Hypernet(nn.Module):
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
         # here, we use the hypernet for generate per-layer values
         if cfg.per_layer_hnet:
-            layer_embed_components = 1
+            layer_embed_components = 16  # not used, but for partitioning.
 
         self.attn = layers.MultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
