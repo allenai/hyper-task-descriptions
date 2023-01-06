@@ -9,6 +9,7 @@ from hyper_task_descriptions.modeling import hyper_network
 hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
 hyper_network.HyperT5Config:
   use_adapter = True
+  adapter_size = 8  # required due to size.
   use_prefix = False
   use_fusion_in_decoder = False
   layer_embedding_method = "none"
