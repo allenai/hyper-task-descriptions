@@ -1,0 +1,14 @@
+from __gin__ import dynamic_registration
+
+from t5x import utils
+from hyper_task_descriptions.modeling import hyper_network
+
+# hypter: per-layer hnet, separate (frozen) encoder
+# we fully finetune, which is a bit different, but I think justified.
+# adapter-only
+hyper_network.HyperTransformer.config = @hyper_network.HyperT5Config()
+hyper_network.HyperT5Config:
+  use_adapter = True
+  use_fusion_in_decoder = False
+  layer_embedding_method = "none"
+  per_layer_hnet = True
