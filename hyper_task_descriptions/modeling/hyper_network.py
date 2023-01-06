@@ -205,12 +205,18 @@ class Hypernet(nn.Module):
 
         if cfg.use_adapter:
             output_dim = cfg.emb_dim
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.adapter_size * cfg.emb_dim
             self.adapter_down_norm = layers.LayerNorm(name="adapter_down_norm")
             self.adapter_down_gen = hypernetwork(output_dim, "adapter_down")
             self.adapter_up_norm = layers.LayerNorm(name="adapter_up_norm")
             self.adapter_up_gen = hypernetwork(output_dim, "adapter_up")
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.adapter_size
             self.adapter_bias_down_norm = layers.LayerNorm(name="adapter_bias_down_norm")
             self.adapter_bias_down_gen = hypernetwork(cfg.adapter_size, "adapter_bias_down")
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.emb_dim
             self.adapter_bias_up_norm = layers.LayerNorm(name="adapter_bias_up_norm")
             self.adapter_bias_up_gen = hypernetwork(cfg.emb_dim, "adapter_bias_up")
         if cfg.use_prefix:
