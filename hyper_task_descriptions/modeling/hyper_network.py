@@ -26,7 +26,7 @@ from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
 from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
+from hyper_task_descriptions.modeling.layers import MlpBlockNoDropout, SimpleLinear
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
@@ -194,7 +194,7 @@ class Hypernet(nn.Module):
         def hypernetwork(output, name, activations=cfg.hypernet_activations):
             if cfg.per_layer_hnet:
                 output *= cfg.num_encoder_layers + 2 * cfg.num_decoder_layers
-            return MlpBlock(
+            return MlpBlockNoDropout(
                 intermediate_dim=cfg.emb_dim,  # same size as model
                 output_dim=output,
                 activations=cfg.hypernet_activations,
