@@ -138,7 +138,7 @@ class Hypernet(nn.Module):
             float32_logits=cfg.float32_attention_logits,
             name="hyperattn",
         )
-        if not cfg.use_instructions:
+        if self.num_components == 1:
             self.num_components = 16
         # we dont have any component stuff here.
         if cfg.layer_embedding_method == "none":
