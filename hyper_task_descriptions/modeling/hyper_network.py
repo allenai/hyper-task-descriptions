@@ -319,6 +319,7 @@ class Hypernet(nn.Module):
                 sum_embeds = jnp.concatenate([mean_seq, layer_embs], axis=-1)
             else:  # else = use no layer embeds. we mean pool the sequence.
                 sum_embeds = mean_seq.repeat(total_layers, axis=1)
+                self.num_components = mean_seq.shape[-1]
         else:  # no instructions - directly generated.
             sum_embeds = self.embedder[None, :].repeat(encoder_input_tokens.shape[0], axis=0)
         # at this point, sum embeds should be [batch, layers, num_comp, feats]
