@@ -11,6 +11,7 @@ python3 -m t5x.train \
   --gin_file="partial_train_adafactor_dual.gin" \
   --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
+  --gin.hyper_network.HyperT5Config.num_prefix_tokens=512 \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=8 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
