@@ -46,7 +46,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 @struct.dataclass
 class HyperT5Config(T5Config):
     hyperencoder_model: str = "google/t5-large-lm-adapt"
-    layer_embedding_method: str = "component"  # concat, layer, component
+    layer_embedding_method: str = "component"  # concat, layer, component, none (for per-layer hnet)
     hypernet_activations: Tuple[
         str,
     ] = ("gelu",)
@@ -175,6 +175,7 @@ class Hypernet(nn.Module):
                 "layer",
                 "component",
                 "decoder",
+                "none",
             ], "Invalid layer embedding method"
 
         if cfg.use_fusion_in_decoder:
@@ -308,7 +309,7 @@ class Hypernet(nn.Module):
                     deterministic=deterministic,
                     decode=False,
                 )
-            else:  # else = use concat
+            elif cfg.layer_embedding_method == "concat":
                 # layer embeds - repeat in batch, length dim
                 sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
                 layer_embs = self.embedder[
@@ -316,7 +317,9 @@ class Hypernet(nn.Module):
                     :,
                 ].repeat(sum_embeds.shape[0], axis=0)
                 sum_embeds = jnp.concatenate([mean_seq, layer_embs], axis=-1)
-        else:
+            else:  # else = use no layer embeds. we mean pool the sequence.
+                sum_embeds = sum_embeds[:, None].mean(2).repeat(total_layers, axis=1)
+        else:  # no instructions - directly generated.
             sum_embeds = self.embedder[None, :].repeat(encoder_input_tokens.shape[0], axis=0)
         # at this point, sum embeds should be [batch, layers, num_comp, feats]
         # (or at least reshape-able to it). Note num_comp = 1 for concat or layer methods.
