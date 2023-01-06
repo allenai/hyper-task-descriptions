@@ -33,6 +33,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="hyper_xl.gin" \
     --gin_file="instruction_embed.gin" \
     --gin_file="ni_eval.gin" \
+    --gin_file="hypter.gin" \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
