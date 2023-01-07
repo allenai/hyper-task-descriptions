@@ -1,0 +1,35 @@
+# T5.1.1 Base model.
+from __gin__ import dynamic_registration
+
+from t5x import adafactor
+from t5x import optimizers
+from hyper_task_descriptions import utils as hyper_utils
+from flax import traverse_util
+
+# gin that allows partial training based on regex matching.
+
+# ------------------- Partial loading ------------------------------------------------
+OPTIMIZER = @optimizers.MultiOptimizer()
+# note you can add more traversals if you want different optimizer settings
+# for dfferent parts of the model.
+# See https://github.com/google-research/t5x/blob/main/docs/usage/gin.md#scoping
+# for how to create multiple specialised instances of the same class.
+optimizers.MultiOptimizer:
+  traversals_and_optimizers = ((@hyper/traverse_util.ModelParamTraversal(),
+                                @hyper/adafactor.Adafactor()),
+                                (@t5/traverse_util.ModelParamTraversal(),
+                                @t5/adafactor.Adafactor()),)
+
+# MultiOptimizer will match any parameter with a flattened name that
+# matches *any* of the regular expressions in the list.
+# hyper - we turn off param scaling, offset the step
+hyper/adafactor.Adafactor:
+  multiply_by_parameter_scale = True
+  step_offset = 1100000
+hyper/traverse_util.ModelParamTraversal:
+  filter_fn = @hyper/hyper_utils.match_any()
+hyper/hyper_utils.match_any.regexes = [".*/hyper/[^e].*"]
+# nothing special for this one
+t5/traverse_util.ModelParamTraversal:
+  filter_fn = @t5/hyper_utils.inverse_match_any()
+t5/hyper_utils.inverse_match_any.regexes = [".*hyper.*"]
