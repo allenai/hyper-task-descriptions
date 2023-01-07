@@ -13,7 +13,7 @@ python3 -m t5x.train \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adafactor_no_roberta.gin" \
   --gin_file="hypter.gin" \
-  --gin.hyper_network.HyperT5Config.adapter_size=4 \
+  --gin.hyper_network.HyperT5Config.adapter_size=2 \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=32 \
