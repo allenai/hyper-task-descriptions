@@ -14,3 +14,4 @@ hyper_network.HyperT5Config:
   use_fusion_in_decoder = False
   layer_embedding_method = "none"
   per_layer_hnet = True
+  share_hnet_encoder = False
