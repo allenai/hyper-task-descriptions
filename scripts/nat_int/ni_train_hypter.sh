@@ -13,7 +13,7 @@ python3 -m t5x.train \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adafactor_no_roberta.gin" \
   --gin_file="hypter.gin" \
-  --gin.hyper_network.HyperT5Config.adapter_size=2 \
+  --gin.hyper_network.HyperT5Config.adapter_size=1 \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=128 \
@@ -35,6 +35,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="instruction_embed.gin" \
     --gin_file="ni_eval.gin" \
     --gin_file="hypter.gin" \
+    --gin.hyper_network.HyperT5Config.adapter_size=1 \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=64 \
