@@ -14,7 +14,6 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
   --gin_file="instruction_embed.gin" \
   --gin_file="t0_eval.gin" \
   --gin_file="hypter.gin" \
-  --gin.hyper_network.HyperT5Config.adapter_size=4 \
   --gin.partitioning.PjitPartitioner.num_partitions=8 \
   --gin.utils.DatasetConfig.batch_size=128 \
   --gin.USE_CACHED_TASKS=True \
