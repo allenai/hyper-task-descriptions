@@ -8,7 +8,7 @@ EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
-HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
   --gin_search_paths=gins \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
