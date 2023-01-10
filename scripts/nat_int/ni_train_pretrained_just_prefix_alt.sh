@@ -19,7 +19,6 @@ python3 -m t5x.train \
   --gin_file="hyper_xl.gin" \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
-  --gin_file="partial_train_adafactor_dual.gin" \
   --gin_file="full_restore.gin" \
   --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
