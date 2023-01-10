@@ -24,6 +24,7 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
   --gin.hyper_network.HyperT5Config.num_prefix_tokens=512 \
+  --gin.hyper_network.HyperT5Config.share_hnet_encoder=False \
   --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=16 \
@@ -45,6 +46,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
     --gin.hyper_network.HyperT5Config.use_adapter=False \
     --gin.hyper_network.HyperT5Config.num_prefix_tokens=512 \
+    --gin.hyper_network.HyperT5Config.share_hnet_encoder=False \
     --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
