@@ -14,7 +14,7 @@ python3 -m t5x.train \
   --gin_file="partial_train_adafactor_dual.gin" \
   --gin.hyper_network.HyperT5Config.use_instructions=False \
   --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
-  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
+  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=32 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
@@ -36,7 +36,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="ni_eval.gin" \
     --gin.hyper_network.HyperT5Config.use_instructions=False \
     --gin.hyper_network.HyperT5Config.use_fusion_in_decoder=False \
-    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
+    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def_pos_2\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=128 \
     --gin.utils.DatasetConfig.split=\"test\" \
