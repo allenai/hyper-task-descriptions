@@ -25,7 +25,7 @@ python3 -m t5x.train \
   --gin.hyper_network.HyperT5Config.use_prefix=False \
   --gin.hyper_network.HyperT5Config.use_adapter=False \
   --gin.hyper_network.HyperT5Config.use_lora=True \
-  --gin.hyper_network.HyperT5Config.lora_ranks="(256,None,256,None)" \
+  --gin.hyper_network.HyperT5Config.lora_ranks="(512,None,512,None)" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=16 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
@@ -49,7 +49,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin.hyper_network.HyperT5Config.use_prefix=False \
     --gin.hyper_network.HyperT5Config.use_adapter=False \
     --gin.hyper_network.HyperT5Config.use_lora=True \
-    --gin.hyper_network.HyperT5Config.lora_ranks="(256,None,256,None)" \
+    --gin.hyper_network.HyperT5Config.lora_ranks="(512,None,512,None)" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=256 \
     --gin.utils.DatasetConfig.split=\"test\" \
