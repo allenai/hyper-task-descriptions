@@ -26,6 +26,7 @@ def get_ni_data(
     conversion=None,
     max_hyper_seq_length=1024,
     hyper_tokenizer=None,
+    hyper_num_pos=2,
     **ni_collator_args,
 ):
     # HF datasets does not support file-level shuffling
@@ -96,7 +97,7 @@ def get_ni_data(
         task_idx = int(task_idx[0])
         defn_input = "Definition: " + example["Definition"][0]
         tokenizer = hyper_tokenizer
-        for idx, pos_example in enumerate(example["Positive Examples"]):
+        for idx, pos_example in enumerate(example["Positive Examples"][:hyper_num_pos]):
             pos_example_str = f" Positive Example {idx+1} -\n"
             pos_example_str += f"Input: {pos_example['input'].strip()}"
             if not pos_example_str[-1] in string.punctuation:
@@ -294,7 +295,36 @@ data_source = seqio.FunctionDataSource(
 
 # here, we pack positive examples into the hyper inputs.
 seqio.TaskRegistry.add(
-    "natural_instruction_positive_example_hyper",
+    "natural_instruction_positive_example_hyper_2",
+    data_source,
+    preprocessors=preprocessors,
+    output_features=output_features,
+    postprocess_fn=postprocessor,
+    metric_fns=[ni_metrics_wrapper],
+    shuffle_buffer_size=50000,  # default of 1000 is too small
+)
+
+
+dataset_fn = functools.partial(
+    get_ni_data,
+    seed=None,
+    max_num_instances_per_task=100,
+    max_num_instances_per_eval_task=100,
+    raw_input=True,
+    conversion="pack_positive_examples",
+    max_hyper_seq_length=1024,
+    hyper_tokenizer=transformers.AutoTokenizer.from_pretrained("t5-base"),
+    hyper_num_pos=1,
+)
+
+data_source = seqio.FunctionDataSource(
+    dataset_fn,
+    splits=["train", "test"],
+)
+
+# here, we pack 4 positive examples into the hyper inputs.
+seqio.TaskRegistry.add(
+    "natural_instruction_positive_example_hyper_1",
     data_source,
     preprocessors=preprocessors,
     output_features=output_features,
