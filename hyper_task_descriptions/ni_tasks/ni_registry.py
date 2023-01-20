@@ -230,6 +230,38 @@ dataset_fn = functools.partial(
     max_source_length=1024,
     max_target_length=512,
     add_task_definition=True,
+    num_pos_examples=1,
+    num_neg_examples=0,
+    add_explanation=False,
+    text_only=True,
+)
+
+data_source = seqio.FunctionDataSource(
+    dataset_fn,
+    splits=["train", "test"],
+)
+
+seqio.TaskRegistry.add(
+    "natural_instructions_def_pos_1",
+    data_source,
+    preprocessors=preprocessors,
+    output_features=output_features,
+    postprocess_fn=postprocessor,
+    metric_fns=[ni_metrics_wrapper],
+    shuffle_buffer_size=50000,  # default of 1000 is too small
+)
+
+dataset_fn = functools.partial(
+    get_ni_data,
+    seed=None,
+    max_num_instances_per_task=100,
+    max_num_instances_per_eval_task=100,
+    raw_input=False,
+    tokenizer=transformers.AutoTokenizer.from_pretrained("t5-base"),
+    model=None,
+    max_source_length=1024,
+    max_target_length=512,
+    add_task_definition=True,
     num_pos_examples=0,
     num_neg_examples=0,
     add_explanation=False,
