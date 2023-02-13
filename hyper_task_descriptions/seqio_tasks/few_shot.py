@@ -78,12 +78,17 @@ def register_few_shot_version_of_task(
     example_separator: str = " X ",
     prune_exemplars: bool = False,
     max_input_length: Optional[int] = None,
+    eval_task: bool = False,
 ):
     """Registers a few-shot version of a Task."""
     task = seqio.TaskRegistry.get(base_task_name)
 
     # The list of preprocessors to run on individual exemplars.
     single_ex_preprocessors = list(task.preprocessors)
+
+    # keep this to re-add later.
+    if eval_task:
+        rank_classification_preprocessor = single_ex_preprocessors.pop(0)
 
     def remove_preprocessors_if_present():
         """Removes single-example preprocessors if they are present."""
@@ -115,6 +120,9 @@ def register_few_shot_version_of_task(
     # These are the preprocessors we run *after* we have formed few-shot examples.
     # Note that we re-introduce the tokenization steps here.
     full_ex_preprocessors = []
+
+    if eval_task:
+        full_ex_preprocessors.append(rank_classification_preprocessor)
 
     if prune_exemplars:
         # Prunes excessive exemplars according to the max input length.
