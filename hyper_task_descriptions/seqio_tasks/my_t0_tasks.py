@@ -90,7 +90,7 @@ for task in t0_train_mixture["BASE"]:
             max_input_length=960,  # saving 64 for separators, like FLAN.
         )
 
-task_names = list(seqio.TaskRegistry.names().keys())
+task_names = list(seqio.TaskRegistry.names())
 for task in task_names:
     if not task.endswith("_score_eval"):
         continue
@@ -125,12 +125,11 @@ for shot in [1, 2, 4, 5]:
     seqio.MixtureRegistry.add(
         f"t0_eval_score_eval_{shot}_shot",
         [
-            task
+            f"{task}_{shot}_shot"
             for task in seqio.TaskRegistry.names()
             if task.endswith("_score_eval")
             and task.split("_score_eval")[0] in t0_eval_mixture["BASE"]
             and task.split("_score_eval")[0] not in TASK_BLACKLIST
-            and f"{shot}_shot" in task
         ],
         default_rate=functools.partial(seqio.mixing_rate_num_examples, maximum=500_000),
     )
