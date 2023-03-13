@@ -44,6 +44,64 @@ def remove_trailing_spaces(example, features):
     return new_example
 
 
+def fewshot_preprocessor(
+    ds,
+    inputs_prefix='',
+    targets_prefix='',
+    example_separator='\n\n',
+    definition_separator=' Definition: ',
+    prompt='',
+    hyper_inputs=False,
+    reverse=False,
+):
+  @seqio.utils.map_over_dataset
+  def fewshot_map(ex):
+    # if hyper_inputs, we put few-shot examples in the hypernet.
+    # Otherwise, we put them in the main inputs (e.g. for baselines)
+    if hyper_inputs:
+        few_shot_feature = 'hyper_inputs'
+        non_few = 'inputs'
+    else:
+        few_shot_feature = 'inputs'
+        non_few = 'hyper_inputs'
+    if 'train' in ex:
+      train_examples = tf.stack(
+          [
+              inputs_prefix + ex['train']['inputs'],
+              targets_prefix + ex['train']['targets'] + example_separator,
+          ],
+          axis=1,
+      )
+      if reverse:
+        train_examples = tf.reverse(train_examples, [0])
+
+      shots = tf.strings.reduce_join(tf.reshape(train_examples, [-1]))
+    else:
+      shots = ''
+    if prompt:
+      shots = tf.strings.join([prompt, shots], separator=example_separator)
+
+    new_ex = {
+        few_shot_feature: (
+            shots
+            + definition_separator
+            + ex['eval'][few_shot_feature]
+        ),
+        'targets': ex['eval']['targets'],
+    }
+    # Pass through other eval features unchanged.
+    new_ex.update(
+        {k: v for k, v in ex['eval'].items() if k not in (few_shot_feature, 'targets')}
+    )
+    return new_ex
+
+  ds = fewshot_map(ds)
+  if ds.element_spec['inputs'].shape.rank or ds.element_spec['hyper_inputs'].shape.rank:
+    # Unbatch if not a scalar. This is useful for fewshot eval.
+    ds = ds.unbatch()
+  return ds
+
+
 @seqio.map_over_dataset
 def prune_fewshot_examples_by_length(example, max_input_length):
     """Prunes execessive exemplars by max input length."""
@@ -53,7 +111,7 @@ def prune_fewshot_examples_by_length(example, max_input_length):
     total_num_tokens_cm = tf.cumsum(total_num_tokens)
     bool_mask = total_num_tokens_cm <= (max_input_length - example["eval"]["inputs_num_tokens"])
 
-    # Prunes execssive exemplars.
+    # Prunes excessive exemplars.
     for name in ["inputs", "targets", "inputs_num_tokens", "targets_num_tokens"]:
         example["train"][name] = tf.boolean_mask(example["train"][name], bool_mask)
 
@@ -79,6 +137,7 @@ def register_few_shot_version_of_task(
     prune_exemplars: bool = False,
     max_input_length: Optional[int] = None,
     eval_task: bool = False,
+    fewshot_hyper: bool = True,
 ):
     """Registers a few-shot version of a Task."""
     task = seqio.TaskRegistry.get(base_task_name)
@@ -114,8 +173,8 @@ def register_few_shot_version_of_task(
         num_shots=num_shots,
         train_preprocessors=single_ex_preprocessors,
         eval_preprocessors=single_ex_preprocessors,
-        train_split="train",
-        train_feature_keys=("inputs", "targets"),
+        train_split="validation" if 'story_cloze' in base_task_name else "train",
+        train_feature_keys=("inputs", "hyper_inputs", "targets"),
     )
     # These are the preprocessors we run *after* we have formed few-shot examples.
     # Note that we re-introduce the tokenization steps here.
@@ -142,10 +201,11 @@ def register_few_shot_version_of_task(
 
     full_ex_preprocessors.append(
         functools.partial(
-            seqio.experimental.fewshot_preprocessor,
+            fewshot_preprocessor,
             inputs_prefix=inputs_prefix,
             targets_prefix=targets_prefix,
             example_separator=example_separator,
+            hyper_inputs=fewshot_hyper
         )
     )
 
