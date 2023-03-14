@@ -64,14 +64,6 @@ for dataset_name in dataset_names:
         default_rate=lambda t: mixture_cap[t.name],
     )
 
-# create a mixture of mixtures using our custom dataset function
-seqio.MixtureRegistry.add(
-    "t0_double_train",
-    [f"{dataset_name}_train" for dataset_name in dataset_names],
-    default_rate=1.0,
-    sample_fn=utils.double_sample_from_datasets,
-)
-
 # create few-shot task variants for t0 train tasks
 for task in t0_train_mixture["BASE"]:
     if task in TASK_BLACKLIST:
