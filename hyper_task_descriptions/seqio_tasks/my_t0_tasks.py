@@ -111,11 +111,14 @@ for shot in [1, 2, 4, 5]:
     mixture_cap_shot = {
         f"{task}_{shot}_shot": v for task, v in mixture_cap.items()
     }
-    print(mixture_cap_shot)
+    def default_rate(t):
+        print(t.name)
+        print(mixture_cap_shot)
+        return mixture_cap_shot[t.name]
     seqio.MixtureRegistry.add(
         f"t0_train_{shot}_shot",
         [f"{task}_{shot}_shot" for task in t0_train_mixture["BASE"] if task not in TASK_BLACKLIST],
-        default_rate=lambda t: mixture_cap_shot[t.name],
+        default_rate=default_rate
     )
 
 # create t0 eval few-shot mixtures.
