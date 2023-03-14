@@ -109,9 +109,9 @@ for task in task_names:
 # create mixture cap for few-shot tasks.
 mixture_cap_shot = {}
 for shot in [1, 2, 4, 5]:
-    mixture_cap_shot = {
+    mixture_cap_shot.update({
         f"{task}_{shot}_shot": v for task, v in mixture_cap.items()
-    }
+    })
 
 # few-shot t0 variants
 for shot in [1, 2, 4, 5]:
