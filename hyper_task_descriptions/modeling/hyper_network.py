@@ -1118,10 +1118,6 @@ class HyperTransformer(nn.Module):
             underlying_decoder=self.decoder,
             config=cfg,
             shared_embedding=self.shared_embedding,
-            underlying_encoder=self.encoder,
-            underlying_decoder=self.decoder,
-            config=cfg,
-            shared_embedding=self.shared_embedding,
         )
 
     def encode(
