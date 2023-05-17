@@ -862,8 +862,6 @@ class HyperDecoderLayer(nn.Module):
             deterministic=deterministic,
             use_prefix=cfg.use_prefix,
             use_gen=not hyper,
-            use_prefix=cfg.use_prefix,
-            use_gen=not hyper,
         )
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(y, deterministic=deterministic)
         y = y + x
@@ -1052,7 +1050,6 @@ class HyperDecoder(nn.Module):
                 deterministic=deterministic,
                 decode=decode,
                 max_decode_length=max_decode_length,
-                hyper=hyper,
                 hyper=hyper,
             )
 
