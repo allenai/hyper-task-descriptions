@@ -151,8 +151,8 @@ def apply_template_split(dataset, template, dataset_name, subset_name=None):
 
     original_columns = dataset.column_names
     # hack :(
-    if 'multi_news' in dataset_name:
-        print('multi news hack!')
+    if "multi_news" in dataset_name:
+        print("multi news hack!")
         dataset = dataset.filter(lambda x: x["document"] != "")
     dataset = dataset.map(map_fn).filter(filter_fn)
     # map keeps original columns, remove them

@@ -86,15 +86,17 @@ def pack_hypertune(ds, sequence_length, pad_id=0):
                 [1],
                 example["targets"][split_point_2:split_point_3],
                 [1],
-                example["targets"][split_point_5:]
-            ], axis=0
+                example["targets"][split_point_5:],
+            ],
+            axis=0,
         )
         inputs = tf.concat(
             [
                 example["targets"][split_point_1:split_point_2],
                 [1],
-                example["targets"][split_point_3:split_point_4]
-            ], axis=0
+                example["targets"][split_point_3:split_point_4],
+            ],
+            axis=0,
         )
         targets = example["targets"][split_point_4:split_point_5]
 

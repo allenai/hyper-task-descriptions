@@ -186,7 +186,7 @@ class Hypernet(nn.Module):
         if cfg.layer_embedding_method == "decoder":
             while layer_embed_components % 16 != 0:
                 layer_embed_components += 1
-        
+
         # to make sure compat with partitioning.
         self.embedder = jnp.asarray(
             param_with_axes(
@@ -256,7 +256,9 @@ class Hypernet(nn.Module):
             self.prefix_key_norm = layers.LayerNorm(name="prefix_key_norm")
             self.prefix_key_gen = hypernetwork(output_dim, "prefix_key", activations=activations)
             self.prefix_value_norm = layers.LayerNorm(name="prefix_value_norm")
-            self.prefix_value_gen = hypernetwork(output_dim, "prefix_value", activations=activations)
+            self.prefix_value_gen = hypernetwork(
+                output_dim, "prefix_value", activations=activations
+            )
         if cfg.use_prompt:
             output_dim = cfg.emb_dim
             if cfg.layer_embedding_method == "none":
@@ -332,7 +334,7 @@ class Hypernet(nn.Module):
                 )
             elif cfg.layer_embedding_method == "decoder":
                 seq_output = output * attn_mask[:, :, None]
-                layer_embeds = self.embedder[None, :self.true_layer_embed, :].repeat(
+                layer_embeds = self.embedder[None, : self.true_layer_embed, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
                 enc_dec_mask = layers.make_attention_mask(
@@ -375,7 +377,6 @@ class Hypernet(nn.Module):
         generated_parameter_dict = {}
 
         # choose our specific input to the hypernet. feel free to customize.
-        def generate_parameter(param_gen, layer_norm, inputs, component_id, shape):
         def generate_parameter(param_gen, layer_norm, inputs, component_id, shape):
             assert component_id in self.component_2_id, "component name not found"
             if cfg.layer_embedding_method == "none":
@@ -775,7 +776,6 @@ class HyperDecoderLayer(nn.Module):
         decode=False,
         max_decode_length=None,
         hyper=False,
-        hyper=False,
     ):
         cfg = self.config
         q_rank, k_rank, v_rank, o_rank = (x and cfg.use_lora for x in cfg.lora_ranks)
@@ -992,8 +992,6 @@ class HyperDecoder(nn.Module):
         max_decode_length=None,
         hyper=False,
         hyper_embeds=None,
-        hyper=False,
-        hyper_embeds=None,
     ):
         cfg = self.config
         if not hyper:
@@ -1034,9 +1032,6 @@ class HyperDecoder(nn.Module):
 
             # grab adaptations - note that adapters only need one as no c-a to worry abt
             layer_adaptations = {
-                k: v[:, lyr : lyr + 2]
-                for k, v in adaptations.items()
-                if "adapter" not in k and "prompt" not in k
                 k: v[:, lyr : lyr + 2]
                 for k, v in adaptations.items()
                 if "adapter" not in k and "prompt" not in k

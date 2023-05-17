@@ -150,8 +150,7 @@ class MlpBlock(nn.Module):
 
 
 class MlpBlockNoDropout(nn.Module):
-    """The above but without dropout, as XLA rng_bit_Generator can make this costly.
-    """
+    """The above but without dropout, as XLA rng_bit_Generator can make this costly."""
 
     intermediate_dim: int = 2048
     output_dim: Optional[int] = None  # by default we preserve the input dim

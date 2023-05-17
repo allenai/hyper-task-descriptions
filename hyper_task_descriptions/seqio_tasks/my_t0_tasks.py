@@ -80,7 +80,7 @@ for task in t0_train_mixture["BASE"]:
             example_separator="\n\n",
             prune_exemplars=True,
             max_input_length=960,  # saving 64 for separators, like FLAN.
-            fewshot_hyper=False
+            fewshot_hyper=False,
         )
 
 task_names = list(seqio.TaskRegistry.names())
@@ -103,15 +103,13 @@ for task in task_names:
             example_separator="\n\n",
             prune_exemplars=True,
             max_input_length=960,  # saving 64 for separators, like FLAN.
-            fewshot_hyper=True
+            fewshot_hyper=True,
         )
 
 # create mixture cap for few-shot tasks.
 mixture_cap_shot = {}
 for shot in [1, 2, 4, 5]:
-    mixture_cap_shot.update({
-        f"{task}_{shot}_shot": v for task, v in mixture_cap.items()
-    })
+    mixture_cap_shot.update({f"{task}_{shot}_shot": v for task, v in mixture_cap.items()})
 
 # few-shot t0 variants
 for shot in [1, 2, 4, 5]:
