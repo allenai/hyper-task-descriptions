@@ -22,8 +22,9 @@ from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from hyper_task_descriptions.seqio_tasks import utils
 
 # cached locations for everything - required to find data.
-seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_split_all_t5"])
+#seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_split_all_t5"])
 #seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_edited_prompts"])
+seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_fewshot_base"])
 
 GET_METRICS = {
     "BLEU": mt.bleu,
@@ -180,14 +181,11 @@ def add_task(
             s: dataset_splits[split_mapping[s]].num_examples for s in split_mapping.keys()
         },
     )
-    # use my unique vocab instead.
-    t5_vocab = HuggingfaceVocabulary("t5-base")
-    # we let hf deal with the special tokens for us
-    roberta_vocab = HuggingfaceVocabulary("roberta-base", add_special_tokens=True)
+    t5_vocab = t5.data.get_default_vocabulary()
 
     output_features = {
         "inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
-        "hyper_inputs": seqio.Feature(roberta_vocab, add_eos=False, dtype=tf.int32),
+        "hyper_inputs": seqio.Feature(t5_vocab, add_eos=False, dtype=tf.int32),
         "targets": seqio.Feature(t5_vocab, add_eos=True, dtype=tf.int32),
         "task_names": seqio.Feature(seqio.PassThroughVocabulary(1), add_eos=False, dtype=tf.int32),
     }

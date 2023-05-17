@@ -68,4 +68,5 @@ T0_DS_MAPPING = {
     "adversarial_qa_dbert": 61,
     "adversarial_qa_dbidaf": 62,
     "adversarial_qa_droberta": 63,
+    "anli": 64,
 }

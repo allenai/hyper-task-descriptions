@@ -64,14 +64,6 @@ for dataset_name in dataset_names:
         default_rate=lambda t: mixture_cap[t.name],
     )
 
-# create a mixture of mixtures using our custom dataset function
-seqio.MixtureRegistry.add(
-    "t0_double_train",
-    [f"{dataset_name}_train" for dataset_name in dataset_names],
-    default_rate=1.0,
-    sample_fn=utils.double_sample_from_datasets,
-)
-
 # create few-shot task variants for t0 train tasks
 for task in t0_train_mixture["BASE"]:
     if task in TASK_BLACKLIST:
@@ -79,15 +71,16 @@ for task in t0_train_mixture["BASE"]:
     for shot in [1, 2, 4, 5]:
         # keeping flan defaults for the inputs/targets/etc.
         register_few_shot_version_of_task(
-            task_name,
+            task,
             f"{task}_{shot}_shot",
             shot,
-            x_y_delimiter=" X ",
-            inputs_prefix="0 ",
-            targets_prefix="1 ",
-            example_separator=" X ",
+            x_y_delimiter="",
+            inputs_prefix="",
+            targets_prefix=" Output: ",
+            example_separator="\n\n",
             prune_exemplars=True,
             max_input_length=960,  # saving 64 for separators, like FLAN.
+            fewshot_hyper=False
         )
 
 task_names = list(seqio.TaskRegistry.names())
@@ -101,23 +94,31 @@ for task in task_names:
     for shot in [1, 2, 4, 5]:
         # keeping flan defaults for the inputs/targets/etc.
         register_few_shot_version_of_task(
-            task_name,
+            task,
             f"{task}_{shot}_shot",
             shot,
-            x_y_delimiter=" X ",
-            inputs_prefix="0 ",
-            targets_prefix="1 ",
-            example_separator=" X ",
+            x_y_delimiter="",
+            inputs_prefix="",
+            targets_prefix=" Output: ",
+            example_separator="\n\n",
             prune_exemplars=True,
             max_input_length=960,  # saving 64 for separators, like FLAN.
+            fewshot_hyper=True
         )
+
+# create mixture cap for few-shot tasks.
+mixture_cap_shot = {}
+for shot in [1, 2, 4, 5]:
+    mixture_cap_shot.update({
+        f"{task}_{shot}_shot": v for task, v in mixture_cap.items()
+    })
 
 # few-shot t0 variants
 for shot in [1, 2, 4, 5]:
     seqio.MixtureRegistry.add(
         f"t0_train_{shot}_shot",
         [f"{task}_{shot}_shot" for task in t0_train_mixture["BASE"] if task not in TASK_BLACKLIST],
-        default_rate=lambda t: mixture_cap[t.name],
+        default_rate=lambda t: mixture_cap_shot[t.name],
     )
 
 # create t0 eval few-shot mixtures.
