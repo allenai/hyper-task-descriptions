@@ -60,10 +60,8 @@ def fewshot_preprocessor(
         # Otherwise, we put them in the main inputs (e.g. for baselines)
         if hyper_inputs:
             few_shot_feature = "hyper_inputs"
-            non_few = "inputs"
         else:
             few_shot_feature = "inputs"
-            non_few = "hyper_inputs"
         if "train" in ex:
             train_examples = tf.stack(
                 [

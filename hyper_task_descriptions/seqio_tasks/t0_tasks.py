@@ -18,7 +18,6 @@ from t5.data.glue_utils import get_glue_metric, get_super_glue_metric
 from t5.evaluation import metrics as mt
 from tqdm import tqdm
 
-from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from hyper_task_descriptions.seqio_tasks import utils
 
 # cached locations for everything - required to find data.

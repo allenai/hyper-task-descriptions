@@ -15,7 +15,7 @@
 """T5.1.1 Transformer model.
 Altered to include hypernet stuff.
 """
-from typing import Callable, Iterable, Tuple
+from typing import Callable, Iterable
 
 import jax.numpy as jnp
 from flax import linen as nn
@@ -26,7 +26,7 @@ from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
 from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.layers import MLPBlock, MlpBlockNoDropout, SimpleLinear
+from hyper_task_descriptions.modeling.layers import MlpBlockNoDropout, SimpleLinear
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
