@@ -381,9 +381,9 @@ class NetworkTest(parameterized.TestCase):
 
         loss, _ = jax.jit(model.loss_fn)(params, batch, jax.random.PRNGKey(1))
         if use_prefix:
-            self.assertAlmostEqual(loss, 15.374477, delta=0.05)
+            self.assertAlmostEqual(loss, 15.203149, delta=0.05)
         else:
-            self.assertAlmostEqual(loss, 15.293617, delta=0.05)
+            self.assertAlmostEqual(loss, 15.237207, delta=0.05)
 
         predicted, scores = model.predict_batch_with_aux(params, batch)
         # predicted.shape = 2 x 3 (batch_size x max_decode_len) (best option)
@@ -393,9 +393,9 @@ class NetworkTest(parameterized.TestCase):
             np.testing.assert_array_equal(predicted, [[2, 6, 1], [2, 6, 5]])
         # scores.shape = 2 (batch_size) (best option)
         if use_prefix:
-            np.testing.assert_allclose(scores["scores"], [-3.740325, -3.203531], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.734891, -3.248967], rtol=1e-3)
         else:
-            np.testing.assert_allclose(scores["scores"], [-3.492951, -2.82867], rtol=1e-3)
+            np.testing.assert_allclose(scores["scores"], [-3.485741, -2.825951], rtol=1e-3)
 
 
 # if __name__ == "__main__":

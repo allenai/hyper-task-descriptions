@@ -15,7 +15,7 @@
 """T5.1.1 Transformer model.
 Altered to include hypernet stuff.
 """
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Tuple
 
 import jax.numpy as jnp
 from flax import linen as nn
@@ -60,6 +60,13 @@ class HyperT5Config(T5Config):
     ia3_ranks: tuple = (None, None, None, None)
     use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
+    per_layer_hnet: bool = False  # if true, we use a hnet for each layer. if false, we use a single hnet for all layers.
+    share_hnet_encoder: bool = False  # if true, we share the hnet encoder and underlying encoder.
+    hypernet_activations: Tuple[
+        str,
+    ] = ("gelu",)
+    use_tanh_prefix: bool = False  # use tanh as activation for prefix hnet
+    hnet_layernorm: bool = False  # use layernorm in hnet
 
 
 # create our component id dict
@@ -223,7 +230,7 @@ class Hypernet(nn.Module):
             return MlpBlockNoDropout(
                 intermediate_dim=cfg.emb_dim,  # same size as model
                 output_dim=output,
-                activations=cfg.hypernet_activations,
+                activations=activations,
                 intermediate_dropout_rate=0.0,
                 dtype=cfg.dtype,
                 name=name,
@@ -407,7 +414,6 @@ class Hypernet(nn.Module):
             generated_parameter_dict["adapter_wd"] = generate_parameter(
                 self.adapter_down_gen,
                 self.adapter_down_norm,
-                self.adapter_down_norm,
                 sum_embeds,
                 "adapter_wd",
                 (bsz, total_layers, cfg.emb_dim, cfg.adapter_size),
@@ -446,7 +452,6 @@ class Hypernet(nn.Module):
             generated_parameter_dict["prefix_key"] = generate_parameter(
                 self.prefix_key_gen,
                 self.prefix_key_norm,
-                self.prefix_key_norm,
                 sum_embeds,
                 "prefix_key",
                 (bsz, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim),
@@ -454,7 +459,6 @@ class Hypernet(nn.Module):
             # prefix value
             generated_parameter_dict["prefix_value"] = generate_parameter(
                 self.prefix_value_gen,
-                self.prefix_value_norm,
                 self.prefix_value_norm,
                 sum_embeds,
                 "prefix_value",
@@ -485,14 +489,12 @@ class Hypernet(nn.Module):
                 generated_parameter_dict["lora_qa"] = generate_parameter(
                     self.lora_qa_gen,
                     self.lora_qa_norm,
-                    self.lora_qa_norm,
                     sum_embeds,
                     "lora_qa",
                     (bsz, total_layers, cfg.emb_dim, self.q_rank),
                 )
                 generated_parameter_dict["lora_qb"] = generate_parameter(
                     self.lora_qb_gen,
-                    self.lora_qb_norm,
                     self.lora_qb_norm,
                     sum_embeds,
                     "lora_qb",
@@ -502,14 +504,12 @@ class Hypernet(nn.Module):
                 generated_parameter_dict["lora_ka"] = generate_parameter(
                     self.lora_ka_gen,
                     self.lora_ka_norm,
-                    self.lora_ka_norm,
                     sum_embeds,
                     "lora_ka",
                     (bsz, total_layers, cfg.emb_dim, self.k_rank),
                 )
                 generated_parameter_dict["lora_kb"] = generate_parameter(
                     self.lora_kb_gen,
-                    self.lora_kb_norm,
                     self.lora_kb_norm,
                     sum_embeds,
                     "lora_kb",
@@ -519,14 +519,12 @@ class Hypernet(nn.Module):
                 generated_parameter_dict["lora_va"] = generate_parameter(
                     self.lora_va_gen,
                     self.lora_va_norm,
-                    self.lora_va_norm,
                     sum_embeds,
                     "lora_va",
                     (bsz, total_layers, cfg.emb_dim, self.v_rank),
                 )
                 generated_parameter_dict["lora_vb"] = generate_parameter(
                     self.lora_vb_gen,
-                    self.lora_vb_norm,
                     self.lora_vb_norm,
                     sum_embeds,
                     "lora_vb",
@@ -536,14 +534,12 @@ class Hypernet(nn.Module):
                 generated_parameter_dict["lora_oa"] = generate_parameter(
                     self.lora_oa_gen,
                     self.lora_oa_norm,
-                    self.lora_oa_norm,
                     sum_embeds,
                     "lora_oa",
                     (bsz, total_layers, cfg.num_heads, cfg.head_dim, self.o_rank),
                 )
                 generated_parameter_dict["lora_ob"] = generate_parameter(
                     self.lora_ob_gen,
-                    self.lora_ob_norm,
                     self.lora_ob_norm,
                     sum_embeds,
                     "lora_ob",
@@ -788,10 +784,6 @@ class HyperDecoderLayer(nn.Module):
         if not hyper:
             # inputs: embedded inputs to the decoder with shape [batch, length, emb_dim]
             x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
-        # no self-attention in hyperdecoder (costly)
-        if not hyper:
-            # inputs: embedded inputs to the decoder with shape [batch, length, emb_dim]
-            x = layers.LayerNorm(dtype=cfg.dtype, name="pre_self_attention_layer_norm")(inputs)
 
             # Self-attention block
             x = LoraMultiHeadDotProductAttentionWithPrefix(
@@ -993,8 +985,6 @@ class HyperDecoder(nn.Module):
         cfg = self.config
         if not hyper:
             assert decoder_input_tokens.ndim == 2  # [batch, len]
-        if not hyper:
-            assert decoder_input_tokens.ndim == 2  # [batch, len]
         rel_emb = layers.RelativePositionBiases(
             num_buckets=32,
             max_distance=128,
@@ -1005,14 +995,6 @@ class HyperDecoder(nn.Module):
         )
 
         # [batch, length] -> [batch, length, emb_dim]
-        if not hyper:
-            y = self.shared_embedding(decoder_input_tokens.astype("int32"))
-            y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(
-                y, deterministic=deterministic
-            )
-            y = y.astype(cfg.dtype)
-        else:
-            y = hyper_embeds
         if not hyper:
             y = self.shared_embedding(decoder_input_tokens.astype("int32"))
             y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(
@@ -1053,10 +1035,6 @@ class HyperDecoder(nn.Module):
                 hyper=hyper,
             )
 
-        yd = layers.LayerNorm(dtype=cfg.dtype, name="decoder_norm")(y)
-        y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(yd, deterministic=deterministic)
-        if hyper:
-            return y
         yd = layers.LayerNorm(dtype=cfg.dtype, name="decoder_norm")(y)
         y = nn.Dropout(rate=cfg.dropout_rate, broadcast_dims=(-2,))(yd, deterministic=deterministic)
         if hyper:
