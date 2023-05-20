@@ -20,10 +20,10 @@ LOSS_NORMALIZING_FACTOR = None
 DROPOUT_RATE = %gin.REQUIRED
 
 # Vocabulary (shared by encoder and decoder)
-VOCABULARY = @hf_vocab.HuggingfaceVocabulary()
-hf_vocab.HuggingfaceVocabulary.model_name = "t5-base"
-#VOCABULARY = @seqio.SentencePieceVocabulary()
-#seqio.SentencePieceVocabulary.sentencepiece_model_file = "gs://t5-data/vocabs/cc_all.32000.100extra/sentencepiece.model"
+# VOCABULARY = @hf_vocab.HuggingfaceVocabulary()
+# hf_vocab.HuggingfaceVocabulary.model_name = "t5-base"
+VOCABULARY = @seqio.SentencePieceVocabulary()
+seqio.SentencePieceVocabulary.sentencepiece_model_file = "gs://t5-data/vocabs/cc_all.32000.100extra/sentencepiece.model"
 
 
 # ------------------- Optimizer ------------------------------------------------

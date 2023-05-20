@@ -20,7 +20,8 @@ python3 -m t5x.train \
   --gin_file="instruction_embed.gin" \
   --gin_file="ni_train.gin" \
   --gin_file="partial_train_adafactor_dual.gin" \
-  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
+  --gin_file="restore_frozen_under.gin" \
+  --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
   --gin.USE_CACHED_TASKS=True \
   --gin.trainer.Trainer.num_microbatches=16 \
   --gin.utils.create_learning_rate_scheduler.warmup_steps=100 \
@@ -38,7 +39,7 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_file="hyper_xl.gin" \
     --gin_file="instruction_embed.gin" \
     --gin_file="ni_eval.gin" \
-    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions_def\" \
+    --gin.MIXTURE_OR_TASK_NAME=\"natural_instructions\" \
     --gin.USE_CACHED_TASKS=True \
     --gin.utils.DatasetConfig.batch_size=512 \
     --gin.utils.DatasetConfig.split=\"test\" \
