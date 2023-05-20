@@ -60,7 +60,7 @@ class HyperT5Config(T5Config):
     ia3_ranks: tuple = (None, None, None, None)
     use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
-    per_layer_hnet: bool = False  # if true, we use a hnet for each layer. if false, we use a single hnet for all layers.
+    per_layer_hnet: bool = False  # if true, we use a hnet for each layer.
     share_hnet_encoder: bool = False  # if true, we share the hnet encoder and underlying encoder.
     hypernet_activations: Tuple[
         str,
