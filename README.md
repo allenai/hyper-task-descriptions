@@ -1,13 +1,31 @@
 # Hyper-Task-Descriptions
 
-Repo for learning adapters + prefixes from task descriptions :)
+Official repository for the paper [HINT: Hypernetwork Instruction Tuning for Efficient Few- and Zero-Shot Generalisation](https://arxiv.org/abs/2212.10315). We introduce a model that learns to generate adaptation parameters from instructions, allowing greatly improved inference efficiency while retaining performance. We find the model is especially effective in few-shot scenarios. The overall architecture looks like:
 
-## Installation
+![HINT architecture](figures/hint.png)
 
-Before running any code, you'll need access to `gs://hamishi-tpu-bucket` (where I have put cached P3 data). If you have an allenai gcloud account this should be enough, just make sure to login with `gcloud auth application-default login` so t5x uses your credentials (I think).
+This codebase is based on [t5x](https://github.com/google-research/t5x) and has only been tested on TPUs.
+
+If you find our paper or model useful please cite us:
+```
+@article{hint,
+  author = {Hamish Ivison and Bhagia, Akshita and Wang, Yizhong and Hajishirzi, Hannaneh and Peters, Matthew},
+  title = {HINT: Hypernetwork Instruction Tuning for Efficient Zero-Shot Generalisation},
+  journal = {ACL},
+  url = {https://arxiv.org/abs/2212.10315},
+  year = {2023}
+}
+```
+
+## Setup
+
+As this runs on t5x, you'll need a gcloud bucket you can write and read from. I recommend this bucket is in the same region as your TPUs to avoid large ingress/egress costs.
+
+I also recommend reading the [T5X documentation](https://github.com/google-research/t5x/tree/main/docs) before working with this repo. I will assume some familiarity with `gin`, `seqio`, etc. for the rest of this readme. If you have never worked with TPUs before, reading the TPU guide at the bottom of this readme is a good idea!
+
 ### Local Installation
 
-`pip install -e .[dev]` should to install basic dependencies. If you want to eval with [catwalk](https://github.com/allenai/catwalk) then you'll also need to install that. Note there's some annoyances with `seqio`: please uninstall `seqio` and `seqio-nightly` (which are probably installed by the above) and install install my fork: `https://github.com/hamishivi/seqio`, which contains a fix.
+`pip install -e .[dev]` should to install basic dependencies. Note there's some annoyances with `seqio`: please uninstall `seqio` and `seqio-nightly` (which are probably installed by the above) and install install my fork: `https://github.com/hamishivi/seqio`, which contains a fix.
 
 Some artefacts are used during training that might be useful to cache ahead of time. You can cache these as follows:
 - Tokenizers: ```python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('t5-base'); AutoTokenizer.from_pretrained('roberta-base')"```
@@ -16,9 +34,37 @@ Some artefacts are used during training that might be useful to cache ahead of t
 
 See `scripts/tpu_setup.sh` for an example of setting up this codebase to run on a TPU. Local installation should be similar minus the TPU-specific Jax version.
 
-Run `scripts/local.sh` for a small model + small subset of T0 data that is useful for local development.
+Run `scripts/local/local.sh` for a small model + small subset of T0 data that is useful for local development.
 
-## TPU Stuff
+## Data Preprocessing
+
+Due to the large size of P3, I recommend preprocessing data before training. You can do this with `seqio_cache_tasks` as such:
+
+
+```bash
+seqio_cache_tasks \
+      --tasks="<task regex>" \
+      --output_cache_dir=gs://<output bucket folder> \
+      --module_import=hyper_task_descriptions.seqio_tasks.my_t0_tasks \
+      --min_shards 1 \
+      --alsologtostderr
+```
+
+Check out [seqio](https://github.com/google/seqio) for more on this tool. Some notes for this repo:
+- Run this on a machine with a lot of RAM, as it can be quite memory-hungry when preprocessing some of the larger T0 tasks.
+- I found using 1 process per P3 prompt/task worked best, as trying to do all the tasks at once was very slow.
+- For processing pretraining data such as C4, it might be useful to try and use [google dataflow](https://cloud.google.com/dataflow) instead. Unfortunately, I don't have the commands I used for preprocessing C4 with dataflow around anymore.
+
+
+## Model Training
+
+Once your data is preprocessed and ready to go, you can train! We manage our configs with `gin` and commands for training can be found in `scripts`.
+
+## Evaluation
+
+## TPU Guide
+
+This was my first project working with TPUs, so below is the steps I worked out while using them. If you are experienced with TPU pods you probably don't need to read this.
 
 ### TPU installation
 
@@ -50,6 +96,12 @@ cd hyper-task-descriptions; ./scripts/<script-name>
 This will run the given script on all TPUs. Note this will run the script on all TPUs at once, so you will see a lot of output being logged. If one TPU errors the rest will continue to run, so cancel the command (control+C) and **before rerunning follow the cleanup steps below**.
 
 `scripts/t0_train.sh` is for training a model and `scripts/t0_eval.sh` for evaluating. I recommend looking at those scripts and the accompanying T5X commands (tain/eval) to understand the options.
+
+To deal with long-running jobs, where you don't want to have your computer constantly connected with the TPU, I tended to just run the process in the background and log all output:
+```bash
+cd hyper-task-descriptions; ./scripts/<script-name> &> log.log &
+```
+However, there are probably also other solutions that work well too!
 
 ### TPU Troubleshooting
 

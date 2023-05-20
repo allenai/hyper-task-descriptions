@@ -26,7 +26,7 @@ from t5x.examples.t5 import layers
 from t5x.examples.t5.network import T5Config
 from typing_extensions import TypeAlias
 
-from hyper_task_descriptions.modeling.layers import MlpBlock, SimpleLinear
+from hyper_task_descriptions.modeling.layers import MlpBlockNoDropout, SimpleLinear
 from hyper_task_descriptions.modeling.lora import (
     LoraMultiHeadDotProductAttentionWithPrefix,
 )
@@ -46,10 +46,7 @@ Initializer = Callable[[PRNGKey, Shape, DType], Array]
 @struct.dataclass
 class HyperT5Config(T5Config):
     hyperencoder_model: str = "google/t5-large-lm-adapt"
-    layer_embedding_method: str = "component"  # concat, layer, component
-    hypernet_activations: Tuple[
-        str,
-    ] = ("gelu",)
+    layer_embedding_method: str = "component"  # concat, layer, component, none (for per-layer hnet)
     use_instructions: bool = True  # if false, we use a single learnt embedding as input to hnet
     use_adapter: bool = True
     adapter_size: int = 64
@@ -63,7 +60,13 @@ class HyperT5Config(T5Config):
     ia3_ranks: tuple = (None, None, None, None)
     use_fusion_in_decoder: bool = False  # enables fid
     use_linear: bool = False  # linear transform on top of fid. required for mismatched models.
-    hnet_layernorm: bool = False
+    per_layer_hnet: bool = False  # if true, we use a hnet for each layer.
+    share_hnet_encoder: bool = False  # if true, we share the hnet encoder and underlying encoder.
+    hypernet_activations: Tuple[
+        str,
+    ] = ("gelu",)
+    use_tanh_prefix: bool = False  # use tanh as activation for prefix hnet
+    hnet_layernorm: bool = False  # use layernorm in hnet
 
 
 # create our component id dict
@@ -156,6 +159,9 @@ class Hypernet(nn.Module):
         # setup embeddings - enc attn, dec attn, cross attn
         self.num_components, self.component_2_id = create_component_id_dict(cfg)
         layer_embed_components = cfg.num_encoder_layers + (cfg.num_decoder_layers * 2)
+        # here, we use the hypernet for generate per-layer values
+        if cfg.per_layer_hnet:
+            layer_embed_components = 16  # not used, but for partitioning.
 
         self.attn = layers.MultiHeadDotProductAttention(
             num_heads=cfg.num_heads,
@@ -165,18 +171,29 @@ class Hypernet(nn.Module):
             float32_logits=cfg.float32_attention_logits,
             name="hyperattn",
         )
-        if not cfg.use_instructions:
+        if self.num_components == 1:
             self.num_components = 16
+        # we dont have any component stuff here.
+        if cfg.layer_embedding_method == "none":
+            self.num_components = cfg.emb_dim
+
+        if cfg.share_hnet_encoder:
+            self.encoder = self.underlying_encoder
+        else:
+            self.encoder = HyperEncoder(cfg, self.shared_embedding, name="hyper_encoder")
 
         if cfg.layer_embedding_method == "decoder":
-            self.encoder = HyperEncoder(cfg, self.shared_embedding, name="hyper_encoder")
             self.decoder = HyperDecoder(cfg, self.shared_embedding, name="hyper_decoder")
         else:
-            self.encoder = self.underlying_encoder
             self.decoder = self.underlying_decoder
 
         if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
             layer_embed_components *= self.num_components
+        self.true_layer_embed = layer_embed_components
+        if cfg.layer_embedding_method == "decoder":
+            while layer_embed_components % 16 != 0:
+                layer_embed_components += 1
+
         # to make sure compat with partitioning.
         self.embedder = jnp.asarray(
             param_with_axes(
@@ -194,6 +211,7 @@ class Hypernet(nn.Module):
                 "layer",
                 "component",
                 "decoder",
+                "none",
             ], "Invalid layer embedding method"
 
         if cfg.use_fusion_in_decoder:
@@ -206,99 +224,77 @@ class Hypernet(nn.Module):
                 name="instruction_embed",
             )
 
-        def hypernetwork(output, name, **kwargs):
-            return MlpBlock(
+        def hypernetwork(output, name, activations=cfg.hypernet_activations):
+            if cfg.per_layer_hnet:
+                output *= cfg.num_encoder_layers + 2 * cfg.num_decoder_layers
+            return MlpBlockNoDropout(
                 intermediate_dim=cfg.emb_dim,  # same size as model
                 output_dim=output,
-                activations=cfg.hypernet_activations,
+                activations=activations,
                 intermediate_dropout_rate=0.0,
                 dtype=cfg.dtype,
                 name=name,
-                **kwargs,
             )
 
         if cfg.use_adapter:
             output_dim = cfg.emb_dim
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.adapter_size * cfg.emb_dim
             self.adapter_down_norm = layers.LayerNorm(name="adapter_down_norm")
             self.adapter_down_gen = hypernetwork(output_dim, "adapter_down")
             self.adapter_up_norm = layers.LayerNorm(name="adapter_up_norm")
             self.adapter_up_gen = hypernetwork(output_dim, "adapter_up")
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.adapter_size
             self.adapter_bias_down_norm = layers.LayerNorm(name="adapter_bias_down_norm")
             self.adapter_bias_down_gen = hypernetwork(cfg.adapter_size, "adapter_bias_down")
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.emb_dim
             self.adapter_bias_up_norm = layers.LayerNorm(name="adapter_bias_up_norm")
             self.adapter_bias_up_gen = hypernetwork(cfg.emb_dim, "adapter_bias_up")
         if cfg.use_prefix:
+            if cfg.use_tanh_prefix:
+                activations = ("tanh",)
+            else:
+                activations = cfg.hypernet_activations
             output_dim = cfg.num_heads * cfg.head_dim
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.num_heads * cfg.head_dim * cfg.num_prefix_tokens
             self.prefix_key_norm = layers.LayerNorm(name="prefix_key_norm")
-            self.prefix_key_gen = hypernetwork(output_dim, "prefix_key")
+            self.prefix_key_gen = hypernetwork(output_dim, "prefix_key", activations=activations)
             self.prefix_value_norm = layers.LayerNorm(name="prefix_value_norm")
-            self.prefix_value_gen = hypernetwork(output_dim, "prefix_value")
+            self.prefix_value_gen = hypernetwork(
+                output_dim, "prefix_value", activations=activations
+            )
         if cfg.use_prompt:
+            output_dim = cfg.emb_dim
+            if cfg.layer_embedding_method == "none":
+                output_dim = cfg.emb_dim * cfg.num_prompt_tokens
             self.prompt_norm = layers.LayerNorm(name="prompt_norm")
-            self.prompt_gen = hypernetwork(cfg.emb_dim, "prompt")
-
+            self.prompt_gen = hypernetwork(output_dim, "prompt")
         self.q_rank, self.k_rank, self.v_rank, self.o_rank = cfg.lora_ranks
         if cfg.use_lora:
             if self.q_rank:
+                # TODO: lora for hypter style. currently errors out.
                 self.lora_qa_norm = layers.LayerNorm(name="lora_qa_norm")
                 self.lora_qa_gen = hypernetwork(cfg.emb_dim, "lora_qa")
                 self.lora_qb_norm = layers.LayerNorm(name="lora_qb_norm")
-                self.lora_qb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "lora_qb", kernel_init=nn.initializers.zeros
-                )
+                self.lora_qb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_qb")
             if self.k_rank:
                 self.lora_ka_norm = layers.LayerNorm(name="lora_ka_norm")
                 self.lora_ka_gen = hypernetwork(cfg.emb_dim, "lora_ka")
                 self.lora_kb_norm = layers.LayerNorm(name="lora_kb_norm")
-                self.lora_kb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "lora_kb", kernel_init=nn.initializers.zeros
-                )
+                self.lora_kb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_kb")
             if self.v_rank:
                 self.lora_va_norm = layers.LayerNorm(name="lora_va_norm")
                 self.lora_va_gen = hypernetwork(cfg.emb_dim, "lora_va")
                 self.lora_vb_norm = layers.LayerNorm(name="lora_vb_norm")
-                self.lora_vb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "lora_vb", kernel_init=nn.initializers.zeros
-                )
+                self.lora_vb_gen = hypernetwork(cfg.num_heads * cfg.head_dim, "lora_vb")
             if self.o_rank:
                 self.lora_oa_norm = layers.LayerNorm(name="lora_oa_norm")
                 self.lora_oa_gen = hypernetwork(cfg.emb_dim, "lora_oa")
                 self.lora_ob_norm = layers.LayerNorm(name="lora_ob_norm")
-                self.lora_ob_gen = hypernetwork(
-                    cfg.head_dim, "lora_ob", kernel_init=nn.initializers.zeros
-                )
-
-        # TODO: ia3 b params need to be with initializers ones.
-        self.q_ia3_rank, self.k_ia3_rank, self.v_ia3_rank, self.o_ia3_rank = cfg.ia3_ranks
-        if cfg.use_ia3:
-            if self.q_ia3_rank:
-                self.ia3_qa_norm = layers.LayerNorm(name="ia3_qa_norm")
-                self.ia3_qa_gen = hypernetwork(cfg.emb_dim, "ia3_qa")
-                self.ia3_qb_norm = layers.LayerNorm(name="ia3_qb_norm")
-                self.ia3_qb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "ia3_qb", kernel_init=nn.initializers.ones
-                )
-            if self.k_ia3_rank:
-                self.ia3_ka_norm = layers.LayerNorm(name="ia3_ka_norm")
-                self.ia3_ka_gen = hypernetwork(cfg.emb_dim, "ia3_ka")
-                self.ia3_kb_norm = layers.LayerNorm(name="ia3_kb_norm")
-                self.ia3_kb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "ia3_kb", kernel_init=nn.initializers.ones
-                )
-            if self.v_ia3_rank:
-                self.ia3_va_norm = layers.LayerNorm(name="ia3_va_norm")
-                self.ia3_va_gen = hypernetwork(cfg.emb_dim, "ia3_va")
-                self.ia3_vb_norm = layers.LayerNorm(name="ia3_vb_norm")
-                self.ia3_vb_gen = hypernetwork(
-                    cfg.num_heads * cfg.head_dim, "ia3_vb", kernel_init=nn.initializers.ones
-                )
-            if self.o_ia3_rank:
-                self.ia3_oa_norm = layers.LayerNorm(name="ia3_oa_norm")
-                self.ia3_oa_gen = hypernetwork(cfg.emb_dim, "ia3_oa")
-                self.ia3_ob_norm = layers.LayerNorm(name="ia3_ob_norm")
-                self.ia3_ob_gen = hypernetwork(
-                    cfg.head_dim, "ia3_ob", kernel_init=nn.initializers.ones
-                )
+                self.lora_ob_gen = hypernetwork(cfg.head_dim, "lora_ob")
 
     def __call__(self, encoder_input_tokens, deterministic=False):
         cfg = self.config
@@ -345,7 +341,7 @@ class Hypernet(nn.Module):
                 )
             elif cfg.layer_embedding_method == "decoder":
                 seq_output = output * attn_mask[:, :, None]
-                layer_embeds = self.embedder[None, :, :].repeat(
+                layer_embeds = self.embedder[None, : self.true_layer_embed, :].repeat(
                     encoder_input_tokens.shape[0], axis=0
                 )
                 enc_dec_mask = layers.make_attention_mask(
@@ -363,20 +359,26 @@ class Hypernet(nn.Module):
                     deterministic=deterministic,
                     decode=False,
                 )
-            else:  # else = use concat
+            elif cfg.layer_embedding_method == "concat":
                 # layer embeds - repeat in batch, length dim
-                sum_embeds = sum_embeds[:, None].repeat(total_layers, axis=1)
+                mean_seq = mean_seq[:, None].repeat(total_layers, axis=1)
                 layer_embs = self.embedder[
                     None,
                     :,
-                ].repeat(sum_embeds.shape[0], axis=0)
+                ].repeat(mean_seq.shape[0], axis=0)
                 sum_embeds = jnp.concatenate([mean_seq, layer_embs], axis=-1)
-        else:
+            else:  # else = use no layer embeds. we mean pool the sequence.
+                sum_embeds = mean_seq.repeat(total_layers, axis=1)
+        else:  # no instructions - directly generated.
             sum_embeds = self.embedder[None, :].repeat(encoder_input_tokens.shape[0], axis=0)
         # at this point, sum embeds should be [batch, layers, num_comp, feats]
         # (or at least reshape-able to it). Note num_comp = 1 for concat or layer methods.
+        if cfg.per_layer_hnet:
+            sum_embeds_layers = 1
+        else:
+            sum_embeds_layers = total_layers
         sum_embeds = sum_embeds.reshape(
-            encoder_input_tokens.shape[0], total_layers, self.num_components, -1
+            encoder_input_tokens.shape[0], sum_embeds_layers, self.num_components, -1
         )
 
         generated_parameter_dict = {}
@@ -384,6 +386,8 @@ class Hypernet(nn.Module):
         # choose our specific input to the hypernet. feel free to customize.
         def generate_parameter(param_gen, layer_norm, inputs, component_id, shape):
             assert component_id in self.component_2_id, "component name not found"
+            if cfg.layer_embedding_method == "none":
+                inputs = inputs[:, 0, :, 0]  # convert into somthing simple.
             if cfg.layer_embedding_method == "component" or cfg.layer_embedding_method == "decoder":
                 start, end = self.component_2_id[component_id]
                 # reshape to collapse the components into one blob
@@ -437,6 +441,11 @@ class Hypernet(nn.Module):
                 sum_embeds,
                 "adapter_bu",
                 (-1, total_layers, cfg.emb_dim),
+                self.adapter_bias_up_gen,
+                self.adapter_bias_up_norm,
+                sum_embeds,
+                "adapter_bu",
+                (-1, total_layers, cfg.emb_dim),
             )
         if cfg.use_prefix:
             # prefix key
@@ -455,6 +464,16 @@ class Hypernet(nn.Module):
                 "prefix_value",
                 (bsz, total_layers, cfg.num_prefix_tokens, cfg.num_heads, cfg.head_dim),
             )
+        if cfg.use_prompt:
+            generated_parameter_dict["prompt"] = generate_parameter(
+                self.prompt_gen,
+                self.prompt_norm,
+                sum_embeds,
+                "prompt",
+                (bsz, total_layers, cfg.num_prompt_tokens, cfg.emb_dim),
+            )[
+                :, 0
+            ]  # no layers since prompt is l1 only
         if cfg.use_prompt:
             generated_parameter_dict["prompt"] = generate_parameter(
                 self.prompt_gen,
@@ -776,7 +795,6 @@ class HyperDecoderLayer(nn.Module):
                 name="self_attention",
                 use_prefix=cfg.use_prefix,
                 lora_ranks=cfg.lora_ranks,
-                ia3_ranks=cfg.ia3_ranks,
             )(
                 x,
                 x,
@@ -790,14 +808,6 @@ class HyperDecoderLayer(nn.Module):
                 lora_vb=lora_vb[:, 0] if v_rank else None,
                 lora_oa=lora_oa[:, 0] if o_rank else None,
                 lora_ob=lora_ob[:, 0] if o_rank else None,
-                ia3_qa=ia3_qa[:, 0] if q_ia3_rank else None,
-                ia3_qb=ia3_qb[:, 0] if q_ia3_rank else None,
-                ia3_ka=ia3_ka[:, 0] if k_ia3_rank else None,
-                ia3_kb=ia3_kb[:, 0] if k_ia3_rank else None,
-                ia3_va=ia3_va[:, 0] if v_ia3_rank else None,
-                ia3_vb=ia3_vb[:, 0] if v_ia3_rank else None,
-                ia3_oa=ia3_oa[:, 0] if o_ia3_rank else None,
-                ia3_ob=ia3_ob[:, 0] if o_ia3_rank else None,
                 prefix_key=prefix_key[:, 0] if cfg.use_prefix and prefix_key is not None else None,
                 prefix_value=prefix_value[:, 0]
                 if cfg.use_prefix and prefix_value is not None
@@ -837,14 +847,6 @@ class HyperDecoderLayer(nn.Module):
             lora_vb=lora_vb[:, 1] if v_rank else None,
             lora_oa=lora_oa[:, 1] if o_rank else None,
             lora_ob=lora_ob[:, 1] if o_rank else None,
-            ia3_qa=ia3_qa[:, 1] if q_ia3_rank else None,
-            ia3_qb=ia3_qb[:, 1] if q_ia3_rank else None,
-            ia3_ka=ia3_ka[:, 1] if k_ia3_rank else None,
-            ia3_kb=ia3_kb[:, 1] if k_ia3_rank else None,
-            ia3_va=ia3_va[:, 1] if v_ia3_rank else None,
-            ia3_vb=ia3_vb[:, 1] if v_ia3_rank else None,
-            ia3_oa=ia3_oa[:, 1] if o_ia3_rank else None,
-            ia3_ob=ia3_ob[:, 1] if o_ia3_rank else None,
             prefix_key=prefix_key[:, 1] if cfg.use_prefix and prefix_key is not None else None,
             prefix_value=prefix_value[:, 1]
             if cfg.use_prefix and prefix_value is not None
@@ -933,7 +935,20 @@ class HyperEncoder(nn.Module):
                 encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
             )
 
+        # append prompt
+        if cfg.use_prompt and not hyper:
+            prompt = adaptations["prompt"]
+            x = jnp.concatenate([prompt, x], axis=1)
+            bsz = x.shape[0]
+            encoder_input_tokens = jnp.concatenate(
+                [jnp.ones((bsz, prompt.shape[1]), dtype=cfg.dtype), encoder_input_tokens], axis=1
+            )
+            encoder_mask = layers.make_attention_mask(
+                encoder_input_tokens > 0, encoder_input_tokens > 0, dtype=cfg.dtype
+            )
+
         for lyr in range(cfg.num_encoder_layers):
+            layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items() if "prompt" not in k}
             layer_adaptations = {k: v[:, lyr] for k, v in adaptations.items() if "prompt" not in k}
             # [batch, length, emb_dim] -> [batch, length, emb_dim]
             x = HyperEncoderLayer(config=cfg, relative_embedding=rel_emb, name=f"layers_{lyr}")(

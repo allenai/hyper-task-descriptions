@@ -631,19 +631,25 @@ class LoraMultiHeadDotProductAttentionWithPrefix(nn.Module):
 
         # Back to the original inputs dimensions.
 
-        o_rank = self.lora_ranks[3] or 0
-        o_ia3_rank = self.ia3_ranks[3] or 0
-        # if o_rank:
-        out = LoraDenseGeneral(
-            features=inputs_q.shape[-1],  # output dim is set to the input dim.
-            axis=(-2, -1),
-            rank=o_rank,
-            ia3_rank=o_ia3_rank,
-            kernel_init=self.kernel_init,
-            kernel_axes=("joined_kv", "embed"),
-            dtype=self.dtype,
-            name="out",
-            manual_lora=self.manual_lora,
-        )(x, lora_a=lora_oa, lora_b=lora_ob, ia3_a=ia3_oa, ia3_b=ia3_ob)
-
+        o_rank = lora_ranks[3]
+        if o_rank:
+            out = LoraDenseGeneral(
+                features=inputs_q.shape[-1],  # output dim is set to the input dim.
+                axis=(-2, -1),
+                rank=o_rank,
+                kernel_init=self.kernel_init,
+                kernel_axes=("joined_kv", "embed"),
+                dtype=self.dtype,
+                name="out",
+                manual_lora=self.manual_lora,
+            )(x, lora_a=lora_oa, lora_b=lora_ob)
+        else:
+            out = DenseGeneral(
+                features=inputs_q.shape[-1],  # output dim is set to the input dim.
+                axis=(-2, -1),
+                kernel_init=self.kernel_init,
+                kernel_axes=("joined_kv", "embed"),
+                dtype=self.dtype,
+                name="out",
+            )(x)
         return out
