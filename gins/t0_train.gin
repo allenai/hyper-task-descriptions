@@ -5,8 +5,8 @@ from t5x import models
 from t5x import trainer
 from t5x import utils
 import seqio
-#from hyper_task_descriptions.seqio_tasks import all_t0_tasks
-from hyper_task_descriptions.seqio_tasks import my_t0_tasks
+from hyper_task_descriptions.seqio_tasks import all_t0_tasks
+# from hyper_task_descriptions.seqio_tasks import my_t0_tasks
 
 import __main__ as train_script
 
