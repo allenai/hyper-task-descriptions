@@ -22,8 +22,8 @@ from hyper_task_descriptions.seqio_tasks import utils
 
 # cached locations for everything - required to find data.
 # seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_split_all_t5"])
-# seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_edited_prompts"])
-seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_fewshot_base"])
+seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_edited_prompts"])
+# seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_fewshot_base"])
 
 GET_METRICS = {
     "BLEU": mt.bleu,
