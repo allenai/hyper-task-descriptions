@@ -23,7 +23,7 @@ As this runs on t5x, you'll need a gcloud bucket you can write and read from. I 
 
 I also recommend reading the [T5X documentation](https://github.com/google-research/t5x/tree/main/docs) before working with this repo. I will assume some familiarity with `gin`, `seqio`, etc. for the rest of this readme. If you have never worked with TPUs before, reading the TPU guide at the bottom of this readme is a good idea!
 
-I also based some of this codebase, especially the T0/P3 parts, off the [BigScience architecture objective repository](https://github.com/bigscience-workshop/architecture-objective).
+I also based some of this codebase, especially the T0/P3 parts, off the [BigScience architecture objective repository](https://github.com/bigscience-workshop/architecture-objective). 
 
 ### Local Installation
 
@@ -32,7 +32,7 @@ I also based some of this codebase, especially the T0/P3 parts, off the [BigScie
 Some artefacts are used during training that might be useful to cache ahead of time. You can cache these as follows:
 - Tokenizers: ```python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('t5-base'); AutoTokenizer.from_pretrained('roberta-base')"```
 - Roberta model: ```python3 -c "from transformers import FlaxRobertaModel; FlaxRobertaModel.from_pretrained('hamishivi/fixed-roberta-base')"```
-- Data splits (only do if you want to run with all datasets): ```TRANSFORMERS_OFFLINE=1 python3 -c "import hyper_task_descriptions.seqio_tasks.all_t0_tasks"```
+- Data splits (only do if you want to run with all datasets): ```cd hyper-task-descriptions; TRANSFORMERS_OFFLINE=1 python3 -c "import hyper_task_descriptions.seqio_tasks.all_t0_tasks"```
 
 See `scripts/tpu_setup.sh` for an example of setting up this codebase to run on a TPU. Local installation should be similar minus the TPU-specific Jax version.
 
@@ -74,9 +74,15 @@ Once your data is preprocessed and ready to go, you can train! We manage our con
 1. Run `pretraining/pretrain.sh <model_name>`. `<model_name>` will be the folder name the model is saved to in your google bucket. Let this run for 10,000 steps.
 2. Run `nat_int/ni_train_pretrained.sh <model_name> <pretrained_model_name> checkpoint_<checkpoint_step> <total_train_steps>`, but replace the value of `INITIAL_CHECKPOINT_PATH` with the model you just pretrained. If you are following HINT, you should use `checkpoint_1110000` for the checkpoint steps and `1111000` for the total train steps.
 
-For P3, run `train_from_pretrained.sh <model_name> <pretrained_model_name> checkpoint_<checkpoint_step> <total_train_steps>` instead. You should run `TRANSFORMERS_OFFLINE=1 python3 -c "import hyper_task_descriptions.seqio_tasks.all_t0_tasks"` before doing P3 training to cache the split information for P3 (you can also alter the script to run this when you run the training script, but since it takes 30min I think it's worth doing as a separate step). You only have to cache these splits once (for a given TPU).
+For P3, run `train_from_pretrained.sh <model_name> <pretrained_model_name> checkpoint_<checkpoint_step> <total_train_steps>` instead (with number of total train steps adjusted accordingly). You should run `TRANSFORMERS_OFFLINE=1 python3 -c "import hyper_task_descriptions.seqio_tasks.all_t0_tasks"` before doing P3 training to cache the split information for P3 (you can also alter the script to run this when you run the training script, but since it takes 30min I think it's worth doing as a separate step). You only have to cache these splits once (for a given TPU).
 
+### Evaluation
 
+The `ni_train` scripts will evaluate the model right after. You can find the evaluation numbers in the `eval` folder in the model checkpoint folders (in your google bucket), or by looking at the tensorboard logs (which you can view by launching `tensorboard --logdir <your_model_folder>` - note it can be on any machine with access to your google bucket).
+
+If you want to eval on supernatural instructions separately, run `nat_int/ni_eval.sh` with the settings changed such that they are identical to the model you are evaluating (this is very important!).
+
+To evaluate on P3, run `eval/t0_eval.sh`. Again, you'll have to adjust the script to make sure it matches the model configuration (basically, just include the same gins in the same order, and you should be fine).
 
 ### Gin Configs
 
@@ -92,12 +98,7 @@ While we have many `gin` configs, I will highlight the most important ones:
 
 We also explored other models, including Hypter and HyperTune, which have configs I have not tested to make sure they work on the current codebase. However, they might be interesting to look at for reference.
 
-
-
-
-### Scripts
-
-## Evaluation
+**I only have tested the HINT model pretraining and finetuning on SNI and T0**. I can't guarantee all mixes of options work. If you have a question or issue, please lodge it in the issues and ping me (@hamishivi).
 
 ## TPU Guide
 
