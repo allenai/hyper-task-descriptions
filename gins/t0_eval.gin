@@ -21,8 +21,8 @@ from t5x import utils
 
 import seqio
 from seqio import loggers
-#from hyper_task_descriptions.seqio_tasks import all_t0_tasks # Needed to define the t0 eval mixtures
-from hyper_task_descriptions.seqio_tasks import my_t0_tasks
+from hyper_task_descriptions.seqio_tasks import all_t0_tasks # Needed to define the t0 eval mixtures
+# from hyper_task_descriptions.seqio_tasks import my_t0_tasks
 
 
 # Must be overridden
