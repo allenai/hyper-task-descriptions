@@ -354,7 +354,7 @@ data_source = seqio.FunctionDataSource(
     splits=["train", "test"],
 )
 
-# here, we pack 4 positive examples into the hyper inputs.
+# here, we pack 1 positive examples into the hyper inputs.
 seqio.TaskRegistry.add(
     "natural_instruction_positive_example_hyper_1",
     data_source,
