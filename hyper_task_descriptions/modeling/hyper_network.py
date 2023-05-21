@@ -441,11 +441,6 @@ class Hypernet(nn.Module):
                 sum_embeds,
                 "adapter_bu",
                 (-1, total_layers, cfg.emb_dim),
-                self.adapter_bias_up_gen,
-                self.adapter_bias_up_norm,
-                sum_embeds,
-                "adapter_bu",
-                (-1, total_layers, cfg.emb_dim),
             )
         if cfg.use_prefix:
             # prefix key
