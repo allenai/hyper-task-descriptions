@@ -3,7 +3,10 @@ export PYTHONPATH=${PYTHONPATH}:${PWD}
 git clone https://github.com/google-research/t5x.git
 cd t5x
 git checkout 3282da46b4a7e46bc17b96cdb6673a4dd812a1b6
-python3 -m pip install -e '.[tpu]' -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+# no deps as t5x used un-pinned library versions from github
+# we have the pinned versions in requirements.txt
+python3 -m pip install -e '.[tpu]' -f https://storage.googleapis.com/jax-releases/libtpu_releases.html --no-deps
+cd ..
 # install deps
 python3 -m pip install -r requirements.txt --upgrade
 # install tpu-specific jax

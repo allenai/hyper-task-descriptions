@@ -58,7 +58,17 @@ Check out [seqio](https://github.com/google/seqio) for more on this tool. Some n
 
 ## Model Training
 
-Once your data is preprocessed and ready to go, you can train! We manage our configs with `gin` and commands for training can be found in `scripts`.
+Once your data is preprocessed and ready to go, you can train! We manage our configs with `gin` and commands for training can be found in `scripts`. To replicate the HINT model:
+- Run `pretraining/pretrain.sh`.
+- Run `train_from_t5.sh`, but replace the value of `INITIAL_CHECKPOINT_PATH` with the model you just pretrained.
+
+While we have many `gin` configs, I will highlight the most important ones:
+- `hyper_<size>.gin` defines the HINT model, with various sizes available (the same sizes as T5 models).
+- `instruction_embed.gin` defines how the instructions are coded into the underlying model following HINT. We experimented with many different methods of doing this (lora, adapters, prefixes, prompts...) which are all separably configurable!
+- `partial_train_adafactor_dual.gin` defines the adafactor optimizer, and sets the values for the hypernetwork and underlying t5 so that we use the existing optimizer state for the T5 model, but correctly initialize the hypernetwork optimizer states. We use this for pretraining and finetuning.
+- `pretrain.gin` defines the pretraining mixture and settings (input/output lengths, etc).
+- `t0_train.gin` defines the mixture and settings for training on P3 (T0 train set).
+- `ni_train.gin` defines the mixture and settings for training on Super-Natural Instructions.
 
 ## Evaluation
 
