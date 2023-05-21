@@ -29,7 +29,7 @@ optimizers.MultiOptimizer:
 
 # MultiOptimizer will match any parameter with a flattened name that
 # matches *any* of the regular expressions in the list.
-# hyper - we turn off param scaling, offset the step
+# hyper - we offset the step
 hyper/learning_rate_adafactor.Adafactor:
   multiply_by_parameter_scale = True
   step_offset = 1100000
