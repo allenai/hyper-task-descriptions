@@ -149,52 +149,6 @@ class MlpBlock(nn.Module):
         return output
 
 
-class MlpBlockNoDropout(nn.Module):
-    """The above but without dropout, as XLA rng_bit_Generator can make this costly."""
-
-    intermediate_dim: int = 2048
-    output_dim: Optional[int] = None  # by default we preserve the input dim
-    activations: Sequence[Union[str, Callable]] = ("relu",)
-    kernel_init: Initializer = nn.initializers.variance_scaling(1.0, "fan_in", "truncated_normal")
-    intermediate_dropout_rate: float = 0.1
-    dtype: Any = jnp.float32
-
-    @nn.compact
-    def __call__(self, inputs, decode: bool = False, deterministic: bool = False):
-        """Applies Transformer MlpBlock module."""
-        # Iterate over specified MLP input activation functions.
-        # e.g. ('relu',) or ('gelu', 'linear') for gated-gelu.
-        activations = []
-        for idx, act_fn in enumerate(self.activations):
-            dense_name = "wi" if len(self.activations) == 1 else f"wi_{idx}"
-            x = DenseGeneral(
-                self.intermediate_dim,
-                dtype=self.dtype,
-                kernel_init=self.kernel_init,
-                kernel_axes=("embed", "mlp"),
-                name=dense_name,
-            )(inputs)
-            x = _convert_to_activation_function(act_fn)(x)
-            activations.append(x)
-
-        # Take elementwise product of above intermediate activations.
-        x = functools.reduce(operator.mul, activations)
-
-        # CHANGE from t5x
-        # Removing the sharding constraint as we require to use this layer for shapes of ('batch', 'mlp'),
-        # which makes below constraint invalid.
-        # x = with_sharding_constraint(x, ('batch', 'length', 'mlp'))
-
-        output = DenseGeneral(
-            inputs.shape[-1] if self.output_dim is None else self.output_dim,
-            dtype=self.dtype,
-            kernel_init=self.kernel_init,
-            kernel_axes=("mlp", "embed"),
-            name="wo",
-        )(x)
-        return output
-
-
 class MultiHeadDotProductAttentionWithPrefix(nn.Module):
     """Multi-head dot-product attention.
 
