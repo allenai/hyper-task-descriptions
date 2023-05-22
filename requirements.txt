@@ -93,7 +93,7 @@ lazr.uri==1.0.3
 libclang==14.0.6
 lxml==4.9.1
 Markdown==3.3.4
-MarkupSafe==1.1.0
+MarkupSafe==2.1.2
 matplotlib==3.6.1
 mccabe==0.7.0
 mesh-tensorflow==0.1.21
