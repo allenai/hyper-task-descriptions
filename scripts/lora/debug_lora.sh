@@ -2,7 +2,6 @@
 EXPERIMENT_NAME=$1
 
 # where model will be saved
-# MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
 MODEL_DIR="${EXPERIMENT_NAME}"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
@@ -18,5 +17,4 @@ HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.train \
   --gin.partitioning.PjitPartitioner.num_partitions=1 \
   --gin.lora_network.LoraT5Config.lora_ranks="(4,None,4,None)" \
   --gin.utils.create_learning_rate_scheduler.base_learning_rate=1e-4 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_small/checkpoint_1100000\" \
-  --tfds_data_dir="gs://hamishi-us-bucket/t0_data/data"
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://t5-data/pretrained_models/t5x/t5_1_1_lm100k_small/checkpoint_1100000\"

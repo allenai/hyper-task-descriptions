@@ -6,11 +6,12 @@ EXPERIMENT_NAME=$1
 LOAD_MODEL=$2
 CHECKPOINT=$3
 TRAIN_STEPS=$4
+BUCKET_NAME="hamishi-tpu"
 
 echo "Make sure train steps is set to > the checkpoint!"
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/model"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
@@ -28,12 +29,12 @@ python3 -m t5x.train \
   --gin.MODEL_DIR=\"${MODEL_DIR}\" \
   --gin.TRAIN_STEPS=$4 \
   --gin.partitioning.PjitPartitioner.num_partitions=2 \
-  --gin.INITIAL_CHECKPOINT_PATH=\"gs://hamishi-us-bucket/$2/model/$3\"
+  --gin.INITIAL_CHECKPOINT_PATH=\"gs://${BUCKET_NAME}/$2/model/$3\"
 
 
 echo "Training done. Now evaluating all checkpoints..."
 
-EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval/"
+EVAL_OUTPUT_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/eval/"
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_search_paths="gins" \
     --gin_file="hyper_xl.gin" \

@@ -26,6 +26,7 @@ from t5x import optimizers, partitioning
 
 PartitionRule = Tuple[str, Optional[partitioning.PartitionSpec]]
 
+GOOGLE_BUCKET_PATH = "gs://hamishi-tpu"
 
 def match_any(regexes: Sequence[str]) -> Callable[[str, Any], bool]:
     """A traversal that checks if the parameter name matches any regex.

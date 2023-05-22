@@ -1,10 +1,11 @@
 # name of experiment folder
 EXPERIMENT_NAME=$1
 SHOT=$2  # must be 1, 2, 4, 5
+BUCKET_NAME="hamishi-tpu"
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
-EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval"
+MODEL_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/model"
+EVAL_OUTPUT_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/eval"
 
 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m t5x.eval \
     --gin_search_paths="gins" \

@@ -1,10 +1,11 @@
 # name of experiment folder
 EXPERIMENT_NAME=$1
 SHOT=$2  # must be 1, 2, 4, 5
+BUCKET_NAME="hamishi-tpu"
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
-EVAL_OUTPUT_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/eval"
+MODEL_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/model"
+EVAL_OUTPUT_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/eval"
 
 # we go offline to avoid constant calls to get basic info (happens even when cached)
 # for your first run, you will probably need to run all these calls :(
