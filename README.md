@@ -6,7 +6,11 @@ Official repository for the paper [HINT: Hypernetwork Instruction Tuning for Eff
 
 This codebase is based on [t5x](https://github.com/google-research/t5x) and has only been tested on TPUs.
 
-If you find our paper or model useful please cite us:
+If you're looking for the T0 replications we trained as part of this work, they can be found here:
+- [T0 11B replication](https://huggingface.co/hamishivi/hypertask_T0_11B)
+- [T0 3B replication](https://huggingface.co/hamishivi/hypertask_T0_3B)
+
+If you find our paper or models useful please cite us:
 ```
 @article{hint,
   author = {Hamish Ivison and Bhagia, Akshita and Wang, Yizhong and Hajishirzi, Hannaneh and Peters, Matthew},
