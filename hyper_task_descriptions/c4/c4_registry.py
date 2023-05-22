@@ -25,7 +25,7 @@ from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 
 TaskRegistry = seqio.TaskRegistry
 
-seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/c4_pretrain_data"])
+seqio.add_global_cache_dirs(["gs://hamishi-tpu/hyper-task-descriptions/data/c4_pretrain_data"])
 
 t5_vocab = HuggingfaceVocabulary("t5-base")
 
