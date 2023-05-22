@@ -25,6 +25,8 @@ I also recommend reading the [T5X documentation](https://github.com/google-resea
 
 I also based some of this codebase, especially the T0/P3 parts, off the [BigScience architecture objective repository](https://github.com/bigscience-workshop/architecture-objective). 
 
+**Important:** You'll need to replace `BUCKET_NAME` in the scripts with your own google bucket, and `GOOGLE_BUCKET_PATH` in `hyper_task_descriptions/utils.py` to your own bucket too. I recommend making sure the bucket is in the same region as the TPUs you are using to lower egress/ingress costs in google cloud. You should make sure to cache your data to the same bucket too (see "Data Preprocessing" below).
+
 ### Local Installation
 
 `pip install -e .[dev]` should to install basic dependencies. Note there's some annoyances with `seqio`: please uninstall `seqio` and `seqio-nightly` (which are probably installed by the above) and install install my fork: `https://github.com/hamishivi/seqio`, which contains a fix.

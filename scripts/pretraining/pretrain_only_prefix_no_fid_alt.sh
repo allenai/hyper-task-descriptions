@@ -1,7 +1,8 @@
 EXPERIMENT_NAME=$1
+BUCKET_NAME="hamishi-tpu"
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/model"
 
 python3 -m t5x.train \
   --gin_search_paths=gins \

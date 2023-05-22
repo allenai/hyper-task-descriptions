@@ -2,9 +2,10 @@
 # disable jit so I can debug.
 
 EXPERIMENT_NAME=$1
+BUCKET_NAME="hamishi-tpu"
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-tpu-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/model"
 
 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 JAX_DISABLE_JIT=1 python -m t5x.train \
     --gin_search_paths=./gins \

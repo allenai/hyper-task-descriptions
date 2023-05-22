@@ -19,14 +19,15 @@ from t5.evaluation import metrics as mt
 from tqdm import tqdm
 
 from hyper_task_descriptions.seqio_tasks import utils
+from hyper_task_descriptions.utils import GOOGLE_BUCKET_PATH
 
 # cached locations for everything - required to find data.
 # "split" version of t0
-# seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_split_all_t5"])
+# seqio.add_global_cache_dirs([f"{GOOGLE_BUCKET_PATH}/t0_data_split_all_t5"])
 # "joint" version of t0 (see the hint paper for terminology)
-seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_edited_prompts"])
+seqio.add_global_cache_dirs([f"{GOOGLE_BUCKET_PATH}/t0_data_edited_prompts"])
 # few-shot data cache
-# seqio.add_global_cache_dirs(["gs://hamishi-us-bucket/t0_data_fewshot_base"])
+# seqio.add_global_cache_dirs([f"{GOOGLE_BUCKET_PATH}/t0_data_fewshot_base"])
 
 GET_METRICS = {
     "BLEU": mt.bleu,

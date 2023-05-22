@@ -3,9 +3,10 @@
 
 # name of experiment folder
 EXPERIMENT_NAME=$1
+BUCKET_NAME="hamishi-tpu"
 
 # where model will be saved
-MODEL_DIR="gs://hamishi-us-bucket/${EXPERIMENT_NAME}/model"
+MODEL_DIR="gs://${BUCKET_NAME}/${EXPERIMENT_NAME}/model"
 
 
 EVAL_OUTPUT_DIR="${EXPERIMENT_NAME}/eval/"
