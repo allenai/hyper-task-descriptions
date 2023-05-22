@@ -104,7 +104,7 @@ msgpack==1.0.4
 multidict==6.0.2
 multiprocess==0.70.13
 multivolumefile==0.2.3
-mypy-extensions==0.4.3
+mypy-extensions==1.0.0
 netifaces==0.10.4
 nltk==3.7
 numpy==1.22.4
