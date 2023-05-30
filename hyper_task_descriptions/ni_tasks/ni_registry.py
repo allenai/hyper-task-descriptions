@@ -12,8 +12,9 @@ from hyper_task_descriptions.hf_vocab import HuggingfaceVocabulary
 from hyper_task_descriptions.ni_tasks.evaluation import compute_metrics
 from hyper_task_descriptions.ni_tasks.ni_collator import DataCollatorForNI
 from hyper_task_descriptions.seqio_tasks.utils import hf_dataset_to_tf_dataset
+from hyper_task_descriptions.utils import GOOGLE_BUCKET_PATH
 
-seqio.add_global_cache_dirs(["hamishi-tpu/hyper-task-descriptions/data/ni_t5_pre_eos"])
+seqio.add_global_cache_dirs([f"{GOOGLE_BUCKET_PATH}/hyper-task-descriptions/data/ni_t5_pre_eos"])
 
 
 def get_ni_data(
