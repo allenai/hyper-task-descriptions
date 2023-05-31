@@ -5,4 +5,5 @@ hyper_network.HyperT5Config:
   use_adapter = True
   use_prefix = True
   use_fusion_in_decoder = True
+  share_hnet_encoder = True
   use_linear = False
