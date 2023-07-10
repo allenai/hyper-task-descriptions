@@ -21,7 +21,7 @@ cached-property==1.5.2
 cachetools==4.2.2
 certifi==2020.12.5
 chardet==4.0.0
-charset-normalizer==2.1.1
+charset-normalizer==3.2.0
 chex==0.1.5
 click==7.1.2
 clu @ git+https://github.com/google/CommonLoopUtils@95994cbf2f05f477e8a72ec47b8d0b48549d1684#egg=clu
