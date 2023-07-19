@@ -191,7 +191,7 @@ torch==1.8.1
 torchvision==0.9.1
 tornado==6.2
 tqdm==4.64.1
-transformers==4.23.1
+transformers==4.31.0
 Twisted==18.9.0
 typing-extensions==4.4.0
 uritemplate==3.0.1
