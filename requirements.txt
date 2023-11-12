@@ -85,7 +85,7 @@ jsonschema==3.2.0
 keras==2.10.0
 Keras-Applications==1.0.8
 Keras-Preprocessing==1.1.2
-keyring==18.0.1
+keyring==24.2.0
 kiwisolver==1.4.4
 libclang==14.0.6
 lxml==4.9.1
